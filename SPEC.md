@@ -509,7 +509,13 @@ A number that gets worse is friction, and friction becomes an issue here.
 
 ### 16.3 Testing the kit
 
-The kit is code, and the most important code: when it breaks, every project breaks. The runner and the hooks have unit tests against fake `claude` and `gh` commands. The skills have behavior tests, run with Claude Code's plugin evaluations. A change to the kit merges only when both pass.
+The kit is code, and the most important code: when it breaks, every project breaks.
+
+- **Fast tests, on every change.** The runner and the hooks are tested against fake `claude` and `gh` commands, so `make check` stays fast and runs in CI.
+- **Contract tests, on demand.** `make contract` runs the real `claude` and `gh` through the runner's own adapters, on this repository, and records their answers. The owner runs it, since it writes to GitHub and uses the subscription. `make check` then compares the fakes' answers with the recordings, field by field, so a fake that drifts from the real tool fails a test.
+- **Behavior tests for the skills,** run with Claude Code's plugin evaluations.
+
+A change to the kit merges only when they pass.
 
 ## 17. Out of scope
 
@@ -527,8 +533,7 @@ To settle while building the kit:
 - Whether the control tower's phone notifications work as described.
 - How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
 - Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
-- Whether headless runs in a lane's worktree pick up the project's trusted settings, and whether `--resume` finds the lane's session there.
-- The exact shape of a headless run's JSON with a schema. The runner reads `structured_output`, and falls back to JSON in the result text.
+- Whether headless runs in a lane's worktree pick up the project's own permission rules, which apply only in a trusted folder. The contract tests settled the rest: a run's JSON, resuming a session from the same folder, the reviewer's denials, and the batch settings' deny rules.
 
 ## 19. Glossary
 

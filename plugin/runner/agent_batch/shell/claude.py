@@ -24,6 +24,29 @@ REVIEW_DENIED = (
     "Bash(gh api *)",
 )  # fmt: skip
 
+IMPLEMENTER = ("--permission-mode", "auto")
+REVIEWER = (
+    "--permission-mode", "dontAsk",
+    "--allowedTools", *REVIEW_ALLOWED,
+    "--disallowedTools", *REVIEW_DENIED,
+)  # fmt: skip
+
+
+def command(prompt: str, schema: dict[str, object], options: Sequence[str]) -> list[str]:
+    """Every run's command line: one prompt, a JSON answer checked against a schema, no prompts.
+
+    The prompt goes right after `-p`, because the tool lists in `options` take every word after
+    them.
+    """
+    return [
+        "claude", "-p", prompt,
+        "--output-format", "json",
+        "--json-schema", json.dumps(schema),
+        "--permission-prompts", "none",
+        "--settings", str(SETTINGS),
+        *options,
+    ]  # fmt: skip
+
 
 class Claude:
     def __init__(self, env: Mapping[str, str], config: Config) -> None:
@@ -32,23 +55,19 @@ class Claude:
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
-        options = ["--permission-mode", "auto"]
-        run = self._run(cwd, prompt, [*options, *_resume(resume)], results.IMPLEMENT_SCHEMA)
+        options = [*IMPLEMENTER, *_resume(resume)]
+        run = self._run(cwd, prompt, options, results.IMPLEMENT_SCHEMA)
         if resume is not None and run.data is None and not run.limit_reached:
             # A session that can't be resumed shouldn't cost the issue: start a fresh one.
-            return self._run(cwd, prompt, options, results.IMPLEMENT_SCHEMA)
+            return self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
         return run
 
     def review(self, cwd: Path, prompt: str) -> ClaudeRun:
-        options = [
-            "--permission-mode", "dontAsk",
-            "--allowedTools", *REVIEW_ALLOWED,
-            "--disallowedTools", *REVIEW_DENIED,
-        ]  # fmt: skip
-        return self._run(cwd, prompt, options, results.REVIEW_SCHEMA, self._config.review_timeout)
+        timeout = self._config.review_timeout
+        return self._run(cwd, prompt, REVIEWER, results.REVIEW_SCHEMA, timeout)
 
     def resolve(self, cwd: Path, prompt: str) -> ClaudeRun:
-        return self._run(cwd, prompt, ["--permission-mode", "auto"], results.RESOLVE_SCHEMA)
+        return self._run(cwd, prompt, IMPLEMENTER, results.RESOLVE_SCHEMA)
 
     def _run(
         self,
@@ -59,15 +78,7 @@ class Claude:
         timeout: float | None = None,
     ) -> ClaudeRun:
         limit = timeout if timeout is not None else self._config.implement_timeout
-        args = [
-            "claude", "-p", prompt,
-            "--output-format", "json",
-            "--json-schema", json.dumps(schema),
-            "--permission-prompts", "none",
-            "--settings", str(SETTINGS),
-            *options,
-        ]  # fmt: skip
-        done = proc.run(args, cwd, env=self._env, timeout=limit)
+        done = proc.run(command(prompt, schema, options), cwd, env=self._env, timeout=limit)
         if done.timed_out:
             return ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
         if not done.out.strip():

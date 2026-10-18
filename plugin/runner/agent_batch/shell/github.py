@@ -10,6 +10,10 @@ from agent_batch.core.model import Issue, PrState
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
 
+# The fields the runner asks for; the contract tests record the real answers to them.
+ISSUE_FIELDS = "number,title,body,author,labels,state"
+PR_FIELDS = "state,mergeable,headRefOid,statusCheckRollup"
+
 
 class GitHub:
     def __init__(self, cwd: Path) -> None:
@@ -26,9 +30,7 @@ class GitHub:
         return self._gh("api", "user", "--jq", ".login").strip()
 
     def issue(self, number: int) -> Issue:
-        raw = self._json(
-            "issue", "view", str(number), "--json", "number,title,body,author,labels,state"
-        )
+        raw = self._json("issue", "view", str(number), "--json", ISSUE_FIELDS)
         return Issue(
             number=int(raw["number"]),
             title=str(raw["title"]),
@@ -62,9 +64,7 @@ class GitHub:
         return _number(url)
 
     def pr_state(self, number: int) -> PrState:
-        raw = self._json(
-            "pr", "view", str(number), "--json", "state,mergeable,headRefOid,statusCheckRollup"
-        )
+        raw = self._json("pr", "view", str(number), "--json", PR_FIELDS)
         checks = tuple(
             str(check.get("conclusion") or check.get("state") or check.get("status") or "").upper()
             for check in raw.get("statusCheckRollup") or []
