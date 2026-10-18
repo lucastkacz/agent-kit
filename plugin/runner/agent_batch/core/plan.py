@@ -1,4 +1,4 @@
-"""The lane plan, lanes at a time and budget written in a batch's tracking issue (SPEC §4.3)."""
+"""The lane plan and the optional lines of a batch's tracking issue (SPEC §4.3)."""
 
 from __future__ import annotations
 
@@ -14,6 +14,11 @@ BUDGET_LINE = re.compile(r"^[ \t]*budget[ \t]*:(.*)$", re.IGNORECASE | re.MULTIL
 BUDGET_ISSUES = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*issues?\b", re.IGNORECASE)
 BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
 LANES_AT_ONCE_LINE = re.compile(r"^[ \t]*lanes[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+MODEL_LINE = re.compile(r"^[ \t]*model[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+# An alias, such as `opus`, or a full name, such as `claude-opus-5-5` or `opus[1m]`.
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-\[\]]*")
+# The levels `claude --effort` takes.
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
 class PlanError(ValueError):
@@ -26,6 +31,8 @@ class BatchPlan:
     max_issues: int | None = None
     max_hours: float | None = None
     lanes_at_once: int | None = None
+    model: str | None = None
+    effort: str | None = None
 
 
 def parse_plan(body: str) -> BatchPlan:
@@ -43,7 +50,33 @@ def parse_plan(body: str) -> BatchPlan:
         listed = ", ".join(f"#{n}" for n in repeated)
         raise PlanError(f"these issues are in more than one lane: {listed}")
     max_issues, max_hours = _budget(body)
-    return BatchPlan(lanes, max_issues, max_hours, _lanes_at_once(body))
+    model, effort = _model(body)
+    return BatchPlan(lanes, max_issues, max_hours, _lanes_at_once(body), model, effort)
+
+
+def _model(body: str) -> tuple[str | None, str | None]:
+    """`Model: opus, max` is a model and an effort; `Model: sonnet`, a model alone."""
+    line = MODEL_LINE.search(body)
+    if line is None:
+        return None, None
+    text = line.group(1).strip()
+    model, comma, effort = (part.strip() for part in text.partition(","))
+    if not MODEL_NAME.fullmatch(model) or (comma and effort not in EFFORTS):
+        raise PlanError(
+            "`Model:` needs a model, such as `opus`, then optionally a comma and an effort "
+            f"({', '.join(EFFORTS)}), not {text!r}"
+        )
+    return model, effort or None
+
+
+def choose_model(
+    model: str | None, effort: str | None, batch: BatchPlan
+) -> tuple[str | None, str | None]:
+    """The runs' model and effort: each from the command line, else from the batch issue."""
+    return (
+        model if model is not None else batch.model,
+        effort if effort is not None else batch.effort,
+    )
 
 
 def _lanes_at_once(body: str) -> int | None:
