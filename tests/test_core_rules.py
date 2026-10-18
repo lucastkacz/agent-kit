@@ -63,6 +63,21 @@ def test_the_subscription_token_and_other_variables_stay() -> None:
     assert cleaned == {"CLAUDE_CODE_OAUTH_TOKEN": "t", "PATH": "/bin", "HOME": "/h"}
 
 
+def test_the_runs_do_not_inherit_the_virtual_environment() -> None:
+    cleaned = env.clean_env(
+        {"VIRTUAL_ENV": "/main/.venv", "CLAUDE_CODE_OAUTH_TOKEN": "t", "PATH": "/bin", "HOME": "/h"}
+    )
+    assert cleaned == {"CLAUDE_CODE_OAUTH_TOKEN": "t", "PATH": "/bin", "HOME": "/h"}
+
+
+@given(st.dictionaries(st.text(min_size=1), st.text()))
+def test_dropping_the_virtual_environment_keeps_every_other_variable(
+    original: dict[str, str],
+) -> None:
+    without = {k: v for k, v in original.items() if k != "VIRTUAL_ENV"}
+    assert env.clean_env({**original, "VIRTUAL_ENV": "/main/.venv"}) == env.clean_env(without)
+
+
 def test_the_summary_counts_and_lists_what_needs_the_owner() -> None:
     reports = [
         IssueReport(11, Outcome.MERGED, pr=21, review_rounds=1, seconds=600, human_checks=1),
