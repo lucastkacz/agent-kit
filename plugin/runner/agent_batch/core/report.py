@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from collections.abc import Sequence
 
-from agent_batch.core.model import IssueReport, Outcome
+from agent_batch.core.model import IssueReport, Outcome, RunDenial
 
 SECONDS_PER_MINUTE = 60
+# The event log keeps a denial's command whole; the summary only needs enough to recognize it.
+COMMAND_CHARS = 200
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 
 
@@ -23,10 +26,13 @@ def render(reports: Sequence[IssueReport], seconds: float) -> str:
         "",
         "**Outcomes:** " + " · ".join(f"{o.value} {counts[o]}" for o in Outcome if counts[o]),
         f"**Human checks:** {sum(r.human_checks for r in reports)}",
-        f"**Permission denials:** {sum(r.denials for r in reports)}",
+        f"**Permission denials:** {sum(len(r.denials) for r in reports)}",
         f"**Time:** {seconds / SECONDS_PER_MINUTE:.0f} min",
         f"**Notional cost:** ${sum(r.cost_usd for r in reports):.2f}",
     ]
+    denied = [_denial(r.number, denial) for r in ordered for denial in r.denials]
+    if denied:
+        lines += ["", "### Permission denials", "", *denied]
     waiting = [r for r in ordered if r.outcome in NEEDS_OWNER]
     if waiting:
         lines += ["", "### Needs the owner", "", *(_needs(report) for report in waiting)]
@@ -38,8 +44,18 @@ def _row(report: IssueReport) -> str:
     minutes = f"{report.seconds / SECONDS_PER_MINUTE:.0f}"
     return (
         f"| #{report.number} | {report.outcome.value} | {pr} | {report.review_rounds} "
-        f"| {report.denials} | {minutes} |"
+        f"| {len(report.denials)} | {minutes} |"
     )
+
+
+def _denial(number: int, denied: RunDenial) -> str:
+    """One line per denial: a Bash command as it ran, any other tool's input as JSON."""
+    command = denied.denial.tool_input.get("command")
+    text = command if isinstance(command, str) else json.dumps(denied.denial.tool_input)
+    text = " ".join(text.splitlines())
+    if len(text) > COMMAND_CHARS:
+        text = text[:COMMAND_CHARS] + "…"
+    return f"- #{number} {denied.run}: {denied.denial.tool} `{text}`"
 
 
 def _needs(report: IssueReport) -> str:
