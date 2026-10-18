@@ -13,6 +13,11 @@ from agent_batch.core.model import Issue
 from agent_batch.core.plan import BatchPlan, PlanError
 from agent_batch.lane import Gate, run_lane
 
+ON_BATTERY = (
+    "The Mac is on battery power, so it may sleep during the batch unless it's plugged in "
+    "with its lid open."
+)
+
 
 @dataclass(frozen=True)
 class Limits:
@@ -23,7 +28,7 @@ class Limits:
     lanes: int | None = None
 
 
-def run_batch(ctx: Context, number: int, limits: Limits) -> int:
+def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool = False) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)
@@ -31,6 +36,8 @@ def run_batch(ctx: Context, number: int, limits: Limits) -> int:
     at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
     lanes = batch_plan.lanes
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
+    if on_battery:
+        ctx.events.emit("on_battery", warning=ON_BATTERY)
     ctx.gh.comment(number, _started(batch_plan, at_once))
     started = ctx.clock()
     with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:

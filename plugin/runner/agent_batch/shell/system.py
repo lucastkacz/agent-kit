@@ -6,6 +6,8 @@ import os
 import shutil
 import subprocess
 
+PMSET_TIMEOUT = 10
+
 
 def keep_awake() -> subprocess.Popen[bytes] | None:
     """Holds off idle and system sleep until this process ends, where `caffeinate` exists (macOS).
@@ -19,9 +21,21 @@ def keep_awake() -> subprocess.Popen[bytes] | None:
 
 
 def on_battery() -> bool:
-    """Whether the Mac draws from its battery, where `pmset` exists (macOS)."""
+    """Whether the Mac draws from its battery, where `pmset` exists (macOS).
+
+    The answer only decides a warning, so a `pmset` that fails or hangs counts as not on battery.
+    """
     pmset = shutil.which("pmset")
     if pmset is None:
         return False
-    done = subprocess.run([pmset, "-g", "batt"], capture_output=True, text=True, check=False)
+    try:
+        done = subprocess.run(
+            [pmset, "-g", "batt"],
+            capture_output=True,
+            text=True,
+            timeout=PMSET_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
     return done.returncode == 0 and "'Battery Power'" in done.stdout
