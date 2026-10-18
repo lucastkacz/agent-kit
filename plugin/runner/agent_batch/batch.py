@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from agent_batch.context import Context
 from agent_batch.core import budget, plan, report
@@ -26,6 +27,8 @@ class Limits:
     issues: int | None = None
     hours: float | None = None
     lanes: int | None = None
+    model: str | None = None
+    effort: str | None = None
 
 
 def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) -> int:
@@ -34,11 +37,14 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
     batch_plan = plan.parse_plan(batch.body)
     gate = Gate(budget.resolve(limits.issues, limits.hours, batch_plan), ctx.clock)
     at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
+    model, effort = plan.choose_model(limits.model, limits.effort, batch_plan)
+    ctx = replace(ctx, claude=ctx.claude.with_model(model, effort))
+    described = plan.describe_model(model, effort)
     lanes = batch_plan.lanes
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
     if on_battery:
         ctx.events.emit("on_battery", warning=ON_BATTERY)
-    ctx.gh.comment(number, _started(batch_plan, at_once))
+    ctx.gh.comment(number, _started(batch_plan, at_once, described))
     started = ctx.clock()
     with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:
         futures = [
@@ -46,7 +52,7 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
             for index, issues in enumerate(lanes, start=1)
         ]
         reports = [issue_report for future in futures for issue_report in future.result()]
-    ctx.gh.comment(number, report.render(reports, ctx.clock() - started))
+    ctx.gh.comment(number, report.render(reports, ctx.clock() - started, described))
     outcomes = Counter(issue_report.outcome.value for issue_report in reports)
     ctx.events.emit("batch_finished", batch=number, outcomes=dict(outcomes))
     return 0
@@ -61,10 +67,11 @@ def _check(batch: Issue, owner: str) -> None:
         raise PlanError(f"#{batch.number} is closed")
 
 
-def _started(batch_plan: BatchPlan, at_once: int) -> str:
+def _started(batch_plan: BatchPlan, at_once: int, described: Sequence[str]) -> str:
     return (
         "**The batch started.**\n\n"
         f"{plan.format_lanes(batch_plan.lanes)}\n\n"
         f"**Lanes at a time:** {at_once}\n\n"
-        "The summary follows here when it ends.\n"
+        + "".join(f"{line}\n\n" for line in described)
+        + "The summary follows here when it ends.\n"
     )

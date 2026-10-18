@@ -7,13 +7,14 @@ import os
 import sys
 import time
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.batch import Limits, run_batch
 from agent_batch.context import Context
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
-from agent_batch.core.plan import PlanError
+from agent_batch.core.plan import EFFORTS, PlanError
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
@@ -50,11 +51,18 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--max-issues", type=_at_least_one, help="issues the batch may start")
     run.add_argument("--max-hours", type=_above_zero, help="hours after which no issue starts")
     run.add_argument("--screen", action="store_true", help="allow checks that take the screen")
+    _model_flags(run, "the batch issue's")
     direct = commands.add_parser("ship", help="review the current branch and open its PR")
     direct.add_argument("issue", type=int, help="the issue the branch resolves")
     direct.add_argument("--title", required=True, help="the PR title, in Conventional Commits")
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
+    _model_flags(direct, "claude's own")
     return parser
+
+
+def _model_flags(parser: argparse.ArgumentParser, default: str) -> None:
+    parser.add_argument("--model", help=f"the runs' model (default: {default})")
+    parser.add_argument("--effort", choices=EFFORTS, help=f"the runs' effort (default: {default})")
 
 
 def _at_least_one(text: str) -> int:
@@ -87,7 +95,7 @@ def _run(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
     awake = keep_awake()
     try:
-        limits = Limits(args.max_issues, args.max_hours, args.lanes)
+        limits = Limits(args.max_issues, args.max_hours, args.lanes, args.model, args.effort)
         return run_batch(ctx, args.batch, limits, on_battery=on_battery())
     finally:
         if awake is not None:
@@ -98,6 +106,7 @@ def _run(args: argparse.Namespace) -> int:
 def _ship(args: argparse.Namespace) -> int:
     body = Path(args.body_file).read_text(encoding="utf-8")
     ctx = _context(Path.cwd(), _config(), f"ship-{args.issue}")
+    ctx = replace(ctx, claude=ctx.claude.with_model(args.model, args.effort))
     return ship(ctx, Path.cwd(), args.issue, args.title, body)
 
 
