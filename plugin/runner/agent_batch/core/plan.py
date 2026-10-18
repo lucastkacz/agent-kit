@@ -1,4 +1,4 @@
-"""The lane plan and budget written in a batch's tracking issue (SPEC §4.3)."""
+"""The lane plan, lanes at a time and budget written in a batch's tracking issue (SPEC §4.3)."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ ISSUE_REF = re.compile(r"#(\d+)\b")
 BUDGET_LINE = re.compile(r"^[ \t]*budget[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 BUDGET_ISSUES = re.compile(r"(\d+)\s*issues?\b", re.IGNORECASE)
 BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
+LANES_AT_ONCE_LINE = re.compile(r"^[ \t]*lanes[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 
 
 class PlanError(ValueError):
@@ -23,6 +24,7 @@ class BatchPlan:
     lanes: tuple[tuple[int, ...], ...]
     max_issues: int | None = None
     max_hours: float | None = None
+    lanes_at_once: int | None = None
 
 
 def parse_plan(body: str) -> BatchPlan:
@@ -40,7 +42,26 @@ def parse_plan(body: str) -> BatchPlan:
         listed = ", ".join(f"#{n}" for n in repeated)
         raise PlanError(f"these issues are in more than one lane: {listed}")
     max_issues, max_hours = _budget(body)
-    return BatchPlan(lanes=lanes, max_issues=max_issues, max_hours=max_hours)
+    return BatchPlan(lanes, max_issues, max_hours, _lanes_at_once(body))
+
+
+def _lanes_at_once(body: str) -> int | None:
+    line = LANES_AT_ONCE_LINE.search(body)
+    if line is None:
+        return None
+    text = line.group(1).strip()
+    if not text.isdigit() or int(text) < 1:
+        raise PlanError(f"`Lanes:` needs a whole number of at least 1, not {text!r}")
+    return int(text)
+
+
+def concurrency(requested: int | None, batch: BatchPlan, default: int) -> int:
+    """Lanes at a time: the command line's count, else the batch issue's, else the default."""
+    if requested is not None:
+        return requested
+    if batch.lanes_at_once is not None:
+        return batch.lanes_at_once
+    return default
 
 
 def _budget(body: str) -> tuple[int | None, float | None]:

@@ -41,7 +41,11 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("run", help="run the batch of a tracking issue")
     run.add_argument("batch", type=int, help="the batch's tracking issue")
-    run.add_argument("--lanes", type=int, default=Config.lanes, help="lanes that run at a time")
+    run.add_argument(
+        "--lanes",
+        type=_at_least_one,
+        help=f"lanes that run at a time (default: the batch issue's, else {Config.lanes})",
+    )
     run.add_argument("--max-issues", type=int, help="issues the batch may start")
     run.add_argument("--max-hours", type=float, help="hours after which no issue starts")
     run.add_argument("--screen", action="store_true", help="allow checks that take the screen")
@@ -52,12 +56,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _at_least_one(text: str) -> int:
+    if not text.isdigit() or int(text) < 1:
+        raise argparse.ArgumentTypeError(f"needs a whole number of at least 1, not {text!r}")
+    return int(text)
+
+
 def _run(args: argparse.Namespace) -> int:
-    config = _config(lanes=args.lanes, screen=args.screen)
-    ctx = _context(Path.cwd(), config, f"batch-{args.batch}")
+    ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
     awake = keep_awake()
     try:
-        return run_batch(ctx, args.batch, Limits(args.max_issues, args.max_hours))
+        return run_batch(ctx, args.batch, Limits(args.max_issues, args.max_hours, args.lanes))
     finally:
         if awake is not None:
             awake.terminate()
@@ -70,13 +79,9 @@ def _ship(args: argparse.Namespace) -> int:
     return ship(ctx, Path.cwd(), args.issue, args.title, body)
 
 
-def _config(lanes: int = Config.lanes, *, screen: bool = False) -> Config:
+def _config(*, screen: bool = False) -> Config:
     poll = os.environ.get(POLL_ENV)
-    return Config(
-        lanes=lanes,
-        screen=screen,
-        poll_seconds=float(poll) if poll else Config.poll_seconds,
-    )
+    return Config(screen=screen, poll_seconds=float(poll) if poll else Config.poll_seconds)
 
 
 def _context(cwd: Path, config: Config, log_name: str) -> Context:
