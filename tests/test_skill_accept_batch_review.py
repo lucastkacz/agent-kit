@@ -29,6 +29,7 @@ def test_it_reads_the_cloud_runs_denials_from_their_run_logs() -> None:
 def test_it_does_not_expect_an_approved_reviews_low_findings() -> None:
     gather = section("Gather everything")
     assert "keeps its low findings nowhere" in gather, gather
+    assert "in a batch or in `agent-batch ship`" in gather, gather
 
 
 def test_it_reads_the_acceptance_comments_of_open_batches_too() -> None:
@@ -40,6 +41,12 @@ def test_it_reads_the_acceptance_comments_of_open_batches_too() -> None:
 def test_it_compares_the_sessions_times_with_githubs_created_at() -> None:
     gather = section("Gather everything")
     assert "`createdat` are both utc iso times of the same width up to the seconds" in gather
+
+
+def test_it_names_the_path_to_a_cloud_runs_whole_log() -> None:
+    gather = section("Gather everything")
+    for step in ("`list`", "`list_runs`", "`get_run_log`", "`next_cursor`"):
+        assert step in gather, (step, gather)
 
 
 def test_the_owner_runs_the_merge_command_never_the_assistant() -> None:
