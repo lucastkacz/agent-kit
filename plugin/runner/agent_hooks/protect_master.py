@@ -8,13 +8,18 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Callable, Sequence
+from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
+from agent_hooks import log_denials
 from agent_hooks.commands import GitCall, git_calls
 from agent_hooks.repo import current_branch, project_root
 
 PROTECTED = frozenset({"master", "main"})
 WRITES = frozenset({"commit", "merge", "rebase", "reset", "cherry-pick", "revert", "am"})
+FAST_FORWARD_MODES = frozenset({"--ff", "--no-ff", "--ff-only"})
 EVERY_BRANCH = frozenset({"--all", "--mirror"})
 PUSH_OPTIONS_WITH_VALUES = frozenset({"-o", "--push-option", "--repo", "--receive-pack", "--exec"})
 
@@ -25,10 +30,13 @@ def refusal(call: GitCall, branch_of: BranchOf) -> str | None:
     """Why the git command may not run, or None when it may."""
     if call.subcommand in WRITES:
         branch = branch_of(call.directory)
-        if branch in PROTECTED:
+        if branch in PROTECTED and not _fast_forward_only(call):
+            hint = f" To bring it up to date, `git merge --ff-only origin/{branch}` may run."
+            if call.subcommand != "merge":
+                hint = ""
             return (
                 f"`git {call.subcommand}` on {branch}: work on a branch named "
-                f"<issue>-<short-name>; changes reach {branch} only through a pull request."
+                f"<issue>-<short-name>; changes reach {branch} only through a pull request.{hint}"
             )
         return None
     if call.subcommand == "push":
@@ -36,6 +44,15 @@ def refusal(call: GitCall, branch_of: BranchOf) -> str | None:
         if target is not None:
             return f"`git push` to {target}: changes reach it only through a pull request."
     return None
+
+
+def _fast_forward_only(call: GitCall) -> bool:
+    """A merge that may only fast-forward: it moves the branch and creates no commit."""
+    if call.subcommand != "merge":
+        return False
+    modes = [arg for arg in call.args if arg in FAST_FORWARD_MODES]
+    # git obeys the last of them, so a later `--no-ff` undoes `--ff-only`.
+    return modes[-1:] == ["--ff-only"]
 
 
 def _protected_target(call: GitCall, branch_of: BranchOf) -> str | None:
@@ -72,16 +89,25 @@ def main() -> int:
     payload = json.load(sys.stdin)
     command = str(payload.get("tool_input", {}).get("command", ""))
     cwd = Path(payload.get("cwd") or ".")
-    if project_root(cwd) is None:
+    root = project_root(cwd)
+    if root is None:
         return 0
     for call in git_calls(command, cwd):
         reason = refusal(call, current_branch)
         if reason is not None:
-            decision = {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }
-            sys.stdout.write(json.dumps({"hookSpecificOutput": decision}))
+            _deny(root, payload, reason)
             return 0
     return 0
+
+
+def _deny(root: Path, payload: dict[str, Any], reason: str) -> None:
+    line = log_denials.entry(payload, f"protect-master blocked it: {reason}", datetime.now(UTC))
+    # Claude Code ignores a hook that crashes, so a log it can't write mustn't let the call run.
+    with suppress(OSError):
+        log_denials.append(root, line)
+    decision = {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }
+    sys.stdout.write(json.dumps({"hookSpecificOutput": decision}))
