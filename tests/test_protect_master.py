@@ -10,7 +10,7 @@ import pytest
 
 from agent_hooks import protect_master
 from agent_hooks.commands import git_calls
-from conftest import git
+from conftest import ENABLED, git
 
 HERE = Path("/repo")
 
@@ -114,6 +114,8 @@ def test_the_hook_reads_the_real_branch_of_each_folder(
     git(tmp_path, "init", "--quiet", "-b", "master", str(repo))
     git(repo, "commit", "--quiet", "--allow-empty", "-m", "chore: start")
     git(repo, "worktree", "add", "--quiet", "-b", "12-export", str(tmp_path / "lane"))
+    (repo / ".claude").mkdir()
+    (repo / ".claude" / "settings.json").write_text(ENABLED)
 
     denied = json.loads(run_hook("git commit -m x", repo, monkeypatch))
     assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"

@@ -15,6 +15,8 @@ from agent_batch import cli
 
 FAKES = Path(__file__).parent / "fakes"
 OWNER = "owner"
+# A project's settings that enable agent-kit, as `new-project` writes them (SPEC §13).
+ENABLED = '{"enabledPlugins": {"agent-kit@agent-kit": true}}\n'
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -104,6 +106,8 @@ def _make_repos(root: Path) -> tuple[Path, Path]:
     git(root, "clone", "--quiet", str(origin), str(seed))
     (seed / ".gitignore").write_text(".agent-batch/\n")
     (seed / "README.md").write_text("A project.\n")
+    (seed / ".claude").mkdir()
+    (seed / ".claude" / "settings.json").write_text(ENABLED)
     git(seed, "add", "-A")
     git(seed, "commit", "--quiet", "-m", "chore: start")
     git(seed, "push", "--quiet", "origin", "HEAD:master")

@@ -435,6 +435,8 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 `new-project` creates a repository from `template/` and the stack's preset (§8.8). It creates the GitHub repository with its labels and ruleset, turns on CodeQL, secret scanning with push protection, Dependabot alerts and private vulnerability reporting, and opens the project once interactively so that its settings are trusted.
 
+**The plugin is enabled per project, never for the user.** The project's `.claude/settings.json` declares the marketplace and enables the plugin, and the project commits it. Installed for the user, the plugin's rules would reach projects that follow other ones. That's why its hooks act only in projects whose settings enable it, even when it's installed for the user by mistake.
+
 ### 13.1 Files
 
 - `CLAUDE.md`: the product in two lines, the stack, the commands, the project's risks, and how it is published. Short (§15).

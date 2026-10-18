@@ -11,7 +11,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from agent_hooks.commands import GitCall, git_calls
-from agent_hooks.repo import current_branch
+from agent_hooks.repo import current_branch, project_root
 
 PROTECTED = frozenset({"master", "main"})
 WRITES = frozenset({"commit", "merge", "rebase", "reset", "cherry-pick", "revert", "am"})
@@ -72,6 +72,8 @@ def main() -> int:
     payload = json.load(sys.stdin)
     command = str(payload.get("tool_input", {}).get("command", ""))
     cwd = Path(payload.get("cwd") or ".")
+    if project_root(cwd) is None:
+        return 0
     for call in git_calls(command, cwd):
         reason = refusal(call, current_branch)
         if reason is not None:
