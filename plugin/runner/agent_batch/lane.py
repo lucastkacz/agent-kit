@@ -55,6 +55,8 @@ def run_lane(ctx: Context, gate: Gate, index: int, numbers: Sequence[int]) -> li
 def _run_issues(ctx: Context, gate: Gate, lane: Lane, numbers: Sequence[int]) -> list[IssueReport]:
     reports: list[IssueReport] = []
     for position, number in enumerate(numbers):
+        # Each issue a run reaches takes a slot, one an earlier run merged too, so a resumed
+        # batch stays near the issue budget it was planned with.
         if not gate.try_start():
             rest = numbers[position:]
             return reports + _set_aside(ctx, rest, Outcome.DEFERRED, "the batch stopped")
