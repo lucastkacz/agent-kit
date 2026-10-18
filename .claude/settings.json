@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "agent-kit": {
+      "source": {
+        "source": "github",
+        "repo": "lucastkacz/agent-kit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "agent-kit@agent-kit": true
+  }
+}
