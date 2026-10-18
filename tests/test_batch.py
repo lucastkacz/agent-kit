@@ -158,6 +158,17 @@ def test_the_budget_stops_new_issues_from_starting(world: World) -> None:
     assert "deferred 1" in world.gh()["issues"][str(BATCH)]["comments"][-1]
 
 
+def test_the_budget_flags_stop_new_issues_from_starting(world: World) -> None:
+    world.add_issue(10)
+    world.add_issue(11)
+    world.add_batch(BATCH, "Lane 1: #10, #11\n")
+
+    assert world.run("run", "--max-issues", "1", "--max-hours", "2.5", str(BATCH)) == 0
+
+    assert {call["number"] for call in world.claude_calls()} == {10}
+    assert "deferred 1" in world.gh()["issues"][str(BATCH)]["comments"][-1]
+
+
 def test_issues_not_opened_by_the_owner_are_skipped_without_a_word(world: World) -> None:
     world.add_issue(10, author="stranger")
     world.add_batch(BATCH, "Lane 1: #10\n")
