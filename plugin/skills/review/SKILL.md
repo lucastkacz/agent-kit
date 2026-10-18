@@ -14,7 +14,7 @@ Judge, with fresh eyes, what this branch changes for issue #$ARGUMENTS. You don'
 Your tools are few, and a command outside them is denied.
 
 - One command per call. A chained call is denied as a whole if any part of it is.
-- No `git fetch`. The runner has already fetched: read `origin/master` as it is.
+- No `git fetch`: read `origin/master` as it is.
 - Run `make check` as it is, never its commands one by one. Run it in the foreground with the longest timeout, never in the background.
 
 ## Read
