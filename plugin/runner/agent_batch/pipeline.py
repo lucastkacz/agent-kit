@@ -41,7 +41,7 @@ class Job:
 
 
 def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
-    started = time.monotonic()
+    started = ctx.clock()
     report = IssueReport(number=number, outcome=Outcome.FAILED)
     try:
         report.outcome = _attempt(ctx, lane, number, report)
@@ -49,7 +49,7 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
         report.outcome, report.detail = stop.outcome, stop.detail
     except CommandError as error:
         report.outcome, report.detail = Outcome.FAILED, str(error)
-    report.seconds = time.monotonic() - started
+    report.seconds = ctx.clock() - started
     _announce(ctx, report)
     ctx.events.emit(
         "issue_finished",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -110,4 +111,6 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         gh=gh,
         claude=Claude(env, config),
         events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
+        # The wall clock: on macOS, `time.monotonic` stops while the computer sleeps (#28).
+        clock=time.time,
     )

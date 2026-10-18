@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import threading
-import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from agent_batch.context import Context, Lane
 from agent_batch.core import budget
@@ -17,16 +16,17 @@ from agent_batch.shell.proc import CommandError
 class Gate:
     """Decides, across lanes, whether another issue may start."""
 
-    def __init__(self, limits: Budget) -> None:
+    def __init__(self, limits: Budget, clock: Callable[[], float]) -> None:
         self._limits = limits
+        self._clock = clock
         self._started = 0
         self._stopped = False
-        self._since = time.monotonic()
+        self._since = clock()
         self._lock = threading.Lock()
 
     def try_start(self) -> bool:
         with self._lock:
-            elapsed = time.monotonic() - self._since
+            elapsed = self._clock() - self._since
             if self._stopped or not budget.allows(self._limits, self._started, elapsed):
                 return False
             self._started += 1
