@@ -69,6 +69,7 @@ From the third review on, a new medium finding doesn't block: it's filed as an i
   - a location, `file:line`;
   - the problem;
   - a concrete suggestion.
+- **`high`** is what a check above says blocks: a change outside the issue, acceptance tests changed or missing, an acceptance criterion unmet or without a test that really checks it, `make check` failing, or a security hole. **`medium`** is the rest of what affects correctness or the checks.
 - **Anything else is a nit,** with severity `low` and its origin. Nits never make the verdict `changes`: chasing every finding leads to over-engineering.
 - **`approved`** otherwise.
 
