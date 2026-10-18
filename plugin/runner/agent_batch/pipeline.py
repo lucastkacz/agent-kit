@@ -23,6 +23,8 @@ from agent_batch.core.model import (
 from agent_batch.shell.proc import CommandError
 
 RISK_PATHS = ".claude/risk-paths"
+# GitHub's reason for an issue that its PR closed; "NOT_PLANNED" means the work was dropped.
+CLOSED_AS_COMPLETED = "COMPLETED"
 
 
 class Stopped(Exception):
@@ -81,13 +83,16 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
 
 
 def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
-    """Whether an earlier run of the batch merged the issue, so a re-run goes on past it."""
+    """Whether a merged PR closed the issue, as in an earlier run, so a re-run goes on past it."""
     if issue.state == "OPEN":
         return False
-    pr = ctx.gh.merged_pr(naming.branch_name(issue))
-    if pr is None:
+    closure = ctx.gh.closure(issue.number)
+    if closure.reason != CLOSED_AS_COMPLETED:
         return False
-    report.pr, report.detail = pr, "it merged in an earlier run"
+    merged = [pr for pr in closure.prs if ctx.gh.pr_state(pr).state == "MERGED"]
+    if not merged:
+        return False
+    report.pr, report.detail = merged[0], "it merged in an earlier run"
     report.human_checks = risk.count_human_checks(issue.body)
     return True
 

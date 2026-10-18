@@ -6,12 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_batch.core.model import Issue, PrState
+from agent_batch.core.model import Closure, Issue, PrState
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
 
 # The fields the runner asks for; the contract tests record the real answers to them.
 ISSUE_FIELDS = "number,title,body,author,labels,state"
+CLOSURE_FIELDS = "url,stateReason,closedByPullRequestsReferences"
 PR_FIELDS = "state,mergeable,headRefOid,statusCheckRollup"
 
 
@@ -52,14 +53,11 @@ class GitHub:
         )
         return _number(url)
 
+    def closure(self, number: int) -> Closure:
+        return closure_of(self._json("issue", "view", str(number), "--json", CLOSURE_FIELDS))
+
     def find_pr(self, branch: str) -> int | None:
-        return self._pr_on(branch, "open")
-
-    def merged_pr(self, branch: str) -> int | None:
-        return self._pr_on(branch, "merged")
-
-    def _pr_on(self, branch: str, state: str) -> int | None:
-        raw = self._json("pr", "list", "--head", branch, "--state", state, "--json", "number")
+        raw = self._json("pr", "list", "--head", branch, "--state", "open", "--json", "number")
         return int(raw[0]["number"]) if raw else None
 
     def create_pr(self, branch: str, base: str, title: str, body: str) -> int:
@@ -91,6 +89,20 @@ class GitHub:
 
     def pr_comment(self, number: int, body: str) -> None:
         self._gh("pr", "comment", str(number), "--body-file", "-", stdin=body)
+
+
+def closure_of(raw: Any) -> Closure:
+    """The issue's close reason and the PRs that close it, from its own repository only.
+
+    A PR of another repository can close the issue too, but its number means another PR here.
+    """
+    repository = str(raw["url"]).rsplit("/issues/", 1)[0]
+    prs = tuple(
+        int(pr["number"])
+        for pr in raw.get("closedByPullRequestsReferences") or []
+        if str(pr.get("url", "")).startswith(f"{repository}/pull/")
+    )
+    return Closure(reason=str(raw.get("stateReason") or ""), prs=prs)
 
 
 def _number(url: str) -> int:

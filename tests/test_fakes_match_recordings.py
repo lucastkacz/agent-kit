@@ -24,6 +24,7 @@ CLAUDE_FIELDS = (
 # The fields the runner reads from each answer, in `shell/github.py` and `core/results.py`.
 FIELDS: dict[str, tuple[str, ...]] = {
     "gh-issue-view": ("number", "title", "body", "author.login", "labels[].name", "state"),
+    "gh-issue-closure": ("url", "stateReason", "closedByPullRequestsReferences"),
     "gh-pr-view": ("state", "mergeable", "headRefOid", "statusCheckRollup[].conclusion"),
     "claude-implement": CLAUDE_FIELDS,
     "claude-review": CLAUDE_FIELDS,
@@ -53,7 +54,7 @@ def kind(value: object) -> str:
 
 
 def fake_answer(name: str) -> Any:
-    if name == "gh-issue-view":
+    if name in ("gh-issue-view", "gh-issue-closure"):
         issue = {"number": 7, "title": "t", "body": "b", "author": "owner", "labels": ["task"]}
         state = {"issues": {"7": {**issue, "state": "OPEN", "comments": []}}}
         return json.loads(fake_gh.issue_view(state, ["issue", "view", "7"], ""))
