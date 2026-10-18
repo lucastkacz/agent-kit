@@ -412,7 +412,7 @@ The runner's engine decides where agent runs happen: `local`, on the owner's com
 
 ## 12. Delegating to the cloud
 
-Claude Code can also run in a virtual machine in Anthropic's cloud instead of the owner's computer. The session clones the repository, works on a branch and opens a PR, using the owner's subscription. The owner's computer stays free, sessions run in parallel, each in its own machine, and since each machine is isolated, no prompts are needed.
+Claude Code can also run in a virtual machine in Anthropic's cloud instead of the owner's computer. The session clones the repository and works on a branch, using the owner's subscription. The owner's computer stays free, sessions run in parallel, each in its own machine, and since each machine is isolated, no prompts are needed.
 
 **Good for the cloud:**
 
@@ -430,6 +430,15 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 - planning and acceptance, which happen with the owner.
 
 **Same rules:** ready issues only, tests first, review, a PR, and merging by risk. No real secrets in cloud environments, and network access limited to GitHub and package registries.
+
+### 12.1 Back to the merge gate
+
+A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3):
+
+1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached. The cloud's `gh` isn't signed in, so the prompt carries the issue's body. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
+2. **The gate.** Locally, the assistant checks the branch out in a worktree, and `agent-batch ship <issue>` reviews it with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
+
+The local review is not a formality: it catches what the cloud run missed, such as wrong acceptance tests.
 
 ## 13. Project skeleton
 
@@ -533,7 +542,7 @@ To settle while building the kit:
 
 - Whether a headless run can read the subscription's usage, for the budget's share limit.
 - Whether the control tower's phone notifications work as described.
-- How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
+- How the runner dispatches issues to the cloud by itself. For now the assistant does it by hand, and its work comes back to the merge gate as §12.1 says.
 - Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
 - Whether headless runs in a lane's worktree pick up the project's own permission rules, which apply only in a trusted folder. The contract tests settled the rest: a run's JSON, resuming a session from the same folder, the reviewer's denials, and the batch settings' deny rules.
 
