@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from collections.abc import Sequence
 
@@ -11,6 +12,7 @@ from agent_batch.core.model import IssueReport, Outcome, RunDenial
 SECONDS_PER_MINUTE = 60
 # The event log keeps a denial's command whole; the summary only needs enough to recognize it.
 COMMAND_CHARS = 200
+BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 
 
@@ -51,11 +53,21 @@ def _row(report: IssueReport) -> str:
 def _denial(number: int, denied: RunDenial) -> str:
     """One line per denial: a Bash command as it ran, any other tool's input as JSON."""
     command = denied.denial.tool_input.get("command")
-    text = command if isinstance(command, str) else json.dumps(denied.denial.tool_input)
+    if isinstance(command, str):
+        text = command
+    else:
+        text = json.dumps(denied.denial.tool_input, ensure_ascii=False)
     text = " ".join(text.splitlines())
     if len(text) > COMMAND_CHARS:
         text = text[:COMMAND_CHARS] + "…"
-    return f"- #{number} {denied.run}: {denied.denial.tool} `{text}`"
+    return f"- #{number} {denied.run}: {denied.denial.tool} {_code(text)}"
+
+
+def _code(text: str) -> str:
+    """Inline code that holds any text, so an agent's `@user` or `#N` stays inert on GitHub."""
+    fence = "`" * (max((len(run) for run in BACKTICKS.findall(text)), default=0) + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{fence}{pad}{text}{pad}{fence}"
 
 
 def _needs(report: IssueReport) -> str:

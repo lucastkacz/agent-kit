@@ -122,7 +122,7 @@ class IssueReport:
     detail: str = ""
     pr: int | None = None
     review_rounds: int = 0
-    denials: list[RunDenial] = field(default_factory=list[RunDenial])
+    denials: list[RunDenial] = field(default_factory=list)
     cost_usd: float = 0.0
     seconds: float = 0.0
     human_checks: int = 0
