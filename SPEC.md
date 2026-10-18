@@ -67,7 +67,7 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 ### 3.2 The batch: agents, unattended
 
 - The owner starts it. The runner works through the lanes (§11) while the owner is away or busy with something else.
-- Nothing prompts. A decision that needs the owner becomes a `blocked` issue with the question written down, the owner gets a notification, and the batch continues.
+- Nothing prompts. A decision that needs the owner becomes a `blocked` issue with the question written down, the owner gets a notification, and the batch continues. An issue whose run fails is labeled `blocked` too, with what went wrong, so no batch retries it blindly.
 - Low-risk PRs merge by themselves once CI is green. High-risk PRs wait.
 - At the end, the batch issue gets a summary and the owner gets a notification.
 
@@ -154,14 +154,14 @@ Bugs, ideas and improvements found while working become new issues without `read
 
 The same steps run in a batch and in direct mode.
 
-1. **Worktree.** A worktree and a branch `<issue>-<short-name>`, from the latest `origin/master`.
+1. **Worktree and branch.** Each lane has its own worktree. Each issue gets a branch `<issue>-<short-name>` in it, from the latest `origin/master`; if the branch already exists from an earlier batch, its work is picked up. In direct mode, the branch is wherever the assistant works.
 2. **Acceptance tests first.** The implementer writes a test for each automatable criterion and commits them on their own (`test: acceptance tests for #N`). They fail, for the right reason. After that commit they don't change; if one looks wrong, the issue is blocked with the question.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
 5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. After two rounds without approval, the issue is blocked.
 6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body.
 7. **Risk and merge.** The runner classifies the risk (§9). Low: auto-merge armed, squash, pinned to the reviewed commit. High: label `risk:high`, and the owner merges.
-8. **Cleanup.** The worktree is removed after the merge.
+8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends.
 
 ## 6. Contexts
 
@@ -378,15 +378,18 @@ No `--no-verify`, no disabled hooks, no admin merges. If a guardrail is wrong, t
 - launches a fresh `claude -p` for each stage, in auto mode with prompts turned off, so nothing ever waits for a person;
 - removes API keys from its environment, so runs use the owner's subscription instead of paid API usage;
 - keeps the machine awake while it runs, and caps each run's turns and wall-clock time;
-- runs up to K lanes in parallel (default 2). Each lane's issues run in order, each from the latest `master`;
+- runs up to K lanes in parallel (default 2). Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
+- defers the rest of a lane to the next batch when one of its issues doesn't merge (it waits for the owner, is blocked or failed), because they build on the same files. Planning puts high-risk issues last in their lane, or in a lane of their own;
 - makes one attempt to resolve a merge conflict; if that fails, the issue is blocked;
-- labels, comments and notifies, and keeps the batch issue's status current.
+- labels, comments, writes every step to an event log, and posts the summary in the batch issue.
+
+The runner is written in Python with only the standard library, and runs on a pinned Python through `uv`. Its state (the lanes' worktrees and the event logs) lives in `.agent-batch/` in the project's main folder, which git ignores.
 
 Why a script instead of a long interactive session: in auto mode, an interactive session still stops to ask in some cases (ask rules, protected paths, repeated classifier denials). A headless run with prompts turned off never waits.
 
 ### 11.2 Budget
 
-A batch has a budget: a number of issues, a number of hours and, when the subscription's usage can be read, a share of it. Near the budget, the runner finishes the issue in progress, stops and notifies the owner. Hitting a usage limit is handled the same way.
+A batch has a budget: a number of issues, a number of hours and, when the subscription's usage can be read, a share of it. Near the budget, the runner finishes the issues in progress, starts no new ones, and notifies the owner. Hitting the subscription's usage limit stops the batch the same way; the issue that was cut off keeps `ready` and goes to the next batch.
 
 ### 11.3 The control tower and notifications
 
@@ -433,7 +436,8 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 - `CLAUDE.md`: the product in two lines, the stack, the commands, the project's risks, and how it is published. Short (§15).
 - `.claude/settings.json`: the permissions of §10.2, and the plugin.
-- `.claude/risk-paths`: the project's high-risk paths.
+- `.claude/risk-paths`: the project's high-risk paths. The runner reads them from `master`, where no agent of the running batch can change them.
+- `.gitignore`: includes `.agent-batch/`, the runner's state.
 - `.claude/rules/<language>.md`: the language's rules beyond its guide and linter (§8.4).
 - `.github/ISSUE_TEMPLATE/`: the task, bug, idea and spike forms, with blank issues disabled.
 - `.github/pull_request_template.md`: summary, `Closes #N`, a verification table (criterion, test, result), evidence, human checks with their reasons, the reviewer's verdict, and the risk.
@@ -520,6 +524,8 @@ To settle while building the kit:
 - Whether the control tower's phone notifications work as described.
 - How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
 - Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
+- Whether headless runs in a lane's worktree pick up the project's trusted settings, and whether `--resume` finds the lane's session there.
+- The exact shape of a headless run's JSON with a schema. The runner reads `structured_output`, and falls back to JSON in the result text.
 
 ## 19. Glossary
 

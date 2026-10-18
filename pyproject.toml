@@ -1,0 +1,89 @@
+[project]
+name = "agent-kit"
+version = "0.1.0"
+description = "A spec, a Claude Code plugin and a project skeleton for agent-driven development."
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["plugin/runner", "tools", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "B", "UP", "SIM", "C4", "PL", "S", "RUF", "PT", "PTH", "N", "A", "ARG",
+  "RET", "ERA", "T20", "TRY", "BLE",
+]
+ignore = [
+  # Messages are written where the error happens; a class per message would add nothing.
+  "TRY003",
+  # PEP 8 asks for the Error suffix only on exceptions that are errors; some here end a step.
+  "N818",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 5
+
+[tool.ruff.lint.per-file-ignores]
+# Running git, gh and claude is the runner's job.
+"plugin/runner/agent_batch/shell/proc.py" = ["S603"]
+"plugin/runner/agent_batch/shell/system.py" = ["S603"]
+# Tests assert, compare with literal values and drive real git.
+"tests/**" = ["S101", "PLR2004", "S603", "S607"]
+# The fakes stand in for command-line tools, and the tools are command-line tools.
+"tests/fakes/**" = ["T201"]
+"tools/**" = ["T201"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+mypy_path = ["plugin/runner", "tests", "tools"]
+files = ["plugin/runner", "tools", "tests"]
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+pythonpath = ["plugin/runner", "tests", "tools"]
+testpaths = ["tests"]
+addopts = ["-q", "--strict-markers", "--strict-config"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["agent_batch"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true
+
+[tool.importlinter]
+root_package = "agent_batch"
+
+[[tool.importlinter.contracts]]
+name = "The logic stays pure, and each layer uses only the ones below it"
+type = "layers"
+layers = [
+  "agent_batch.cli",
+  "agent_batch.batch | agent_batch.ship",
+  "agent_batch.lane",
+  "agent_batch.pipeline",
+  "agent_batch.context",
+  "agent_batch.shell",
+  "agent_batch.core",
+]
+
+[dependency-groups]
+dev = [
+    "complexipy>=8.0.1",
+    "hypothesis>=6.170.1",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pip-audit>=2.10.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+]

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs the batch runner on a pinned Python, without depending on the project's environment.
+set -eu
+runner="$(cd "$(dirname "$0")/../runner" && pwd)"
+PYTHONPATH="$runner" exec uv run --no-project --quiet --python 3.13 python -m agent_batch "$@"

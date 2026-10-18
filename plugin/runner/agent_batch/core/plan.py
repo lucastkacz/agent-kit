@@ -1,0 +1,63 @@
+"""The lane plan and budget written in a batch's tracking issue (SPEC §4.3)."""
+
+from __future__ import annotations
+
+import re
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+LANE_LINE = re.compile(r"^[ \t]*lane[ \t]+\d+[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+ISSUE_REF = re.compile(r"#(\d+)\b")
+BUDGET_LINE = re.compile(r"^[ \t]*budget[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+BUDGET_ISSUES = re.compile(r"(\d+)\s*issues?\b", re.IGNORECASE)
+BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
+
+
+class PlanError(ValueError):
+    """The batch issue's plan can't be run."""
+
+
+@dataclass(frozen=True)
+class BatchPlan:
+    lanes: tuple[tuple[int, ...], ...]
+    max_issues: int | None = None
+    max_hours: float | None = None
+
+
+def parse_plan(body: str) -> BatchPlan:
+    lanes = tuple(
+        lane
+        for match in LANE_LINE.finditer(body)
+        if (lane := tuple(int(n) for n in ISSUE_REF.findall(match.group(1))))
+    )
+    if not lanes:
+        raise PlanError("the batch issue has no lane plan, such as a line `Lane 1: #12, #15`")
+    repeated = sorted(
+        n for n, times in Counter(n for lane in lanes for n in lane).items() if times > 1
+    )
+    if repeated:
+        listed = ", ".join(f"#{n}" for n in repeated)
+        raise PlanError(f"these issues are in more than one lane: {listed}")
+    max_issues, max_hours = _budget(body)
+    return BatchPlan(lanes=lanes, max_issues=max_issues, max_hours=max_hours)
+
+
+def _budget(body: str) -> tuple[int | None, float | None]:
+    line = BUDGET_LINE.search(body)
+    if line is None:
+        return None, None
+    issues = BUDGET_ISSUES.search(line.group(1))
+    hours = BUDGET_HOURS.search(line.group(1))
+    return (
+        int(issues.group(1)) if issues else None,
+        float(hours.group(1)) if hours else None,
+    )
+
+
+def format_lanes(lanes: Sequence[Sequence[int]]) -> str:
+    """The lane plan as planning writes it into the batch issue."""
+    return "\n".join(
+        f"Lane {index}: {', '.join(f'#{n}' for n in lane)}"
+        for index, lane in enumerate(lanes, start=1)
+    )

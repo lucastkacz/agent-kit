@@ -1,0 +1,143 @@
+"""Stands in for `claude -p` in tests, following a scripted scenario.
+
+The scenario maps a kind of run (implement, review, fix, resolve) and an issue number to the steps
+that its calls take in order. A step can answer with an `output`, fail with an `error`, print `raw`
+text or `sleep`; when the steps run out, the run succeeds with a default answer.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+Step = dict[str, Any]
+
+KINDS = (
+    ("implement", re.compile(r"^/agent-kit:implement (\d+)")),
+    ("review", re.compile(r"^/agent-kit:review (\d+)")),
+    ("fix", re.compile(r"^The reviewer asked for changes on #(\d+)")),
+    ("resolve", re.compile(r"^Merging .* into the branch of #(\d+)")),
+)
+DONE = {"status": "done", "title": "", "pr_body": "", "message": "", "found": []}
+
+
+def default_output(kind: str, number: int) -> dict[str, Any]:
+    if kind == "review":
+        return {"verdict": "approved", "findings": []}
+    if kind == "resolve":
+        return {"status": "resolved", "message": ""}
+    return {**DONE, "title": f"feat: deliver #{number}", "pr_body": f"Delivers #{number}."}
+
+
+def classify(prompt: str) -> tuple[str, int]:
+    for kind, pattern in KINDS:
+        match = pattern.match(prompt)
+        if match:
+            return kind, int(match.group(1))
+    raise SystemExit(f"the fake claude doesn't know this prompt: {prompt!r}")
+
+
+def next_step(kind: str, number: int) -> tuple[Step, int]:
+    """The scripted step for this call, and how many calls of its kind came before it."""
+    scenario = json.loads(Path(os.environ["FAKE_CLAUDE_SCENARIO"]).read_text())
+    counts_path = Path(os.environ["FAKE_CLAUDE_LOG"]).with_suffix(".counts")
+    key = f"{kind}-{number}"
+    with counts_path.with_suffix(".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        counts = json.loads(counts_path.read_text()) if counts_path.exists() else {}
+        index = counts.get(key, 0)
+        counts[key] = index + 1
+        counts_path.write_text(json.dumps(counts))
+    steps: list[Step] = scenario.get(kind, {}).get(str(number), [])
+    return (steps[index] if index < len(steps) else {}), index
+
+
+def record(argv: list[str], kind: str, number: int) -> None:
+    entry = {
+        "kind": kind,
+        "number": number,
+        "argv": argv,
+        "cwd": str(Path.cwd()),
+        "api_key": "ANTHROPIC_API_KEY" in os.environ,
+        "auth_token": "ANTHROPIC_AUTH_TOKEN" in os.environ,
+        "claudecode": "CLAUDECODE" in os.environ,
+        "screen": os.environ.get("AGENT_BATCH_SCREEN"),
+    }
+    log = Path(os.environ["FAKE_CLAUDE_LOG"])
+    with log.with_suffix(".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with log.open("a") as out:
+            out.write(json.dumps(entry) + "\n")
+
+
+def git(*args: str) -> None:
+    subprocess.run(["git", *args], check=True, capture_output=True)
+
+
+def commit_work(number: int, files: list[str] | None) -> None:
+    for name in files or [f"work_{number}.txt"]:
+        path = Path.cwd() / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as out:
+            out.write(f"work on #{number}\n")
+    git("add", "-A")
+    git("commit", "--quiet", "-m", f"feat: work on #{number}")
+
+
+def resolve_conflicts() -> None:
+    conflicted = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=U"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    for name in conflicted:
+        (Path.cwd() / name).write_text("resolved\n")
+    git("add", "-A")
+    git("commit", "--quiet", "--no-edit")
+
+
+def answer(kind: str, number: int, step: Step, count: int) -> int:
+    output = step.get("output") or default_output(kind, number)
+    if kind in ("implement", "fix") and output.get("status") == "done":
+        commit_work(number, step.get("files"))
+    if kind == "resolve" and output.get("status") == "resolved":
+        resolve_conflicts()
+    result = {
+        "type": "result",
+        "subtype": "success",
+        "is_error": False,
+        "result": "",
+        "session_id": f"session-{kind}-{number}-{count}",
+        "total_cost_usd": 0.01,
+        "permission_denials": [{"tool_name": "Bash"}] * int(step.get("denials", 0)),
+        "structured_output": output,
+    }
+    sys.stdout.write(json.dumps(result))
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    kind, number = classify(argv[argv.index("-p") + 1])
+    step, count = next_step(kind, number)
+    record(argv, kind, number)
+    if "sleep" in step:
+        time.sleep(float(step["sleep"]))
+    if "raw" in step:
+        sys.stdout.write(str(step["raw"]))
+        return int(step.get("code", 0))
+    if "error" in step:
+        sys.stdout.write(json.dumps({"type": "result", "is_error": True, "result": step["error"]}))
+        return 1
+    return answer(kind, number, step, count)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
