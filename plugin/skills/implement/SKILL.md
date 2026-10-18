@@ -18,8 +18,9 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 ## 2. Acceptance tests first
 
 - Write a test for each criterion verified by `unit`, `integration` or `e2e`. Name each test after the behavior it checks.
-- Run them. They must fail, and for the reason the criterion names: an import error doesn't count.
+- Run `make fmt`, then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
 - Commit them on their own, as `test: acceptance tests for #$ARGUMENTS`.
+- After that commit, the acceptance tests' files don't change, not even to format them. Later tests go in files of their own, never in the acceptance tests' files.
 - If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why.
 - To bring a file back to a commit, read it with `git show <commit>:<path>` and write it back whole with the Write tool. Never use `git checkout` or `git restore`: the batch denies the first, so that no agent changes branches, and auto mode refuses the second as destructive.
 - A `human(<reason>)` criterion gets no test; it goes in the PR body (step 6).
@@ -31,6 +32,7 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 - Follow the project's `CLAUDE.md` and its `.claude/rules/` for the language you touch.
 - Keep the logic in a pure core and the files, network, OS and UI at the edges. Inject the time and the environment.
 - Keep files under 400 lines and functions under 50, with cognitive complexity under 15. Errors say what happened and what to do. Comments explain a non-obvious why.
+- A test you add here, a regression test say, goes in a file of its own.
 - Never silence a check to pass it. A real exception names the rule and gives its reason on the same line.
 - Commit in small steps, with Conventional Commits messages.
 - Run `make test` while you work. At the end, `make check` passes in full.
