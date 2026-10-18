@@ -11,9 +11,11 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 
 ## 1. Start from what's there
 
-- List the open issues without `ready`: `gh issue list --state open --json number,title,labels,milestone`.
+- List the open issues without `ready`: `gh issue list --state open --limit 200 --json number,title,labels,milestone`. Without `--limit`, `gh` lists only 30.
 - Read the `blocked` issues and their questions, in each one's latest comment.
-- Look for a batch whose acceptance is pending: an open issue labeled `batch` with unchecked items in its Acceptance checklist. Remind the owner of it first.
+- A `blocked` issue goes in only once the owner answers its question: write the decision into the issue and remove `blocked`, as acceptance does (SPEC §3.3).
+- Look for a batch whose acceptance is pending: an open issue labeled `batch` whose run has ended, with unchecked items in its Acceptance checklist. Its run has ended when the issue has the runner's summary (`## Batch summary`) for its lanes, and the `run-batch` skill's "Cloud" comment for its `Cloud:` line. Remind the owner of it first.
+- An open issue labeled `batch` whose run hasn't ended is a running batch, or one not started yet: mention it, but its acceptance isn't due.
 - Propose which issues go in the batch, and why, in a few lines.
 
 ## 2. A new idea
