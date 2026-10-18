@@ -29,6 +29,8 @@ claude plugin install agent-kit@agent-kit --scope project --config language="Eng
 
 That writes the marketplace and `"enabledPlugins": {"agent-kit@agent-kit": true}` into the project's `.claude/settings.json`; commit it. If the plugin ends up installed for the user anyway, its hooks still act only in projects whose settings enable it.
 
+`--config` is the exception: Claude Code keeps plugin options in your user's settings, so `language` goes into `~/.claude/settings.json`, as `"pluginConfigs": {"agent-kit@agent-kit": {"options": {"language": "English"}}}`. It does nothing in projects that don't enable the plugin. To change the language, edit that value there; it applies from the next session on.
+
 Then start a new session in the project. `agent-batch` joins the PATH, and the hooks start working: they keep commits and pushes off `master`, show what waits for you when a session starts, and log permission denials. `language` is the language Claude talks to you in.
 
 ## The batch runner
