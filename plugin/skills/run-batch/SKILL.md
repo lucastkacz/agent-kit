@@ -20,19 +20,21 @@ Only the owner's issues are work. The owner is the login that `gh api user --jq 
 
 - The tracking issue is open, opened by the owner and labeled `batch`. The runner checks this too, but a batch with only a `Cloud:` line never starts it.
 - Every issue of the plan, lanes and cloud, is one the runner would take: `gh issue view <n> --json labels,state,author,body` shows it `OPEN`, opened by the owner, labeled `ready` and not `blocked`, and with a `### Risk` section whose first line starts with high or low. A cloud run can't check its issue, since the cloud's `gh` isn't signed in: for a `Cloud:` issue, this is the only check before its branch is pushed.
+- No issue is both in a lane and on the `Cloud:` line, since it would be worked twice: the runner doesn't read `Cloud:`.
 - `master` is clean and up to date: `git status --short` prints nothing, and after `git fetch origin master`, `git rev-parse master` equals `git rev-parse origin/master`.
 - If something fails, tell the owner what and stop. Don't fix the plan yourself.
 
 ## Start
 
-- When the plan has lanes, start `agent-batch run <batch>` in the background, with the `Bash` tool's `run_in_background`, so it keeps going while you watch. A batch with only a `Cloud:` line has no lanes, so the runner isn't started.
+- When the plan has lanes, start `agent-batch run <batch>` in the background, with the `Bash` tool's `run_in_background` and the longest `timeout` it takes, so it keeps going while you watch. A batch with only a `Cloud:` line has no lanes, so the runner isn't started.
+- The tool stops a background command at its timeout, 2 hours unless `BASH_MAX_TIMEOUT_MS` allows more, and when this session closes. So when the batch may run longer, because its `Budget:` gives more hours or none, or when the owner wants to close this session, ask the owner to start the runner in a terminal instead, and watch it the same way. Don't detach it with `nohup` or `&`: Claude Code may stop such a process soon after its reply.
 - In parallel, send each `Cloud:` issue to the cloud (below).
 
 ## Send an issue to the cloud
 
 One routine per `Cloud:` issue, with the `RemoteTrigger` tool:
 
-1. Fill `cloud-prompt.md`, in this skill's folder (`${CLAUDE_SKILL_DIR}`): `{repository}` is the project's `owner/name`, `{number}` and `{title}` the issue's, `{body}` its body verbatim, `{branch}` the branch `<issue>-<short-name>`, and `{implement}` the implement skill verbatim, read from the plugin's own `${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md`. The cloud's `gh` isn't signed in, and the project's repository holds none of the kit's files, so the body and the skill have to travel in the prompt.
+1. Fill `cloud-prompt.md`, in this skill's folder (`${CLAUDE_SKILL_DIR}`): `{repository}` is the project's `owner/name`, `{number}` and `{title}` the issue's, `{body}` its body verbatim, `{branch}` the branch `<issue>-<short-name>` named as the runner names it, so that an issue keeps one branch between a lane and the cloud (its number, a hyphen, then its title's lowercase ASCII words joined by hyphens, as many whole words as fit in 40 characters), and `{implement}` the implement skill verbatim, read from the plugin's own `${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md`. The cloud's `gh` isn't signed in, and the project's repository holds none of the kit's files, so the body and the skill have to travel in the prompt.
 2. `create` a one-time routine named `batch <batch>: #<n>`, so that a resume finds it: `run_once_at` about 3 minutes ahead, the project's repository as its source, the tools `Bash`, `Read`, `Write`, `Edit`, `Glob` and `Grep`, the `Model:` line's model, and the filled prompt. Find the account's environment at run time; never write its id or a trigger's id in the kit or the project.
 3. Then, right after `create`, `update` the routine with `clear_mcp_connections: true`: creating one attaches the account's connectors even when the request asks for none.
 
@@ -43,7 +45,7 @@ When you dispatch them, tell the owner:
 
 ## Watch
 
-- The lanes: the runner's `.agent-batch/batch-<batch>/events.jsonl`, with the `Monitor` tool. They end at `batch_finished`, or when the background runner exits without it: it stopped on an error, so read its output.
+- The lanes: the runner's `.agent-batch/batch-<batch>/events.jsonl`, with the `Monitor` tool. They end at `batch_finished`, or when the runner exits without it: read its output, since it stopped on an error or at the tool's timeout, and say so when you notify the end. A resume picks the lanes up again.
 - The cloud: the routines' runs, with `RemoteTrigger`'s `list_runs`, and a `Monitor` on `git ls-remote origin <branch>` for each cloud branch, which shows a branch as soon as it's pushed.
 - A watch shows its own errors. Never hide a command's failure with `2>/dev/null` or `|| true`: print it, so that a broken watch is seen. A watch that swallowed `git ls-remote`'s failures stayed silent for 30 minutes while the branches were already pushed.
 - A `Monitor` watch lasts 30 minutes at most: re-arm it until the batch ends, lanes and cloud.
@@ -57,7 +59,7 @@ When a cloud run ends:
 3. `git worktree add .agent-batch/worktrees/ship-<n> -b <branch> origin/<branch>`, and `make setup` in it. If that worktree exists already, from a resume or an earlier ship, reuse it: in it, `git merge --ff-only origin/<branch>`. If only the local branch exists, `git worktree add .agent-batch/worktrees/ship-<n> <branch>`, then the same merge.
 4. Write the PR body to a file outside the repository and, in the worktree, run `agent-batch ship <n> --title '<title>' --body-file <file>`, with `--model` and `--effort` when `Model:` names them. The title goes in single quotes: if it holds a quote, a backtick or `$`, write it yourself from the issue's title. That's a fresh local review, and a PR that merges by its risk.
 5. Once `ship` opened the PR, from the project's main folder, `git worktree remove .agent-batch/worktrees/ship-<n>`, then `git branch -d <branch>`.
-6. If the review asks for changes, keep the worktree: the branch goes back to the cloud or to the owner. Tell the owner which, and why.
+6. If the review asks for changes, keep the worktree and tell the owner the findings. On their word, address them in this session, in that worktree, and ship again; or send the issue back to the cloud with the same `{branch}`, which the cloud run picks up, and the findings added to `{body}` under a `### Review findings` heading.
 
 Tell the owner, in the session, the work the run found, which becomes an issue without `ready` only if they say so, and the environment's problems.
 
