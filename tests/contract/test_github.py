@@ -84,7 +84,6 @@ def _edit_and_check(gh: GitHub, clone: Path, number: int) -> None:
     title, body = "test: a contract PR, edited", "Its checks still fail on purpose."
     gh.edit_pr(number, title, body)
     raw = proc.must(["gh", "pr", "view", str(number), "--json", "title,body"], clone)
-    record("gh-pr-edit", raw)
     edited = json.loads(raw)
     assert (edited["title"], edited["body"].strip()) == (title, body)
 
