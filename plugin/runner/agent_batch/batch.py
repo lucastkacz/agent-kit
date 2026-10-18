@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -28,19 +27,19 @@ def run_batch(ctx: Context, number: int, limits: Limits) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)
-    gate = Gate(budget.resolve(limits.issues, limits.hours, batch_plan))
+    gate = Gate(budget.resolve(limits.issues, limits.hours, batch_plan), ctx.clock)
     at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
     lanes = batch_plan.lanes
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
     ctx.gh.comment(number, _started(batch_plan, at_once))
-    started = time.monotonic()
+    started = ctx.clock()
     with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:
         futures = [
             pool.submit(run_lane, ctx, gate, index, issues)
             for index, issues in enumerate(lanes, start=1)
         ]
         reports = [issue_report for future in futures for issue_report in future.result()]
-    ctx.gh.comment(number, report.render(reports, time.monotonic() - started))
+    ctx.gh.comment(number, report.render(reports, ctx.clock() - started))
     outcomes = Counter(issue_report.outcome.value for issue_report in reports)
     ctx.events.emit("batch_finished", batch=number, outcomes=dict(outcomes))
     return 0

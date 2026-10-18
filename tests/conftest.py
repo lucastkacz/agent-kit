@@ -32,6 +32,7 @@ class World:
     gh_state: Path
     scenario: Path
     claude_log: Path
+    slept_file: Path
 
     def gh(self) -> dict[str, Any]:
         state: dict[str, Any] = json.loads(self.gh_state.read_text())
@@ -87,6 +88,10 @@ class World:
         if not self.claude_log.exists():
             return []
         return [json.loads(line) for line in self.claude_log.read_text().splitlines()]
+
+    def slept(self) -> float:
+        """The seconds the fake claude's `slept` steps said the computer slept."""
+        return float(self.slept_file.read_text()) if self.slept_file.exists() else 0.0
 
     def run(self, *argv: str) -> int:
         return cli.main(list(argv))
@@ -147,6 +152,7 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
         gh_state=tmp_path / "gh.json",
         scenario=tmp_path / "scenario.json",
         claude_log=tmp_path / "claude.log",
+        slept_file=tmp_path / "slept",
     )
     created.gh_state.write_text(
         json.dumps(
@@ -159,6 +165,7 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setenv("FAKE_CLAUDE_SCENARIO", str(created.scenario))
     monkeypatch.setenv("FAKE_CLAUDE_LOG", str(created.claude_log))
     monkeypatch.setenv("FAKE_ORIGIN", str(origin))
+    monkeypatch.setenv("FAKE_SLEPT", str(created.slept_file))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("CLAUDECODE", "1")
     monkeypatch.setenv("AGENT_BATCH_POLL_SECONDS", "0")
