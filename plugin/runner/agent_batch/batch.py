@@ -17,25 +17,27 @@ from agent_batch.lane import Gate, run_lane
 
 @dataclass(frozen=True)
 class Limits:
-    """The budget given on the command line, which wins over the batch issue's."""
+    """What the command line sets, which wins over the batch issue."""
 
     issues: int | None = None
     hours: float | None = None
+    lanes: int | None = None
 
 
 def run_batch(ctx: Context, number: int, limits: Limits) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
-    lanes = plan.parse_plan(batch.body)
-    gate = Gate(budget.resolve(limits.issues, limits.hours, lanes))
-    ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes.lanes])
-    ctx.gh.comment(number, _started(ctx, lanes))
+    batch_plan = plan.parse_plan(batch.body)
+    gate = Gate(budget.resolve(limits.issues, limits.hours, batch_plan))
+    at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
+    lanes = batch_plan.lanes
+    ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
+    ctx.gh.comment(number, _started(batch_plan, at_once))
     started = time.monotonic()
-    workers = max(1, min(ctx.config.lanes, len(lanes.lanes)))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:
         futures = [
             pool.submit(run_lane, ctx, gate, index, issues)
-            for index, issues in enumerate(lanes.lanes, start=1)
+            for index, issues in enumerate(lanes, start=1)
         ]
         reports = [issue_report for future in futures for issue_report in future.result()]
     ctx.gh.comment(number, report.render(reports, time.monotonic() - started))
@@ -53,9 +55,10 @@ def _check(batch: Issue, owner: str) -> None:
         raise PlanError(f"#{batch.number} is closed")
 
 
-def _started(ctx: Context, lanes: BatchPlan) -> str:
+def _started(batch_plan: BatchPlan, at_once: int) -> str:
     return (
         "**The batch started.**\n\n"
-        f"{plan.format_lanes(lanes.lanes)}\n\n"
-        f"Up to {ctx.config.lanes} lanes run at a time. The summary follows here when it ends.\n"
+        f"{plan.format_lanes(batch_plan.lanes)}\n\n"
+        f"**Lanes at a time:** {at_once}\n\n"
+        "The summary follows here when it ends.\n"
     )

@@ -128,11 +128,14 @@ A batch is a milestone plus a tracking issue labeled `batch`:
 - The milestone groups the batch's issues.
 - The tracking issue holds the lane plan, the budget, the live status, the final summary and the acceptance checklist. It exists because milestones can't hold a conversation.
 
-The lane plan lists each lane's issues in order:
+The lane plan lists each lane's issues in order. Two optional lines set how many lanes run at a time and the budget (§11.2):
 
 ```
 Lane 1: #12, #15
 Lane 2: #13
+Lane 3: #14
+Lanes: 2
+Budget: 4 issues, 3 hours
 ```
 
 ### 4.4 Ready
@@ -378,7 +381,7 @@ No `--no-verify`, no disabled hooks, no admin merges. If a guardrail is wrong, t
 - launches a fresh `claude -p` for each stage, in auto mode with prompts turned off, so nothing ever waits for a person;
 - removes API keys from its environment, so runs use the owner's subscription instead of paid API usage;
 - keeps the machine awake while it runs, and caps each run's turns and wall-clock time;
-- runs up to K lanes in parallel (default 2). Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
+- runs several lanes in parallel: as many as `--lanes` says, else the batch issue's `Lanes:` line, else 2. Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
 - defers the rest of a lane to the next batch when one of its issues doesn't merge (it waits for the owner, is blocked or failed), because they build on the same files. Planning puts high-risk issues last in their lane, or in a lane of their own;
 - makes one attempt to resolve a merge conflict; if that fails, the issue is blocked;
 - labels, comments, writes every step to an event log, and posts the summary in the batch issue.
