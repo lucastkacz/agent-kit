@@ -14,9 +14,11 @@ from agent_batch.shell import proc
 SETTINGS = Path(__file__).resolve().parent.parent / "data" / "batch-settings.json"
 
 # The reviewer reads and runs the checks; it never edits, commits, pushes or writes to GitHub.
+# `gh pr` and `gh api` can write, so it reads pull requests and the API through `gh-read` (#72).
 REVIEW_ALLOWED = (
     "Read", "Grep", "Glob", "Bash(git diff *)", "Bash(git log *)", "Bash(git show *)",
-    "Bash(git status *)", "Bash(gh issue view *)", "Bash(make test)", "Bash(make check)",
+    "Bash(git status *)", "Bash(git ls-tree *)", "Bash(gh issue view *)",
+    "Bash(gh issue list *)", "Bash(agent-batch gh-read *)", "Bash(make test)", "Bash(make check)",
 )  # fmt: skip
 REVIEW_DENIED = (
     "Edit", "Write", "NotebookEdit", "Bash(git commit *)", "Bash(git push *)", "Bash(gh pr *)",
