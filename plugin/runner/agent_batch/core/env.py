@@ -12,6 +12,9 @@ SESSION_MARKERS = frozenset({"CLAUDECODE"})
 SESSION_PREFIX = "CLAUDE_CODE_"
 # Unlike the session markers, this one is how a subscription can sign in headless runs.
 KEPT = frozenset({"CLAUDE_CODE_OAUTH_TOKEN"})
+# The main checkout's virtual environment: in a lane worktree, uv warns that it doesn't match the
+# worktree's own `.venv` on every command.
+MAIN_CHECKOUT = frozenset({"VIRTUAL_ENV"})
 
 
 def clean_env(env: Mapping[str, str]) -> dict[str, str]:
@@ -20,5 +23,6 @@ def clean_env(env: Mapping[str, str]) -> dict[str, str]:
         for key, value in env.items()
         if key not in API_KEYS
         and key not in SESSION_MARKERS
+        and key not in MAIN_CHECKOUT
         and (not key.startswith(SESSION_PREFIX) or key in KEPT)
     }
