@@ -66,7 +66,7 @@ def _model_flags(parser: argparse.ArgumentParser, default: str) -> None:
 
 
 def _model(text: str) -> str:
-    if not MODEL_NAME.match(text):
+    if not MODEL_NAME.fullmatch(text):
         raise argparse.ArgumentTypeError(f"needs a model, such as opus, not {text!r}")
     return text
 

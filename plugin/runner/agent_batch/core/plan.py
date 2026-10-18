@@ -16,7 +16,7 @@ BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
 LANES_AT_ONCE_LINE = re.compile(r"^[ \t]*lanes[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 MODEL_LINE = re.compile(r"^[ \t]*model[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 # An alias, such as `opus`, or a full name, such as `claude-opus-5-5` or `opus[1m]`.
-MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\]]*$")
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-\[\]]*")
 # The levels `claude --effort` takes.
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
@@ -61,7 +61,7 @@ def _model(body: str) -> tuple[str | None, str | None]:
         return None, None
     text = line.group(1).strip()
     model, comma, effort = (part.strip() for part in text.partition(","))
-    if not MODEL_NAME.match(model) or (comma and effort not in EFFORTS):
+    if not MODEL_NAME.fullmatch(model) or (comma and effort not in EFFORTS):
         raise PlanError(
             "`Model:` needs a model, such as `opus`, then optionally a comma and an effort "
             f"({', '.join(EFFORTS)}), not {text!r}"

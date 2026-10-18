@@ -39,14 +39,14 @@ def test_a_model_line_that_cant_be_read_stops_the_batch(line: str) -> None:
         plan.parse_plan(f"Lane 1: #1\n{line}\n")
 
 
-@pytest.mark.parametrize("model", ["", "two words", "-opus"])
+@pytest.mark.parametrize("model", ["", "two words", "-opus", "opus\n"])
 def test_the_model_flag_refuses_what_isnt_a_model(
     world: World, capsys: pytest.CaptureFixture[str], model: str
 ) -> None:
     world.add_batch(1, "Lane 1: #10\n")
 
     with pytest.raises(SystemExit) as exited:
-        world.run("run", "1", "--model", model)
+        world.run("run", "1", f"--model={model}")
 
     assert exited.value.code == 2
     assert world.gh()["calls"] == []
