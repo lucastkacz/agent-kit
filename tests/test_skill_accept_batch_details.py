@@ -1,8 +1,9 @@
 """The `accept-batch` skill's details beyond its acceptance tests (#59).
 
-Where it finds the batch's PRs and denials, which earlier acceptance it counts from, who runs the
-merge, where the approved issues go, and how a batch closes once its waiting PR merges. Each test
-checks the few words that carry the behavior, so rewording the skill doesn't break it.
+Whose comments it trusts; where it finds the batch's issues, milestone, PRs and denials; which
+earlier acceptance it counts from; which blocked issues it settles; who runs the merge; where the
+approved issues go; and how a batch closes once its waiting PR merges. Each test checks the few
+words that carry the behavior, so rewording the skill doesn't break it.
 """
 
 from __future__ import annotations
