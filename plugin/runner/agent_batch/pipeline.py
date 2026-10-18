@@ -18,6 +18,7 @@ from agent_batch.core.model import (
     ReviewResult,
     Risk,
     RunDenial,
+    RunKind,
 )
 from agent_batch.shell.proc import CommandError
 
@@ -98,7 +99,7 @@ def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
     job.work = work
 
 
-def _checked(ctx: Context, run: ClaudeRun, report: IssueReport, what: str) -> dict[str, object]:
+def _checked(ctx: Context, run: ClaudeRun, report: IssueReport, what: RunKind) -> dict[str, object]:
     for denial in run.denials:
         report.denials.append(RunDenial(what, denial))
         ctx.events.emit(

@@ -12,6 +12,10 @@ from agent_batch.core.model import IssueReport, Outcome, RunDenial
 SECONDS_PER_MINUTE = 60
 # The event log keeps a denial's command whole; the summary only needs enough to recognize it.
 COMMAND_CHARS = 200
+# GitHub refuses a comment over 65,536 characters; the event log keeps every denial anyway.
+DENIAL_LINES = 100
+# A denial is recognized by what it ran or touched; a file's content never goes to GitHub.
+SHOWN_INPUTS = ("command", "file_path", "url")
 BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 
@@ -34,7 +38,10 @@ def render(reports: Sequence[IssueReport], seconds: float) -> str:
     ]
     denied = [_denial(r.number, denial) for r in ordered for denial in r.denials]
     if denied:
-        lines += ["", "### Permission denials", "", *denied]
+        lines += ["", "### Permission denials", "", *denied[:DENIAL_LINES]]
+    if len(denied) > DENIAL_LINES:
+        more = len(denied) - DENIAL_LINES
+        lines.append(f"- … and {more} more in the batch's event log (`events.jsonl`)")
     waiting = [r for r in ordered if r.outcome in NEEDS_OWNER]
     if waiting:
         lines += ["", "### Needs the owner", "", *(_needs(report) for report in waiting)]
@@ -51,12 +58,10 @@ def _row(report: IssueReport) -> str:
 
 
 def _denial(number: int, denied: RunDenial) -> str:
-    """One line per denial: a Bash command as it ran, any other tool's input as JSON."""
-    command = denied.denial.tool_input.get("command")
-    if isinstance(command, str):
-        text = command
-    else:
-        text = json.dumps(denied.denial.tool_input, ensure_ascii=False)
+    """One line per denial: its command, file or URL, else the tool's input as JSON."""
+    tool_input = denied.denial.tool_input
+    shown = [value for key in SHOWN_INPUTS if isinstance(value := tool_input.get(key), str)]
+    text = shown[0] if shown else json.dumps(tool_input, ensure_ascii=False)
     text = " ".join(text.splitlines())
     if len(text) > COMMAND_CHARS:
         text = text[:COMMAND_CHARS] + "…"

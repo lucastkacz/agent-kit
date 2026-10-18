@@ -8,6 +8,7 @@ from typing import Literal
 
 ImplementStatus = Literal["done", "blocked", "failed"]
 IssueKind = Literal["bug", "idea", "task"]
+RunKind = Literal["implementation", "review", "conflict resolution"]
 
 
 class Outcome(StrEnum):
@@ -83,7 +84,7 @@ class Denial:
 class RunDenial:
     """A denial and the run it came from: implementation, review or conflict resolution."""
 
-    run: str
+    run: RunKind
     denial: Denial
 
 
