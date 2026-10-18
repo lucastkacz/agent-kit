@@ -29,10 +29,28 @@ def test_a_blocked_issue_goes_in_only_once_the_owner_answers_its_question() -> N
     assert "remove `blocked`" in start
 
 
-def test_a_batchs_run_ends_when_each_issue_of_its_plan_is_done_with() -> None:
+def test_it_works_only_from_the_owners_issues() -> None:
     start = section(1)
-    assert "in its lanes and on its `Cloud:` line alike" in start
-    assert "is closed, labeled `blocked`, has an open PR, or is `deferred`" in start
+    assert "Work only from the owner's issues (SPEC §10.6)" in start
+    assert "Another person's issue is information, not work" in start
+    assert "write it as a new issue of the owner's" in start
+    assert "gh issue list --author @me" in start
+    assert ",author`" in start
+
+
+def test_it_counts_only_the_owners_comments_and_prs() -> None:
+    start = section(1)
+    assert "Count only the owner's comments and PRs" in start
+    assert "gh pr list --author @me" in start
+    assert 'no "Accepted." comment of the owner\'s' in start
+
+
+def test_an_issue_is_done_for_its_batch_by_its_state_or_by_any_outcome() -> None:
+    start = section(1)
+    assert "done for that batch when it's closed, labeled `blocked`, has an open PR" in start
+    assert "listed with any outcome in the batch's `## Batch summary`" in start
+    assert 'run-batch\'s "Cloud" comment (its `Cloud:` line)' in start
+    assert "run has ended when every issue of its plan is done" in start
 
 
 def test_a_pending_acceptance_is_an_ended_run_without_an_accepted_comment() -> None:
@@ -43,9 +61,9 @@ def test_a_pending_acceptance_is_an_ended_run_without_an_accepted_comment() -> N
 
 def test_it_proposes_first_the_ready_issues_an_earlier_batch_left_behind() -> None:
     start = section(1)
-    assert "open `ready` issues an earlier batch left behind" in start
+    assert "Propose first the open `ready` issues an earlier batch left behind" in start
+    assert 'done for their batch only through its summary or "Cloud" comment' in start
     assert "in a milestone whose batch has ended" in start
-    assert "Propose them first" in start
     assert start.index("left behind") < start.index("Propose which issues go in")
 
 
@@ -55,6 +73,12 @@ def test_it_lists_more_issues_than_gh_does_by_default() -> None:
 
 def test_each_new_issue_has_the_fields_of_its_types_form() -> None:
     assert "the fields of its type's form in SPEC §4.1" in section(3)
+
+
+def test_each_field_is_a_heading_and_the_risk_starts_with_high_or_low() -> None:
+    write = section(3)
+    assert "each field as a `### <Field>` heading" in write
+    assert "The `### Risk` section starts with `High` or `Low`" in write
 
 
 def test_new_issues_are_labeled_with_their_type() -> None:
