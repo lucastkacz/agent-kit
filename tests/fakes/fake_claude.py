@@ -104,13 +104,9 @@ def resolve_conflicts() -> None:
     git("commit", "--quiet", "--no-edit")
 
 
-def answer(kind: str, number: int, step: Step, count: int) -> int:
-    output = step.get("output") or default_output(kind, number)
-    if kind in ("implement", "fix") and output.get("status") == "done":
-        commit_work(number, step.get("files"))
-    if kind == "resolve" and output.get("status") == "resolved":
-        resolve_conflicts()
-    result = {
+def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any]:
+    """What the fake prints, in the shape `tests/contract/recorded/claude-*.json` recorded."""
+    return {
         "type": "result",
         "subtype": "success",
         "is_error": False,
@@ -118,8 +114,17 @@ def answer(kind: str, number: int, step: Step, count: int) -> int:
         "session_id": f"session-{kind}-{number}-{count}",
         "total_cost_usd": 0.01,
         "permission_denials": [{"tool_name": "Bash"}] * int(step.get("denials", 0)),
-        "structured_output": output,
+        "structured_output": step.get("output") or default_output(kind, number),
     }
+
+
+def answer(kind: str, number: int, step: Step, count: int) -> int:
+    result = result_json(kind, number, step, count)
+    output = result["structured_output"]
+    if kind in ("implement", "fix") and output.get("status") == "done":
+        commit_work(number, step.get("files"))
+    if kind == "resolve" and output.get("status") == "resolved":
+        resolve_conflicts()
     sys.stdout.write(json.dumps(result))
     return 0
 

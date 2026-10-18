@@ -509,7 +509,13 @@ A number that gets worse is friction, and friction becomes an issue here.
 
 ### 16.3 Testing the kit
 
-The kit is code, and the most important code: when it breaks, every project breaks. The runner and the hooks have unit tests against fake `claude` and `gh` commands. The skills have behavior tests, run with Claude Code's plugin evaluations. A change to the kit merges only when both pass.
+The kit is code, and the most important code: when it breaks, every project breaks.
+
+- **Fast tests, on every change.** The runner and the hooks are tested against fake `claude` and `gh` commands, so `make check` stays fast and runs in CI.
+- **Contract tests, on demand.** `make contract` runs the real `claude` and `gh` through the runner's own adapters, on this repository, and records their answers. The owner runs it, since it writes to GitHub and uses the subscription. `make check` then compares the fakes' answers with the recordings, field by field, so a fake that drifts from the real tool fails a test.
+- **Behavior tests for the skills,** run with Claude Code's plugin evaluations.
+
+A change to the kit merges only when they pass.
 
 ## 17. Out of scope
 
