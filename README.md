@@ -39,16 +39,18 @@ Then start a new session in the project. `agent-batch` joins the PATH, and the h
 ```bash
 agent-batch run 12              # run the batch whose tracking issue is #12
 agent-batch run 12 --lanes 3    # 3 lanes at a time
+agent-batch run 12 --model opus --effort high   # every run on opus, at high effort
 agent-batch ship 15 --title "feat: export cards" --body-file pr.md   # direct mode
 ```
 
-A batch's tracking issue lists its lanes. Two optional lines set the lanes at a time (2 by default) and the budget:
+A batch's tracking issue lists its lanes. Optional lines set the lanes at a time (2 by default), the budget, and the model and effort of the batch's runs (your own settings by default; `--model` and `--effort` override them):
 
 ```
 Lane 1: #12, #15
 Lane 2: #13
 Lanes: 2
 Budget: 4 issues, 3 hours
+Model: opus, high
 ```
 
 During a batch, leave the Mac plugged in with its lid open. The runner keeps it awake only on AC power, and says so at the start when it's on battery; closing the lid sleeps it anyway.
