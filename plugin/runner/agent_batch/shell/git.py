@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from agent_batch.core.config import Config
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
+
+# The lanes' worktrees share one repository, and git fails instead of waiting when another
+# command holds one of its lock files (the config, a remote ref), so the runner's git commands
+# take turns.
+_ONE_AT_A_TIME = threading.Lock()
 
 
 class Git:
@@ -14,8 +20,12 @@ class Git:
         self._remote = config.remote
         self._upstream = config.upstream
 
+    def _run(self, cwd: Path, *args: str) -> proc.Result:
+        with _ONE_AT_A_TIME:
+            return proc.run(["git", *args], cwd)
+
     def _git(self, cwd: Path, *args: str) -> str:
-        return proc.must(["git", *args], cwd)
+        return proc.output(["git", *args], self._run(cwd, *args))
 
     def _lines(self, cwd: Path, *args: str) -> list[str]:
         return [line for line in self._git(cwd, *args).splitlines() if line]
@@ -42,17 +52,26 @@ class Git:
             self._git(repo, "worktree", "remove", "--force", str(path))
 
     def start_branch(self, worktree: Path, branch: str) -> None:
-        """Switches to the issue's branch, picking up earlier work on it if there is some."""
+        """Switches to the issue's branch, picking up earlier work on it if there is some.
+
+        Branches don't track the remote: that would write the shared config for nothing, since
+        the runner pushes by name and never pulls.
+        """
         self._git(worktree, "fetch", "--quiet", self._remote)
+        remote_branch = f"{self._remote}/{branch}"
         if self._has_ref(worktree, f"refs/heads/{branch}"):
             self._git(worktree, "switch", "--quiet", branch)
-        elif self._has_ref(worktree, f"refs/remotes/{self._remote}/{branch}"):
-            self._git(worktree, "switch", "--quiet", "--track", f"{self._remote}/{branch}")
+        elif self._has_ref(worktree, f"refs/remotes/{remote_branch}"):
+            self._git(
+                worktree, "switch", "--quiet", "--no-track", "--create", branch, remote_branch
+            )
         else:
-            self._git(worktree, "switch", "--quiet", "--create", branch, self._upstream)
+            self._git(
+                worktree, "switch", "--quiet", "--no-track", "--create", branch, self._upstream
+            )
 
     def _has_ref(self, cwd: Path, ref: str) -> bool:
-        return proc.run(["git", "rev-parse", "--verify", "--quiet", ref], cwd).ok
+        return self._run(cwd, "rev-parse", "--verify", "--quiet", ref).ok
 
     def is_clean(self, worktree: Path) -> bool:
         return not self._git(worktree, "status", "--porcelain").strip()
@@ -68,16 +87,16 @@ class Git:
 
     def base_file(self, worktree: Path, path: str) -> str | None:
         """A file as it is on the base branch, which the batch's agents can't change."""
-        result = proc.run(["git", "show", f"{self._upstream}:{path}"], worktree)
+        result = self._run(worktree, "show", f"{self._upstream}:{path}")
         return result.out if result.ok else None
 
     def push(self, worktree: Path, branch: str) -> None:
-        self._git(worktree, "push", "--quiet", "--set-upstream", self._remote, branch)
+        self._git(worktree, "push", "--quiet", self._remote, branch)
 
     def merge_upstream(self, worktree: Path) -> list[str]:
         """Merges the base branch in; returns the files left in conflict."""
         self._git(worktree, "fetch", "--quiet", self._remote)
-        result = proc.run(["git", "merge", "--no-edit", self._upstream], worktree)
+        result = self._run(worktree, "merge", "--no-edit", self._upstream)
         if result.ok:
             return []
         conflicts = self._lines(worktree, "diff", "--name-only", "--diff-filter=U")
