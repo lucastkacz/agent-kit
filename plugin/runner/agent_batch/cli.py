@@ -46,8 +46,8 @@ def _parser() -> argparse.ArgumentParser:
         type=_at_least_one,
         help=f"lanes that run at a time (default: the batch issue's, else {Config.lanes})",
     )
-    run.add_argument("--max-issues", type=int, help="issues the batch may start")
-    run.add_argument("--max-hours", type=float, help="hours after which no issue starts")
+    run.add_argument("--max-issues", type=_at_least_one, help="issues the batch may start")
+    run.add_argument("--max-hours", type=_above_zero, help="hours after which no issue starts")
     run.add_argument("--screen", action="store_true", help="allow checks that take the screen")
     direct = commands.add_parser("ship", help="review the current branch and open its PR")
     direct.add_argument("issue", type=int, help="the issue the branch resolves")
@@ -60,6 +60,17 @@ def _at_least_one(text: str) -> int:
     if not text.isdigit() or int(text) < 1:
         raise argparse.ArgumentTypeError(f"needs a whole number of at least 1, not {text!r}")
     return int(text)
+
+
+def _above_zero(text: str) -> float:
+    error = argparse.ArgumentTypeError(f"needs a number above 0, not {text!r}")
+    try:
+        number = float(text)
+    except ValueError:
+        raise error from None
+    if not number > 0:  # rather than `number <= 0`, which lets "nan" through
+        raise error
+    return number
 
 
 def _run(args: argparse.Namespace) -> int:
