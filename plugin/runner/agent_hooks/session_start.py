@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from agent_hooks.repo import main_root
+from agent_hooks.repo import project_root
 
 LANGUAGE_OPTION = "CLAUDE_PLUGIN_OPTION_LANGUAGE"
 GH_TIMEOUT = 10
@@ -32,14 +32,19 @@ PROCESS = (
 
 def main() -> int:
     payload = json.load(sys.stdin)
+    root = project_root(Path(payload.get("cwd") or "."))
+    if root is None:
+        return 0
     language = os.environ.get(LANGUAGE_OPTION) or "English"
     lines = [
         f"Talk to the owner in {language}. "
-        "Write everything in the repository and on GitHub in English."
+        "Write everything in the repository and on GitHub in English.",
+        "",
+        PROCESS,
+        "",
+        *_waiting(root),
+        *_running(root),
     ]
-    root = main_root(Path(payload.get("cwd") or "."))
-    if root is not None:
-        lines += ["", PROCESS, "", *_waiting(root), *_running(root)]
     output = {"hookEventName": "SessionStart", "additionalContext": "\n".join(lines)}
     sys.stdout.write(json.dumps({"hookSpecificOutput": output}))
     return 0

@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from agent_hooks.repo import main_root
+from agent_hooks.repo import project_root
 
 INPUT_KEYS = ("command", "file_path", "url", "pattern")
 MAX_INPUT = 300
@@ -18,7 +18,7 @@ MAX_INPUT = 300
 
 def main() -> int:
     payload = json.load(sys.stdin)
-    root = main_root(Path(payload.get("cwd") or "."))
+    root = project_root(Path(payload.get("cwd") or "."))
     if root is None:
         return 0
     entry = {

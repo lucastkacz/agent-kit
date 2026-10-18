@@ -18,13 +18,18 @@ A way to build software where Claude Code agents do the development and the test
 
 ## Install
 
-It needs git, the GitHub CLI (`gh`) and Claude Code (`claude`), both signed in, and [uv](https://docs.astral.sh/uv/). In Claude Code:
+It needs git, the GitHub CLI (`gh`) and Claude Code (`claude`), both signed in, and [uv](https://docs.astral.sh/uv/).
 
-```
-/plugin install agent-kit --marketplace lucastkacz/agent-kit
+**Install it per project, never for your user.** Its rules belong to projects that follow this process, and `claude plugin install` installs for the user unless told otherwise. From the project's folder:
+
+```bash
+claude plugin marketplace add lucastkacz/agent-kit --scope project
+claude plugin install agent-kit@agent-kit --scope project --config language="English"
 ```
 
-Then start a new session. `agent-batch` joins the PATH, and the hooks start working: they keep commits and pushes off `master`, show what waits for you when a session starts, and log permission denials. Your conversation language is a setting of the plugin (`/plugin`), English by default.
+That writes the marketplace and `"enabledPlugins": {"agent-kit@agent-kit": true}` into the project's `.claude/settings.json`; commit it. If the plugin ends up installed for the user anyway, its hooks still act only in projects whose settings enable it.
+
+Then start a new session in the project. `agent-batch` joins the PATH, and the hooks start working: they keep commits and pushes off `master`, show what waits for you when a session starts, and log permission denials. `language` is the language Claude talks to you in.
 
 ## The batch runner
 

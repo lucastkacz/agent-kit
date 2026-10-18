@@ -72,15 +72,11 @@ def test_the_session_says_when_github_cant_be_reached(
     assert "GitHub couldn't be reached" in text
 
 
-def test_outside_a_repository_only_the_language_is_said(
+def test_outside_a_project_that_enables_agent_kit_nothing_is_said(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(tmp_path)}
-    output = json.loads(run(session_start, payload, monkeypatch))
-
-    text = output["hookSpecificOutput"]["additionalContext"]
-    assert "Talk to the owner in English" in text
-    assert "agent-batch" not in text
+    assert run(session_start, payload, monkeypatch) == ""
 
 
 def test_a_denial_is_appended_to_the_log(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
