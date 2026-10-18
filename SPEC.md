@@ -128,7 +128,14 @@ A batch is a milestone plus a tracking issue labeled `batch`:
 - The milestone groups the batch's issues.
 - The tracking issue holds the lane plan, the budget, the live status, the final summary and the acceptance checklist. It exists because milestones can't hold a conversation.
 
-The lane plan lists each lane's issues in order. Two optional lines set how many lanes run at a time and the budget (§11.2):
+The lane plan lists each lane's issues in order. Optional lines add the rest:
+
+- `Lanes:` how many lanes run at a time (§11.1).
+- `Budget:` the issues and hours the batch may spend (§11.2).
+- `Model:` the model of the batch's runs, then optionally a comma and their effort: `low`, `medium`, `high`, `xhigh` or `max`. The model is an alias, such as `opus`, or a full model name. Without the line, the runs use the owner's own settings (§11.1).
+- `Cloud:` the issues worked in the cloud (§12). The `run-batch` skill reads it; the runner ignores it.
+
+The runner reads `Lanes:`, `Budget:` and `Model:`, and refuses a batch when one of them can't be read.
 
 ```
 Lane 1: #12, #15
@@ -136,6 +143,8 @@ Lane 2: #13
 Lane 3: #14
 Lanes: 2
 Budget: 4 issues, 3 hours
+Model: opus, high
+Cloud: #16
 ```
 
 ### 4.4 Ready
@@ -379,6 +388,7 @@ No `--no-verify`, no disabled hooks, no admin merges. If a guardrail is wrong, t
 `agent-batch run <batch>` is started by the assistant when the owner asks, or by the owner from a terminal. It:
 
 - launches a fresh `claude -p` for each stage, in auto mode with prompts turned off, so nothing ever waits for a person;
+- runs the implementer, the reviewer and the conflict resolver on the same model and effort: `--model` and `--effort` when given, else the batch issue's `Model:` line, else the owner's own settings. The start comment and the summary say which, so batches can be compared (§16.2). `agent-batch ship` takes the same two flags;
 - removes API keys from its environment, so runs use the owner's subscription instead of paid API usage;
 - keeps the machine awake while it runs on AC power, warns at the start when it's on battery, and caps each run's turns and wall-clock time;
 - runs several lanes in parallel: as many as `--lanes` says, else the batch issue's `Lanes:` line, else 2. Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
