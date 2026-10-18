@@ -111,17 +111,29 @@ def _make_repos(root: Path) -> tuple[Path, Path]:
     return origin, project
 
 
+ISOLATED_GIT = {
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_AUTHOR_NAME": "Tester",
+    "GIT_AUTHOR_EMAIL": "tester@example.com",
+    "GIT_COMMITTER_NAME": "Tester",
+    "GIT_COMMITTER_EMAIL": "tester@example.com",
+}
+
+
+@pytest.fixture(autouse=True)
+def isolated_git(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests run git the same way on any computer: without its config, as a test author.
+
+    The contract tests are the exception: they push to GitHub with the owner's own git.
+    """
+    if request.node.get_closest_marker("contract") is None:
+        for key, value in ISOLATED_GIT.items():
+            monkeypatch.setenv(key, value)
+
+
 @pytest.fixture
 def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
-    for key, value in {
-        "GIT_CONFIG_GLOBAL": "/dev/null",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_AUTHOR_NAME": "Tester",
-        "GIT_AUTHOR_EMAIL": "tester@example.com",
-        "GIT_COMMITTER_NAME": "Tester",
-        "GIT_COMMITTER_EMAIL": "tester@example.com",
-    }.items():
-        monkeypatch.setenv(key, value)
     origin, project = _make_repos(tmp_path)
     _make_fakes(tmp_path / "bin")
     created = World(
