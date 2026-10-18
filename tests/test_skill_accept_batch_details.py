@@ -66,6 +66,11 @@ def test_it_does_not_expect_an_approved_reviews_low_findings() -> None:
     has(gather(), "low findings nowhere", "in a batch", "`agent-batch ship`")
 
 
+def test_it_settles_the_batchs_blocked_issues_and_any_other_the_owner_picks() -> None:
+    blocked = walk()[walk().index("### 2.3") : walk().index("### 2.4")]
+    has(blocked, "the batch's `blocked` issues", "any other open `blocked` issue")
+
+
 def test_the_owner_runs_the_merge_command_never_the_assistant() -> None:
     has(walk(), "for the owner to run", "you never run it")
 

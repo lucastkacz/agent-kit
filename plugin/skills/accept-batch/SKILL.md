@@ -42,7 +42,7 @@ for pr in 61 62; do gh pr merge $pr --squash || break; sleep 5; done
 
 ### 2.3 The blocked questions
 
-Each `blocked` issue with its question. The owner answers; write each decision into its issue as a comment and remove `blocked`, so it's ready for the next batch. These writes are the owner's answers, so they need no other OK.
+The batch's `blocked` issues, plus any other open `blocked` issue the owner wants to settle now, each with its question. The owner answers; write each decision into its issue as a comment and remove `blocked`, so it's ready for the next batch. These writes are the owner's answers, so they need no other OK.
 
 ### 2.4 The human checks
 
