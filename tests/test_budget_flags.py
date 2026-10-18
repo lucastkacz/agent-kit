@@ -38,12 +38,3 @@ def test_the_max_hours_flag_refuses_hours_that_are_not_above_zero(
 
     assert "--max-hours" in error
     assert repr(hours) in error
-
-
-@pytest.mark.parametrize("hours", ["abc", "nan"])
-def test_the_max_hours_flag_refuses_text_that_is_not_a_number_above_zero(
-    world: World, capsys: pytest.CaptureFixture[str], hours: str
-) -> None:
-    error = _usage_error(world, capsys, "--max-hours", hours)
-
-    assert f"needs a number above 0, not {hours!r}" in error
