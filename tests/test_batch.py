@@ -15,6 +15,7 @@ CHANGES = {
         "findings": [
             {
                 "severity": "high",
+                "origin": "new",
                 "location": "a.py:1",
                 "problem": "It breaks.",
                 "suggestion": "Fix.",

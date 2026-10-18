@@ -23,3 +23,17 @@ class EventLog:
                 log.write(json.dumps(record, ensure_ascii=False) + "\n")
             sys.stdout.write(f"{record['time']} {event} {details}".rstrip() + "\n")
             sys.stdout.flush()
+
+    def records(self, event: str) -> list[dict[str, object]]:
+        """The events of this kind logged so far, oldest first."""
+        with self._lock:
+            lines = self.path.read_text(encoding="utf-8").splitlines() if self.path.exists() else []
+        records: list[dict[str, object]] = []
+        for line in lines:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # A run killed while it wrote leaves its last line cut short.
+            if isinstance(record, dict) and record.get("event") == event:
+                records.append(record)
+        return records

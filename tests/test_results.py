@@ -98,11 +98,18 @@ def test_invalid_implementation_answers(broken: dict[str, object]) -> None:
 
 
 def test_a_review_with_findings() -> None:
-    finding = {"severity": "high", "location": "a.py:1", "problem": "p", "suggestion": "s"}
+    finding = {
+        "severity": "high",
+        "origin": "regression",
+        "location": "a.py:1",
+        "problem": "p",
+        "suggestion": "s",
+    }
     review = results.to_review({"verdict": "changes", "findings": [finding]})
     assert review is not None
     assert review.approved is False
     assert review.findings[0].location == "a.py:1"
+    assert review.findings[0].origin == "regression"
 
 
 @pytest.mark.parametrize(

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, merge, naming, prompts, results, risk
+from agent_batch.core import eligibility, merge, naming, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
     ClaudeRun,
+    FoundIssue,
     ImplementResult,
     Issue,
     IssueReport,
@@ -145,16 +146,27 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
 
 
 def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
-    run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number))
-    review = results.to_review(_checked(ctx, run, job.report, "review"))
-    if review is None:
+    """One review of the branch, which gets what its earlier reviews found (SPEC §5)."""
+    earlier = rounds.earlier(ctx.events.records("reviewed"), job.branch)
+    number = len(earlier) + 1
+    head = ctx.git.head(lane.worktree)
+    run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number, earlier))
+    answer = results.to_review(_checked(ctx, run, job.report, "review"))
+    if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
+    review, filed = rounds.settle(answer, number)
+    for finding in filed:
+        _file(ctx, job, rounds.found_issue(finding, number))
+    # Every finding, filed ones included, so that the next review can read what this one found.
     ctx.events.emit(
         "reviewed",
         lane=lane.index,
         issue=job.issue.number,
+        branch=job.branch,
+        head=head,
+        round=number,
         approved=review.approved,
-        findings=len(review.findings),
+        findings=[asdict(finding) for finding in answer.findings],
     )
     return review
 
@@ -171,11 +183,16 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         pr = ctx.gh.create_pr(job.branch, ctx.config.base_branch, title, body)
     job.report.pr = pr
     for found in job.work.found:
-        body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
-        number = ctx.gh.create_issue(found.title, body, found.kind)
-        ctx.events.emit("issue_found", issue=job.issue.number, found=number)
+        _file(ctx, job, found)
     ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     return pr
+
+
+def _file(ctx: Context, job: Job, found: FoundIssue) -> None:
+    """Files work found along the way as an issue of its own (SPEC §4.5)."""
+    body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
+    number = ctx.gh.create_issue(found.title, body, found.kind)
+    ctx.events.emit("issue_found", issue=job.issue.number, found=number)
 
 
 def classify(ctx: Context, lane: Lane, job: Job) -> Risk:
