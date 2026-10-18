@@ -53,7 +53,11 @@ def run(
 
 def must(args: Sequence[str], cwd: Path, stdin: str | None = None) -> str:
     """Runs the command and returns its output, or raises when it fails."""
-    result = run(args, cwd, stdin=stdin)
+    return output(args, run(args, cwd, stdin=stdin))
+
+
+def output(args: Sequence[str], result: Result) -> str:
+    """The command's output, or a `CommandError` that says why it failed."""
     if not result.ok:
         message = result.err.strip() or result.out.strip() or f"exit code {result.code}"
         raise CommandError(f"`{' '.join(args[:3])}` failed: {message}")
