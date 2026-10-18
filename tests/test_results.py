@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from agent_batch.core import results
+from agent_batch.core.model import Denial
+
+RECORDED = Path(__file__).parent / "contract" / "recorded"
 
 DONE: dict[str, Any] = {
     "status": "done",
@@ -29,7 +33,19 @@ def test_structured_output_with_its_numbers() -> None:
     assert run.session_id == "s1"
     assert run.data == DONE
     assert run.error is None
-    assert (run.denials, run.cost_usd, run.limit_reached) == (2, 0.25, False)
+    assert (len(run.denials), run.cost_usd, run.limit_reached) == (2, 0.25, False)
+
+
+def test_each_denial_keeps_its_tool_and_input() -> None:
+    recorded = json.loads((RECORDED / "claude-review.json").read_text(encoding="utf-8"))
+    run = results.parse_run(json.dumps(recorded))
+    assert [denial.tool for denial in run.denials] == ["Bash"]
+    assert run.denials[0].tool_input == recorded["permission_denials"][0]["tool_input"]
+
+
+def test_a_denial_that_cant_be_read_still_counts() -> None:
+    run = results.parse_run(output(structured_output=DONE, permission_denials=["?", {}]))
+    assert run.denials == (Denial("unknown tool", {}), Denial("unknown tool", {}))
 
 
 def test_json_in_the_result_text_is_accepted() -> None:
