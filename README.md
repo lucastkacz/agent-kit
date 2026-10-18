@@ -1,68 +1,41 @@
 # agent-kit
 
-A way to build software where Claude Code agents do the development and the testing, and a human owner decides what gets built.
+AI agents build and test the software. A person, the owner, decides what gets built and approves what ships.
 
-- **[SPEC.md](SPEC.md)**: the process, and the source of truth. It covers how work is planned, run unattended, verified, reviewed and merged.
-- **`plugin/`**: the Claude Code plugin that implements it: `agent-batch`, the batch runner, and the hooks.
-- **`template/`**, planned: the skeleton for new projects.
+agent-kit is a plugin for Claude Code and the process behind it: the owner spends their attention on choosing the work and accepting the result, and the agents do everything in between, unattended.
 
-## Status
+## How it works
 
-| Part | State |
-|---|---|
-| Spec | Written |
-| Batch runner, `agent-batch` | Built; checked against the real `claude` and `gh` (`make contract`) |
-| Plugin and hooks | Built |
-| Plugin skills: implement and review | Built |
-| Plugin skills: plan-batch, run-batch and accept-batch | Next |
-| Project skeleton and the Python preset | Planned |
+Work moves in batches. The owner and an assistant plan a batch together, the agents work through it while the owner is away, and then the two of them go over the result.
 
-## Install
-
-It needs git, the GitHub CLI (`gh`) and Claude Code (`claude`), both signed in, and [uv](https://docs.astral.sh/uv/).
-
-**Install it per project, never for your user.** Its rules belong to projects that follow this process, and `claude plugin install` installs for the user unless told otherwise. From the project's folder:
-
-```bash
-claude plugin marketplace add lucastkacz/agent-kit --scope project
-claude plugin install agent-kit@agent-kit --scope project --config language="English"
+```mermaid
+flowchart LR
+    plan["Plan a batch<br/>owner and assistant"] --> work["Agents work it<br/>unattended"]
+    work --> accept["Accept the result<br/>owner and assistant"]
+    accept -->|next batch| plan
 ```
 
-That writes the marketplace and `"enabledPlugins": {"agent-kit@agent-kit": true}` into the project's `.claude/settings.json`; commit it. If the plugin ends up installed for the user anyway, its hooks still act only in projects whose settings enable it.
+Each issue in a batch follows the same path. Tests come first, a separate reviewer checks the change, and only the risky changes wait for the owner.
 
-`--config` is the exception: Claude Code keeps plugin options in your user's settings, so `language` goes into `~/.claude/settings.json`, as `"pluginConfigs": {"agent-kit@agent-kit": {"options": {"language": "English"}}}`. It does nothing in projects that don't enable the plugin. To change the language, edit that value there; it applies from the next session on.
-
-Then start a new session in the project. `agent-batch` joins the PATH, and the hooks start working: they keep commits and pushes off `master`, show what waits for you when a session starts, and log permission denials. `language` is the language Claude talks to you in.
-
-## The batch runner
-
-```bash
-agent-batch run 12              # run the batch whose tracking issue is #12
-agent-batch run 12 --lanes 3    # 3 lanes at a time
-agent-batch run 12 --model opus --effort high   # every run on opus, at high effort
-agent-batch ship 15 --title "feat: export cards" --body-file pr.md   # direct mode
+```mermaid
+flowchart LR
+    ready["Issue ready"] --> tests["Tests first"]
+    tests --> build["Implementation"]
+    build --> review["Review"]
+    review -->|changes| build
+    review -->|approved| pr["Pull request"]
+    pr --> risk{"Risk?"}
+    risk -->|low| auto["Merges by itself<br/>once checks pass"]
+    risk -->|high| owner["The owner merges it"]
 ```
 
-A batch's tracking issue lists its lanes. Optional lines set the lanes at a time (2 by default), the budget, and the model and effort of the batch's runs (your own settings by default; `--model` and `--effort` override them):
+## What it does
 
-```
-Lane 1: #12, #15
-Lane 2: #13
-Lanes: 2
-Budget: 4 issues, 3 hours
-Model: opus, high
-```
+- **Guardrails it enforces:** agents never merge, never push to the main branch, never read secrets, and build nothing outside an approved issue. These are blocked by rules and code, not just asked for.
+- **Quality it checks:** every criterion that can be automated has a test, written before the code. Formatting, linting, types, size and complexity limits, coverage and a dependency audit run on every change.
+- **What waits for the person:** the questions only the owner can answer, the high-risk changes to merge, and the checks that need human eyes. Everything else keeps moving.
 
-During a batch, leave the Mac plugged in with its lid open. The runner keeps it awake only on AC power, and says so at the start when it's on battery; closing the lid sleeps it anyway.
+## Learn more
 
-SPEC §5, §9 and §11 explain how a batch runs, what merges by itself and what waits for the owner.
-
-## Developing the kit
-
-```bash
-make setup   # the pinned Python and tools, through uv
-make check   # format, lint, types, layers, complexity, size limits, tests with coverage, audit
-make test    # the tests only
-```
-
-Every change goes through an issue and a pull request, and the owner merges it (SPEC §16).
+- [SPEC.md](SPEC.md): the whole process, and the source of truth.
+- [docs/usage.md](docs/usage.md): requirements, install, the batch runner, and developing the kit.
