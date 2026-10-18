@@ -20,7 +20,14 @@ BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 
 
-def render(reports: Sequence[IssueReport], seconds: float) -> str:
+def model_lines(model: str | None, effort: str | None) -> list[str]:
+    """The model and effort as the batch's comments state them, when they're set."""
+    shown = (("Model", model), ("Effort", effort))
+    return [f"**{name}:** {value}" for name, value in shown if value is not None]
+
+
+def render(reports: Sequence[IssueReport], seconds: float, model_text: Sequence[str] = ()) -> str:
+    """The summary; `model_text` holds the batch's `model_lines`."""
     ordered = sorted(reports, key=lambda report: report.number)
     counts = Counter(report.outcome for report in reports)
     lines = [
@@ -35,6 +42,7 @@ def render(reports: Sequence[IssueReport], seconds: float) -> str:
         f"**Permission denials:** {sum(len(r.denials) for r in reports)}",
         f"**Time:** {seconds / SECONDS_PER_MINUTE:.0f} min",
         f"**Notional cost:** ${sum(r.cost_usd for r in reports):.2f}",
+        *model_text,
     ]
     denied = [_denial(r.number, denial) for r in ordered for denial in r.denials]
     if denied:
