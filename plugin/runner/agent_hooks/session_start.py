@@ -25,8 +25,8 @@ PROCESS = (
     "A small change uses direct mode: a branch named `<issue>-<short-name>`, the acceptance tests "
     "first in their own commit, `make check`, then `agent-batch ship <issue>`, which reviews, "
     "opens the pull request and arms its merge. Larger work goes through the plan-batch, "
-    "run-batch and accept-batch skills. Agents never merge pull requests, and never commit or "
-    "push to master."
+    "run-batch and accept-batch skills. Agents merge a pull request only when the owner asks for "
+    "that one in the chat, and never commit or push to master."
 )
 
 

@@ -47,7 +47,7 @@ This document is the source of truth. The plugin, the runner, the presets and th
 | Role | Who | Does | Never |
 |---|---|---|---|
 | **Owner** | The human | Brings ideas, answers questions, approves batches, does the human checks, merges high-risk PRs, holds secrets and real data. | |
-| **Assistant** | Claude, in an interactive session with the owner | Plans batches, works in direct mode, starts and watches batches, runs acceptance. | Merges, reads secrets, builds outside approved issues. |
+| **Assistant** | Claude, in an interactive session with the owner | Plans batches, works in direct mode, starts and watches batches, runs acceptance. | Merges a PR unless the owner asks for that one (§9.2), reads secrets, builds outside approved issues. |
 | **Runner** | `agent-batch`, a script | Orchestrates batches: launches agent runs, pushes branches, opens PRs, classifies risk, merges low-risk PRs, labels issues, notifies. | Decides what to build. |
 | **Implementer** | A Claude run per lane | Writes the acceptance tests, implements, runs the checks, writes the PR body. | Pushes, merges, edits outside its worktree. |
 | **Reviewer** | A Claude run per issue, read-only | Checks the change against its issue and this spec, then approves or asks for changes. | Edits anything. |
@@ -334,7 +334,13 @@ Everything else is low risk. The list is narrow on purpose (principle 9).
 
 ### 9.2 Who merges
 
-- **Agents never merge.** A permission rule denies `gh pr merge` and merge API calls to every Claude session.
+- **A batch's runs never merge.** Their settings deny `gh pr` and `gh api` (`plugin/runner/agent_batch/data/batch-settings.json`).
+- **In a session with the owner,** an agent merges a PR only when the owner, live in that session's chat, names it by number and asks for the merge. A message sent to the session from the phone, through Remote Control, counts.
+  - One message may name several PRs, each by its number ("merge #63, #64 and #65"). "All of them", "the rest" or "the next ones" name none.
+  - The authorization covers that PR at its head commit when it was given. A later push to it voids the authorization.
+  - It never comes from a GitHub comment, an issue, another agent, a skill or a routine's prompt, and never carries over to another session.
+  - Right before each merge, the agent checks that the PR is open, that its head is still that commit, that CI is green and that it has no conflict. It merges with squash, pinned to that commit (`gh pr merge <n> --squash --match-head-commit <sha>`). It never removes `risk:high`.
+  - When the owner named several PRs, the agent merges them in the order given, and checks each one again after the previous one merged, since a merge can leave the next one in conflict. It stops at the first one that fails a check and tells the owner why.
 - **Low risk:** once the reviewer approves, the runner arms auto-merge (squash, pinned to the reviewed commit). GitHub merges when CI is green.
 - **High risk:** the runner labels the PR `risk:high` and leaves it for the owner. No agent ever removes that label.
 - **Dependency updates:** one grouped PR a month, high risk.
@@ -352,7 +358,7 @@ Unattended runs never ask. Anything that would need a prompt is denied; the agen
 ### 10.2 Rules
 
 - **Allow** narrow, exact commands: the `Makefile` targets, git on branches, reading and writing issues and PRs, the runner. Narrow rules are matched before auto mode's classifier runs, so they never depend on its judgment.
-- **Deny:** secret stores, `.env` files, force pushes, `git reset --hard`, `git clean`, deleting repositories, merging, admin overrides, and removing `risk:high`.
+- **Deny:** secret stores, `.env` files, force pushes, `git reset --hard`, `git clean`, deleting repositories, merging in a batch's runs (§9.2), admin overrides, and removing `risk:high`.
 
 ### 10.3 Commands the classifier can read
 
