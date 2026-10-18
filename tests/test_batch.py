@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from conftest import World
@@ -40,6 +41,11 @@ def pr_for(world: World, issue: int) -> dict[str, Any]:
     ]
     assert len(prs) == 1, prs
     return prs[0]
+
+
+def events(world: World) -> list[dict[str, Any]]:
+    log = world.project / ".agent-batch" / f"batch-{BATCH}" / "events.jsonl"
+    return [json.loads(line) for line in log.read_text().splitlines()]
 
 
 def test_a_lane_merges_its_issues_in_order_and_keeps_the_implementer_session(world: World) -> None:
@@ -239,6 +245,38 @@ def test_a_failed_check_blocks_the_issue(world: World) -> None:
     issue = world.gh()["issues"]["10"]
     assert "blocked" in issue["labels"]
     assert "checks failed" in issue["comments"][-1]
+
+
+# The PR merges, then the connection drops before the cleanup's fetch (batch #21, issue #19).
+MERGED_THEN_OFFLINE = {"state": "MERGED", "mergeable": "MERGEABLE", "remote_down": True}
+
+
+def test_a_merged_issue_stays_merged_and_untouched_when_the_cleanup_fails(world: World) -> None:
+    world.add_issue(10)
+    world.add_batch(BATCH, "Lane 1: #10\n")
+    world.pr_views("10-issue-10", MERGED_THEN_OFFLINE)
+
+    world.run("run", str(BATCH))
+
+    finished = [event for event in events(world) if event["event"] == "issue_finished"]
+    assert [event["outcome"] for event in finished] == ["merged"]
+    issue = world.gh()["issues"]["10"]
+    assert issue["labels"] == ["task", "ready"]
+    assert issue["comments"] == []
+    assert "merged 1" in world.gh()["issues"][str(BATCH)]["comments"][-1]
+
+
+def test_a_failed_cleanup_after_the_merge_is_logged_with_the_command_error(world: World) -> None:
+    world.add_issue(10)
+    world.add_batch(BATCH, "Lane 1: #10\n")
+    world.pr_views("10-issue-10", MERGED_THEN_OFFLINE)
+
+    world.run("run", str(BATCH))
+
+    failed = [event for event in events(world) if event["event"] == "cleanup_failed"]
+    assert [event.get("issue") for event in failed] == [10]
+    assert "`git fetch --quiet` failed" in failed[0]["detail"]
+    assert "does not appear to be a git repository" in failed[0]["detail"]
 
 
 def test_a_batch_without_a_lane_plan_is_refused(world: World) -> None:

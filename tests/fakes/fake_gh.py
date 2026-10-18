@@ -115,6 +115,8 @@ def pr_view(state: State, argv: list[str], _stdin: str) -> str:
     view: dict[str, Any] = pr["views"].pop(0) if pr["views"] else merged
     if "push_conflict" in view:
         push_conflict(view["push_conflict"])
+    if view.get("remote_down"):
+        remote_down()
     pr["state"] = view["state"]
     return json.dumps(
         {
@@ -150,6 +152,12 @@ def push_conflict(change: dict[str, str]) -> None:
         subprocess.run([*git, "add", "-A"], check=True)
         subprocess.run([*git, "commit", "--quiet", "-m", "another lane's change"], check=True)
         subprocess.run([*git, "push", "--quiet", "origin", "HEAD:master"], check=True)
+
+
+def remote_down() -> None:
+    """Takes the git remote away, as a lost connection would, so the next fetch fails."""
+    origin = Path(os.environ["FAKE_ORIGIN"])
+    origin.rename(origin.with_name(f"{origin.name}.down"))
 
 
 HANDLERS: dict[tuple[str, str], Handler] = {
