@@ -76,11 +76,13 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 In one sitting, the assistant walks the owner through:
 
 1. What merged.
-2. The high-risk PRs, each with a short explanation and a link to merge it.
+2. The high-risk PRs, each with a short explanation, and one command that merges them all.
 3. The blocked questions. The owner answers; the assistant writes each decision into its issue and removes `blocked`, so the issue is ready for the next batch.
 4. The batch's human checks, as one checklist.
 5. The run's permission denials and friction, turned into proposed changes to the project or to this kit.
 6. The batch's numbers (§16.2), to see whether the process is getting better.
+
+The assistant then shows the acceptance comment and writes nothing on GitHub until the owner says it's OK. With the OK, it posts the comment on the tracking issue, ticks its checklist, and closes the tracking issue and the milestone. A high-risk PR that hasn't merged yet doesn't hold back the acceptance, but its checklist item stays open, and the tracking issue and the milestone close only when the owner has merged it and asks to close the batch.
 
 ### 3.4 Direct mode
 
