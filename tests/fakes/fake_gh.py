@@ -133,8 +133,13 @@ def pr_merge(state: State, argv: list[str], _stdin: str) -> str:
     return ""
 
 
-def pr_edit(state: State, argv: list[str], _stdin: str) -> str:
-    state["prs"][argv[2]]["labels"].extend(options(argv, "--add-label"))
+def pr_edit(state: State, argv: list[str], stdin: str) -> str:
+    pr = state["prs"][argv[2]]
+    pr["labels"].extend(options(argv, "--add-label"))
+    if "--title" in argv:
+        pr["title"] = option(argv, "--title")
+    if "--body-file" in argv:
+        pr["body"] = stdin
     return ""
 
 

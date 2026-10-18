@@ -174,7 +174,7 @@ The same steps run in a batch and in direct mode.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
 5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. After two rounds without approval, the issue is blocked.
-6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body.
+6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body. The runner adds the approved review's findings under `## Review findings`, and when the branch is published again it updates the open PR's title and body.
 7. **Risk and merge.** The runner classifies the risk (§9). Low: auto-merge armed, squash, pinned to the reviewed commit. High: label `risk:high`, and the owner merges.
 8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends.
 

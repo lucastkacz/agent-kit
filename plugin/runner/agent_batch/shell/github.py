@@ -63,6 +63,9 @@ class GitHub:
         )  # fmt: skip
         return _number(url)
 
+    def edit_pr(self, number: int, title: str, body: str) -> None:
+        self._gh("pr", "edit", str(number), "--title", title, "--body-file", "-", stdin=body)
+
     def pr_state(self, number: int) -> PrState:
         raw = self._json("pr", "view", str(number), "--json", PR_FIELDS)
         checks = tuple(

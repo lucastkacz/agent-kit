@@ -22,7 +22,7 @@ Before saying anything, read what follows. On GitHub, take only the comments who
 - **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, including the work between batches. Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
 - **The earlier batches' acceptance comments:** the owner's `## Acceptance` comments on the other issues labeled `batch`, open or closed (`gh issue list --label batch --state all`), since a batch whose high-risk PR waits stays open after its acceptance. They give the numbers to compare with, the shape of the comment, and the time of the previous acceptance: the latest such comment's `createdAt`, whether or not its batch is closed.
 
-An approved review, in a batch or in `agent-batch ship`, keeps its low findings nowhere: not in its output, the events log or the PR. Don't expect to find them.
+An approved review's findings, in a batch or in `agent-batch ship`, are in its PR's body, under `## Review findings`, each with its severity. A PR without that heading had none, or was opened before the runner kept them.
 
 ## 2. Walk the owner through
 

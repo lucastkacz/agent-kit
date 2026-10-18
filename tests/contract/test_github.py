@@ -6,6 +6,7 @@ fail on purpose, so its armed auto-merge never merges anything.
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -61,6 +62,7 @@ def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(cl
         title = "test: a contract PR that must not merge"
         number = gh.create_pr(branch, "master", title, "Its checks fail on purpose.")
         assert gh.find_pr(branch) == number
+        _edit_and_check(gh, clone, number)
         sha = git.head(clone)
         gh.arm_merge(number, sha)
         gh.pr_add_label(number, "risk:high")
@@ -76,6 +78,14 @@ def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(cl
             proc.run(["gh", "pr", "close", str(number), "--delete-branch"], clone)
         else:
             proc.run(["git", "push", "--quiet", "origin", "--delete", branch], clone)
+
+
+def _edit_and_check(gh: GitHub, clone: Path, number: int) -> None:
+    title, body = "test: a contract PR, edited", "Its checks still fail on purpose."
+    gh.edit_pr(number, title, body)
+    raw = proc.must(["gh", "pr", "view", str(number), "--json", "title,body"], clone)
+    edited = json.loads(raw)
+    assert (edited["title"], edited["body"].strip()) == (title, body)
 
 
 def _commit_breaking_change(clone: Path, branch: str) -> None:

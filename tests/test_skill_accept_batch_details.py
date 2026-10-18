@@ -63,8 +63,8 @@ def test_it_reads_the_cloud_runs_denials_from_their_whole_run_logs() -> None:
     has(walk(), "cloud runs' logs")
 
 
-def test_it_does_not_expect_an_approved_reviews_low_findings() -> None:
-    has(gather(), "low findings nowhere", "in a batch", "`agent-batch ship`")
+def test_it_finds_an_approved_reviews_findings_in_its_prs_body() -> None:
+    has(gather(), "pr's body", "`## review findings`", "in a batch", "`agent-batch ship`")
 
 
 def test_it_settles_the_batchs_blocked_issues_and_any_other_the_owner_picks() -> None:
