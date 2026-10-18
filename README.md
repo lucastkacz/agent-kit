@@ -15,6 +15,36 @@ flowchart LR
     accept -->|next batch| plan
 ```
 
+A batch's issues don't wait for one another. The batch splits them into lanes, Lane 1, Lane 2 … Lane N, and the lanes work side by side, each taking its issues in order. Some issues can also go to the cloud, where each one runs on a machine of its own and leaves the owner's computer free. So a batch of many issues takes about as long as its longest lane, not the sum of all of them. Whichever way an issue went, its work reaches the same merge gate.
+
+```mermaid
+flowchart LR
+    batch["A batch<br/>of ready issues"]
+    batch --> l1a
+    batch --> l2a
+    batch --> lna
+    batch --> cloud1
+    batch --> cloud2
+    subgraph lane1["Lane 1"]
+        l1a["Issue"] --> l1b["Next issue"]
+    end
+    subgraph lane2["Lane 2"]
+        l2a["Issue"] --> l2b["Next issue"]
+    end
+    subgraph laneN["Lane N"]
+        lna["Issue"] --> lnb["Next issue"]
+    end
+    subgraph cloud["In the cloud, a machine per issue"]
+        cloud1["Issue"]
+        cloud2["Issue"]
+    end
+    l1b --> gate["Merge gate<br/>review, then merge by risk"]
+    l2b --> gate
+    lnb --> gate
+    cloud1 --> gate
+    cloud2 --> gate
+```
+
 Each issue in a batch follows the same path. Tests come first, a separate reviewer checks the change, and only the risky changes wait for the owner.
 
 ```mermaid
