@@ -37,6 +37,18 @@ def test_a_resume_skips_the_cloud_issues_labeled_blocked() -> None:
     assert "aren't labeled `blocked`" in resume, resume
 
 
+def test_a_resume_doesnt_ship_again_a_branch_whose_review_asked_for_changes() -> None:
+    resume = section("Resume")
+    assert "`approved` false, don't ship it again" in resume, resume
+    assert "waits for a direct-mode fix" in resume, resume
+
+
+def test_cloud_branches_come_back_one_at_a_time_retrying_a_lock_once() -> None:
+    back = section("Bring a cloud branch back")
+    assert "one branch at a time" in back, back
+    assert "fails on a `.lock` file, retry it once" in back, back
+
+
 def test_a_failed_cloud_run_is_labeled_blocked_with_the_runners_comment() -> None:
     back = section("Bring a cloud branch back")
     assert "gh issue edit <n> --add-label blocked" in back, back
@@ -49,7 +61,9 @@ def test_a_ship_that_asks_for_changes_or_fails_ends_the_issue_for_the_batch() ->
     back = section("Bring a cloud branch back")
     assert "`ship` fails" in back, back
     assert "has ended for this batch" in back, back
-    assert "After the batch, the owner chooses" in back, back
+    assert "After the batch, fix it in this session" in back, back
+    assert "in direct mode with the implement skill" in back, back
+    assert "back to the cloud" not in back, back
     results = section("The cloud's results")
     assert "a review that asked for changes or a `ship` that failed" in results, results
 

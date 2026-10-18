@@ -65,7 +65,12 @@ def test_each_routine_is_named_after_the_repository_the_batch_and_the_issue() ->
 def test_the_cloud_run_picks_up_a_branch_that_exists() -> None:
     work = section(prompt_text(), "How to work")
     assert "git ls-remote --exit-code --heads origin {branch}" in work, work
+    assert "git fetch origin {branch}:refs/remotes/origin/{branch}" in work, work
     assert "--no-track origin/{branch}" in work, work
+
+
+def test_the_issues_body_travels_between_tags() -> None:
+    assert "<issue-body>\n{body}\n</issue-body>" in prompt_text()
 
 
 def test_the_cloud_answer_gives_its_status_and_the_work_it_found() -> None:
