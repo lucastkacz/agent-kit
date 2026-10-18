@@ -4,7 +4,7 @@ A way to build software where Claude Code agents do the development and the test
 
 - **[SPEC.md](SPEC.md)**: the process, and the source of truth. It covers how work is planned, run unattended, verified, reviewed and merged.
 - **`plugin/`**: the Claude Code plugin that implements it: `agent-batch`, the batch runner, and the hooks.
-- **`template/`**: the skeleton for new projects.
+- **`template/`**, planned: the skeleton for new projects.
 
 ## Status
 
@@ -13,7 +13,8 @@ A way to build software where Claude Code agents do the development and the test
 | Spec | Written |
 | Batch runner, `agent-batch` | Built; checked against the real `claude` and `gh` (`make contract`) |
 | Plugin and hooks | Built |
-| Plugin skills | Next |
+| Plugin skills: implement and review | Built |
+| Plugin skills: plan-batch, run-batch and accept-batch | Next |
 | Project skeleton and the Python preset | Planned |
 
 ## Install
