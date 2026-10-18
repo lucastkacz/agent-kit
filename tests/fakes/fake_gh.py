@@ -69,12 +69,25 @@ def issue_create(state: State, argv: list[str], stdin: str) -> str:
     return f"{URL}/issues/{number}\n"
 
 
-def pr_list(state: State, argv: list[str], _stdin: str) -> str:
-    head = option(argv, "--head")
-    prs = state["prs"].values()
+def issue_list(state: State, argv: list[str], _stdin: str) -> str:
+    label = option(argv, "--label")
+    issues = state["issues"].values()
     return json.dumps(
-        [{"number": pr["number"]} for pr in prs if pr["branch"] == head and pr["state"] == "OPEN"]
+        [
+            {"number": issue["number"], "title": issue["title"]}
+            for issue in issues
+            if label in issue["labels"] and issue["state"] == "OPEN"
+        ]
     )
+
+
+def pr_list(state: State, argv: list[str], _stdin: str) -> str:
+    wanted = [pr for pr in state["prs"].values() if pr["state"] == "OPEN"]
+    if "--head" in argv:
+        wanted = [pr for pr in wanted if pr["branch"] == option(argv, "--head")]
+    if "--label" in argv:
+        wanted = [pr for pr in wanted if option(argv, "--label") in pr["labels"]]
+    return json.dumps([{"number": pr["number"], "title": pr["title"]} for pr in wanted])
 
 
 def pr_create(state: State, argv: list[str], stdin: str) -> str:
@@ -145,6 +158,7 @@ HANDLERS: dict[tuple[str, str], Handler] = {
     ("issue", "edit"): issue_edit,
     ("issue", "comment"): issue_comment,
     ("issue", "create"): issue_create,
+    ("issue", "list"): issue_list,
     ("pr", "list"): pr_list,
     ("pr", "create"): pr_create,
     ("pr", "view"): pr_view,
@@ -155,6 +169,9 @@ HANDLERS: dict[tuple[str, str], Handler] = {
 
 
 def main(argv: list[str]) -> int:
+    if os.environ.get("FAKE_GH_DOWN"):
+        print("error connecting to api.github.com", file=sys.stderr)
+        return 1
     path = Path(os.environ["FAKE_GH_STATE"])
     stdin = sys.stdin.read() if "-" in argv else ""
     handler = HANDLERS.get((argv[0], argv[1])) if len(argv) > 1 else None
