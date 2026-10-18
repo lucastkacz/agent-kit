@@ -32,11 +32,18 @@ REVIEWER = (
 )  # fmt: skip
 
 
-def command(prompt: str, schema: dict[str, object], options: Sequence[str]) -> list[str]:
+def command(
+    prompt: str,
+    schema: dict[str, object],
+    options: Sequence[str],
+    *,
+    model: str | None = None,
+    effort: str | None = None,
+) -> list[str]:
     """Every run's command line: one prompt, a JSON answer checked against a schema, no prompts.
 
-    The prompt goes right after `-p`, because the tool lists in `options` take every word after
-    them.
+    The prompt goes right after `-p`, and the model and effort before `options`, because the tool
+    lists in `options` take every word after them.
     """
     return [
         "claude", "-p", prompt,
@@ -44,14 +51,28 @@ def command(prompt: str, schema: dict[str, object], options: Sequence[str]) -> l
         "--json-schema", json.dumps(schema),
         "--permission-prompts", "none",
         "--settings", str(SETTINGS),
+        *(["--model", model] if model is not None else []),
+        *(["--effort", effort] if effort is not None else []),
         *options,
     ]  # fmt: skip
 
 
 class Claude:
-    def __init__(self, env: Mapping[str, str], config: Config) -> None:
+    def __init__(
+        self,
+        env: Mapping[str, str],
+        config: Config,
+        model: str | None = None,
+        effort: str | None = None,
+    ) -> None:
         self._env = env
         self._config = config
+        self._model = model
+        self._effort = effort
+
+    def with_model(self, model: str | None, effort: str | None) -> Claude:
+        """The same runs, on this model and effort (SPEC §11.1)."""
+        return Claude(self._env, self._config, model, effort)
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
@@ -78,7 +99,8 @@ class Claude:
         timeout: float | None = None,
     ) -> ClaudeRun:
         limit = timeout if timeout is not None else self._config.implement_timeout
-        done = proc.run(command(prompt, schema, options), cwd, env=self._env, timeout=limit)
+        argv = command(prompt, schema, options, model=self._model, effort=self._effort)
+        done = proc.run(argv, cwd, env=self._env, timeout=limit)
         if done.timed_out:
             return ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
         if not done.out.strip():
