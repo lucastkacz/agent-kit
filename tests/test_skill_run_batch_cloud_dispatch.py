@@ -1,4 +1,4 @@
-"""After its review, run-batch takes only the owner's issues and sends a whole prompt (#58)."""
+"""run-batch sends only the owner's issues, with a whole prompt, and ships what it sent (#58)."""
 
 from __future__ import annotations
 
@@ -30,6 +30,17 @@ def test_the_check_before_starting_requires_what_the_runner_requires() -> None:
     assert "labeled `batch`" in check, check
 
 
+def test_no_issue_is_both_in_a_lane_and_in_the_cloud() -> None:
+    check = section(skill_text(), "Check before starting")
+    assert "both in a lane and on the `Cloud:` line" in check, check
+
+
+def test_a_runner_that_may_outlast_the_tools_timeout_starts_in_a_terminal() -> None:
+    start = section(skill_text(), "Start")
+    assert "the longest `timeout`" in start, start
+    assert "in a terminal" in start, start
+
+
 def test_the_cloud_prompt_needs_no_file_of_the_kit_in_the_project() -> None:
     text = prompt_text()
     assert "{implement}" in text
@@ -41,6 +52,13 @@ def test_the_skill_fills_the_prompt_from_the_plugins_own_files() -> None:
     fill = section(skill_text(), "Send an issue to the cloud")
     assert "`{implement}`" in fill, fill
     assert "${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md" in fill, fill
+    assert "named as the runner names it" in fill, fill
+
+
+def test_the_cloud_run_picks_up_a_branch_that_exists() -> None:
+    work = section(prompt_text(), "How to work")
+    assert "git ls-remote --exit-code --heads origin {branch}" in work, work
+    assert "--no-track origin/{branch}" in work, work
 
 
 def test_the_cloud_answer_gives_its_status_and_the_work_it_found() -> None:
