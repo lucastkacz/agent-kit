@@ -173,7 +173,7 @@ The same steps run in a batch and in direct mode.
 2. **Acceptance tests first.** The implementer writes a test for each automatable criterion and commits them on their own (`test: acceptance tests for #N`). They fail, for the right reason. They are formatted before that commit, and after it they don't change: a later test goes in a file of its own. If one looks wrong, the issue is blocked with the question. When the test is indeed wrong, the owner can approve fixing it inside the acceptance commit and rebuilding the branch on `master`.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
-5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. After two rounds without approval, the issue is blocked.
+5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. A re-review gets the earlier rounds' findings and checks that each was fixed or answered. From the third review of a branch on, a new medium finding that isn't a regression doesn't block: it's filed as an issue, as work found along the way is (§4.5). A high finding, or a regression, still blocks. After two rounds without approval, the issue is blocked.
 6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body.
 7. **Risk and merge.** The runner classifies the risk (§9). Low: auto-merge armed, squash, pinned to the reviewed commit. High: label `risk:high`, and the owner merges.
 8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends.
@@ -183,7 +183,7 @@ The same steps run in a batch and in direct mode.
 Every new context re-reads its instructions and the code it touches, which costs time and usage. A batch uses two kinds:
 
 - **One implementer per lane.** Issues in a lane touch the same files, so the implementer resumes the same session from one issue to the next instead of starting over. After a few issues (default 3) it starts fresh, because quality drops as a context fills up.
-- **One reviewer per issue, fresh on purpose.** A reviewer that inherits the implementer's reasoning inherits its mistakes too. It reads the diff, the issue and the checks of §7 and §8, so it is cheap.
+- **One reviewer per issue, fresh on purpose.** A reviewer that inherits the implementer's reasoning inherits its mistakes too. It reads the diff, the issue and the checks of §7 and §8, so it is cheap. Each re-review is a fresh run too, but it gets the earlier rounds' findings, so it checks what they found instead of starting over.
 
 There are no other subagents by default: no researchers, no explorers. Research is a task of its own, planned like any other.
 
