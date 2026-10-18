@@ -127,17 +127,17 @@ def require_committed(ctx: Context, lane: Lane) -> None:
 
 def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
     """Reviews, sends findings back to the implementer, and gives up after the last round."""
-    rounds = ctx.config.review_rounds
-    for attempt in range(1, rounds + 1):
+    most = ctx.config.review_rounds
+    for attempt in range(1, most + 1):
         job.report.review_rounds = attempt
         review = review_once(ctx, lane, job)
         if review.approved:
             return
-        if attempt == rounds:
+        if attempt == most:
             findings = prompts.findings_list(review.findings)
             raise Stopped(
                 Outcome.BLOCKED,
-                f"The review still asks for changes after {rounds} rounds:\n\n{findings}",
+                f"The review still asks for changes after {most} rounds:\n\n{findings}",
             )
         prompt = prompts.fix(job.issue.number, review.findings)
         run = ctx.claude.implement(lane.worktree, prompt, lane.session_id)
@@ -147,7 +147,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
 
 def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     """One review of the branch, which gets what its earlier reviews found (SPEC §5)."""
-    earlier = rounds.earlier(ctx.events.records("reviewed"), job.branch)
+    earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
     number = len(earlier) + 1
     head = ctx.git.head(lane.worktree)
     run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number, earlier))
@@ -155,6 +155,8 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
     review, filed = rounds.settle(answer, number)
+    # The issues go before the event: if filing fails, this round isn't logged and runs again.
+    # That can file an issue twice, but the next round never reads as filed a finding that wasn't.
     for finding in filed:
         _file(ctx, job, rounds.found_issue(finding, number))
     # Every finding, filed ones included, so that the next review can read what this one found.

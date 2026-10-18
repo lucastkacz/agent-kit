@@ -119,12 +119,20 @@ def test_a_filed_finding_becomes_a_bug_with_its_location_and_suggestion() -> Non
         assert text in found.body
 
 
-def test_the_event_log_reads_back_its_events_of_one_kind(tmp_path: Path) -> None:
-    log = EventLog(tmp_path / "events.jsonl")
-    assert log.records("reviewed") == []
-    log.emit("reviewed", round=1)
-    log.emit("pr_opened", pr=7)
-    with log.path.open("a", encoding="utf-8") as out:
-        out.write(json.dumps({"event": "reviewed", "round": 2})[:-5])
+def test_the_event_logs_give_one_kind_of_event_from_every_log_oldest_first(tmp_path: Path) -> None:
+    ship = EventLog(tmp_path / "ship-10" / "events.jsonl")
+    assert ship.project_records("reviewed") == []
+    batch = tmp_path / "batch-1" / "events.jsonl"
+    batch.parent.mkdir()
+    lines = [
+        {"time": "2000-01-01T10:00:00+00:00", "event": "reviewed", "round": 2},
+        {"time": "2000-01-01T10:05:00+00:00", "event": "pr_opened", "pr": 7},
+    ]
+    batch.write_text("".join(json.dumps(line) + "\n" for line in lines))
+    first = {"time": "2000-01-01T09:00:00+00:00", "event": "reviewed", "round": 1}
+    ship.path.write_text(json.dumps(first) + "\n")
+    ship.emit("reviewed", round=3)
+    with ship.path.open("a", encoding="utf-8") as out:
+        out.write(json.dumps({"event": "reviewed", "round": 4})[:-5])
 
-    assert [r["round"] for r in log.records("reviewed")] == [1]
+    assert [r["round"] for r in ship.project_records("reviewed")] == [1, 2, 3]
