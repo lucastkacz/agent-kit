@@ -41,7 +41,7 @@ One routine per `Cloud:` issue, with the `RemoteTrigger` tool:
 When you dispatch them, tell the owner:
 
 - if routines can't take an effort, that the cloud runs go without the `Model:` line's effort;
-- that each cloud session may notify their phone by itself, and that they may chat with it about its issue, but this session, on their computer, is the control tower: the cloud branches are shipped from here, and the batch's questions and its end come here.
+- that the cloud sessions send them no notification, and that they may chat with one about its issue, but this session, on their computer, is the control tower: the cloud branches are shipped from here, and the batch's questions and its end come here.
 
 ## Watch
 
