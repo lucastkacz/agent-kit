@@ -8,13 +8,24 @@ from agent_batch.core import naming
 from agent_batch.core.model import Finding
 
 QUOTES_A_CLOSING = Finding("low", "a.py:1", "The comment says it fixes #7.", "Reword it.")
+CLOSES_OTHERS = Finding(
+    "low", "a.py:1", "This also fixes #12, out of scope.", "Fixes: #13; closes owner/repo#14."
+)
 
 
 def test_the_findings_come_after_the_body_and_before_closes() -> None:
     body = naming.pr_body("Adds it.", 7, (QUOTES_A_CLOSING,))
 
     assert body.index("Adds it.") < body.index(naming.FINDINGS_HEADING) < body.index("Closes #7")
-    assert "- **low** `a.py:1`: The comment says it fixes #7." in body
+    assert "- **low** `a.py:1`: The comment says it fixes `#7`." in body
+
+
+def test_a_findings_closing_references_are_quoted_so_the_merge_closes_nothing_else() -> None:
+    body = naming.pr_body("Adds it.", 7, (CLOSES_OTHERS,))
+
+    assert "fixes #12" not in body
+    assert "This also fixes `#12`, out of scope." in body
+    assert "Fixes: `#13`; closes `owner/repo#14`." in body
 
 
 def test_a_finding_that_quotes_a_closing_keyword_still_gets_closes() -> None:
@@ -45,3 +56,10 @@ def test_a_refused_title_says_why(title: str, reason: str) -> None:
 
 def test_a_conventional_title_is_not_refused() -> None:
     assert naming.title_refusal("  fix(import): keep dates  ") is None
+
+
+def test_a_findings_closing_url_is_quoted_too() -> None:
+    url = "https://github.com/owner/repo/issues/15"
+    finding = Finding("low", "a.py:1", f"It resolves {url}.", "Split it.")
+
+    assert f"It resolves `{url}`." in naming.pr_body("Adds it.", 7, (finding,))
