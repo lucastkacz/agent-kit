@@ -1,4 +1,4 @@
-"""A branch's review rounds, and when a new finding stops holding the pull request back (SPEC §5)."""
+"""A branch's review rounds, and when a new finding stops holding its pull request back."""
 
 from __future__ import annotations
 
