@@ -15,10 +15,13 @@ Wait for the owner's OK before writing anything on GitHub.
 Before saying anything, read:
 
 - **The tracking issue:** `gh issue view <n> --json title,body,milestone,comments`. Its plan, the runner's summary and the "Cloud" comment, if there is one.
-- **The milestone's issues and PRs:** `gh issue list --milestone <milestone> --state all` and `gh pr list --search "milestone:<milestone>" --state all`, with each PR's labels, merge state and body.
+- **The milestone's issues and their PRs:** `gh issue list --milestone <milestone> --state all`. The runner opens its PRs without a milestone, so find each issue's PR from the issue: the summary's PR column, or `gh issue view <i> --json closedByPullRequestsReferences`, or `gh pr list --state all --search "Closes #<i> in:body"`. Then read each PR with `gh pr view <pr> --json labels,state,mergedAt,body`, for its labels, merge state and body.
 - **The batch's log:** `.agent-batch/batch-<n>/events.jsonl`. Its `permission_denied` events list each run's denials: the issue, the run, the tool and its input.
-- **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the batch started.
-- **The earlier batches' acceptance comments:** on the closed issues labeled `batch`, for the numbers to compare with and the shape of the comment.
+- **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log (`RemoteTrigger`'s `get_run_log`). Cloud runs leave nothing in `.agent-batch/`.
+- **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, also the work between batches. Both logs give their times in UTC ISO format, so comparing them as text is enough.
+- **The earlier batches' acceptance comments:** on the closed issues labeled `batch`, for the numbers to compare with, the shape of the comment, and the time of the previous acceptance.
+
+An approved `agent-batch ship` review keeps its low findings nowhere: not in its output, the events log or the PR. Don't expect to find them.
 
 ## 2. Walk the owner through
 
@@ -46,7 +49,7 @@ The batch's `human(...)` criteria, as one checklist, each with what to read or t
 
 ### 2.5 The denials and friction
 
-Each denial, from the `permission_denied` events and from `.agent-batch/denials.jsonl`, and each friction: a blocked run, a review that went round twice, a step that went wrong. For each, its cause and a proposed fix: a rule, or an issue. The owner approves or drops each one.
+Each denial, from the `permission_denied` events, the cloud runs' logs and `.agent-batch/denials.jsonl`, and each friction: a blocked run, a review that went round twice, a step that went wrong. For each, its cause and a proposed fix: a rule, or an issue. The owner approves or drops each one.
 
 ### 2.6 The numbers
 
