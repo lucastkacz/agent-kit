@@ -29,9 +29,12 @@ ignore = [
 max-args = 5
 
 [tool.ruff.lint.per-file-ignores]
-# Running git, gh and claude is the runner's job.
+# Running git, gh and claude is the runner's and the hooks' job.
 "plugin/runner/agent_batch/shell/proc.py" = ["S603"]
 "plugin/runner/agent_batch/shell/system.py" = ["S603"]
+"plugin/runner/agent_hooks/repo.py" = ["S603", "S607"]
+"plugin/runner/agent_hooks/session_start.py" = ["S603"]
+"tools/validate_plugin.py" = ["S603", "S607"]
 # Tests assert, compare with literal values and drive real git.
 "tests/**" = ["S101", "PLR2004", "S603", "S607"]
 # The fakes stand in for command-line tools, and the tools are command-line tools.
@@ -53,7 +56,7 @@ markers = ["contract: runs the real claude and gh; `make contract` runs them on 
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["agent_batch"]
+source = ["agent_batch", "agent_hooks"]
 branch = true
 
 [tool.coverage.report]
@@ -62,7 +65,12 @@ show_missing = true
 skip_covered = true
 
 [tool.importlinter]
-root_package = "agent_batch"
+root_packages = ["agent_batch", "agent_hooks"]
+
+[[tool.importlinter.contracts]]
+name = "The hooks and the runner don't depend on each other"
+type = "independence"
+modules = ["agent_batch", "agent_hooks"]
 
 [[tool.importlinter.contracts]]
 name = "The logic stays pure, and each layer uses only the ones below it"

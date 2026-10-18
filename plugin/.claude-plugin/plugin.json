@@ -1,0 +1,19 @@
+{
+  "name": "agent-kit",
+  "description": "Agent-driven development with an owner who decides: plan a batch of GitHub issues, run it unattended, accept it. Guardrails included.",
+  "author": {
+    "name": "lucastkacz",
+    "url": "https://github.com/lucastkacz"
+  },
+  "homepage": "https://github.com/lucastkacz/agent-kit",
+  "repository": "https://github.com/lucastkacz/agent-kit",
+  "keywords": ["process", "agents", "batch", "github", "guardrails"],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Conversation language",
+      "description": "The language Claude talks to you in. Everything in repositories and on GitHub stays in English.",
+      "default": "English"
+    }
+  }
+}

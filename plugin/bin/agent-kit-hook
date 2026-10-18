@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs one of agent-kit's hooks on a pinned Python: agent-kit-hook <name>, with the event on stdin.
+set -eu
+runner="$(cd "$(dirname "$0")/../runner" && pwd)"
+PYTHONPATH="$runner" exec uv run --no-project --quiet --python 3.13 python -m agent_hooks "$@"

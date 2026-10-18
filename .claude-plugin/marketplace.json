@@ -1,0 +1,14 @@
+{
+  "name": "agent-kit",
+  "owner": {
+    "name": "lucastkacz"
+  },
+  "description": "The agent-kit plugin: a process for agent-driven development, with its runner and guardrails.",
+  "plugins": [
+    {
+      "name": "agent-kit",
+      "source": "./plugin",
+      "description": "Plan a batch of GitHub issues, run it unattended, accept it. Guardrails included."
+    }
+  ]
+}
