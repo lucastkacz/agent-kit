@@ -70,6 +70,10 @@ def _budget(body: str) -> tuple[int | None, float | None]:
         return None, None
     issues = BUDGET_ISSUES.search(line.group(1))
     hours = BUDGET_HOURS.search(line.group(1))
+    if issues and int(issues.group(1)) == 0:
+        raise PlanError(f"`Budget:` needs at least 1 issue, not {issues.group(0)!r}")
+    if hours and float(hours.group(1)) == 0:
+        raise PlanError(f"`Budget:` needs more than 0 hours, not {hours.group(0)!r}")
     return (
         int(issues.group(1)) if issues else None,
         float(hours.group(1)) if hours else None,

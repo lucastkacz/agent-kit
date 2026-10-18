@@ -126,3 +126,19 @@ def test_plans_that_cant_run(body: str, message: str) -> None:
 def test_a_formatted_plan_parses_back_to_its_lanes(lanes: list[list[int]]) -> None:
     parsed = plan.parse_plan(plan.format_lanes(lanes))
     assert parsed.lanes == tuple(tuple(lane) for lane in lanes)
+
+
+def test_a_budget_of_zero_issues_cant_run() -> None:
+    with pytest.raises(PlanError, match=r"`Budget:`.*'0 issues'"):
+        plan.parse_plan("Lane 1: #1\nBudget: 0 issues, 2 hours\n")
+
+
+@pytest.mark.parametrize("hours", ["0 hours", "0h", "0.0 hours"])
+def test_a_budget_of_zero_hours_cant_run(hours: str) -> None:
+    with pytest.raises(PlanError, match=rf"`Budget:`.*'{hours}'"):
+        plan.parse_plan(f"Lane 1: #1\nBudget: 3 issues, {hours}\n")
+
+
+def test_a_budget_of_issues_and_hours_reads_both() -> None:
+    parsed = plan.parse_plan("Lane 1: #1\nBudget: 3 issues, 2.5 hours\n")
+    assert (parsed.max_issues, parsed.max_hours) == (3, 2.5)
