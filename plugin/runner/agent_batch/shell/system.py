@@ -33,6 +33,7 @@ def on_battery() -> bool:
             [pmset, "-g", "batt"],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=PMSET_TIMEOUT,
             check=False,
         )

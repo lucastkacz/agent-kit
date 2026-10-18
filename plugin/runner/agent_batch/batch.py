@@ -28,7 +28,7 @@ class Limits:
     lanes: int | None = None
 
 
-def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool = False) -> int:
+def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)
