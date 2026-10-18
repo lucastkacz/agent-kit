@@ -24,6 +24,11 @@ def has(text: str, *tokens: str) -> None:
     assert not missing, (missing, text)
 
 
+def test_it_takes_the_batchs_issues_from_the_plan_and_the_milestone_from_those_issues() -> None:
+    has(gather(), "`lane n:`", "`cloud:`", "--json milestone", "ask the owner")
+    has(section("Record the acceptance"), "found in step 1")
+
+
 def test_it_finds_each_pr_from_its_issue_since_the_runner_sets_no_milestone_on_prs() -> None:
     assert 'search "milestone:' not in gather(), gather()
     has(gather(), "closedbypullrequestsreferences", "gh pr view", "mergedat")

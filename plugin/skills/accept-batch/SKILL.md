@@ -15,7 +15,7 @@ Wait for the owner's OK before writing anything on GitHub.
 Before saying anything, read:
 
 - **The tracking issue:** `gh issue view <n> --json title,body,milestone,comments`. Its plan, the runner's summary and the "Cloud" comment, if there is one.
-- **The milestone's issues and their PRs:** `gh issue list --milestone <milestone> --state all`. The runner opens its PRs without a milestone, so find each issue's PR from the issue: the summary's PR column, or `gh issue view <i> --json closedByPullRequestsReferences`, or `gh pr list --state all --search "Closes #<i> in:body"`. Then read each PR with `gh pr view <pr> --json labels,state,mergedAt,body`, for its labels, merge state and body.
+- **The batch's issues and their PRs:** the issues on the plan's `Lane N:` and `Cloud:` lines. The tracking issue often has no milestone, but its issues do: take the batch's milestone from them, with `gh issue view <i> --json milestone`. If they have none, or don't share one, stop and ask the owner which milestone it is. The runner opens its PRs without a milestone, so find each issue's PR from the issue: the summary's PR column, or `gh issue view <i> --json closedByPullRequestsReferences`, or `gh pr list --state all --search "Closes #<i> in:body"`. Then read each PR with `gh pr view <pr> --json labels,state,mergedAt,body`, for its labels, merge state and body.
 - **The batch's log:** `.agent-batch/batch-<n>/events.jsonl`. Its `permission_denied` events list each run's denials: the issue, the run, the tool and its input.
 - **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. Cloud runs leave nothing in `.agent-batch/`.
 - **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, including the work between batches. Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
@@ -71,7 +71,7 @@ With the owner's OK:
 1. Post the comment on the tracking issue.
 2. Tick the tracking issue's checklist, each item that holds.
 3. Comment "Accepted.", with any item left open and why.
-4. Close the tracking issue and its milestone: `gh issue close <n>` and `gh api -X PATCH repos/{owner}/{repo}/milestones/<number> -f state=closed`.
+4. Close the tracking issue and its milestone, the one found in step 1: `gh issue close <n>` and `gh api -X PATCH repos/{owner}/{repo}/milestones/<number> -f state=closed`.
 
 When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, and close the tracking issue and the milestone as in item 4.
 
