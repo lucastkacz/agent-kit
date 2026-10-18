@@ -55,3 +55,21 @@ def test_the_runners_prompts_invoke_skills_that_exist(prompt: str) -> None:
     manifest = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     assert match.group(1) == manifest["name"]
     assert (PLUGIN / "skills" / match.group(2) / "SKILL.md").is_file()
+
+
+def implement_step(number: int) -> str:
+    text = (PLUGIN / "skills" / "implement" / "SKILL.md").read_text(encoding="utf-8")
+    start = text.index(f"\n## {number}. ")
+    return text[start : text.index("\n## ", start + 1)]
+
+
+def test_the_implement_skill_puts_later_tests_in_files_of_their_own() -> None:
+    step = implement_step(2) + implement_step(3)
+    assert "files of their own" in step, step
+    assert "never in the acceptance tests' files" in step, step
+
+
+def test_the_implement_skill_formats_the_acceptance_tests_before_their_commit() -> None:
+    step = implement_step(2)
+    assert "`make fmt`" in step, step
+    assert step.index("`make fmt`") < step.index("Commit them on their own"), step
