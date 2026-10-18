@@ -108,7 +108,12 @@ class Git:
         return conflicts
 
     def finish_branch(self, worktree: Path, branch: str) -> None:
-        """Leaves the merged branch, so the lane's next issue starts from the latest base."""
-        self._git(worktree, "fetch", "--quiet", self._remote)
+        """Leaves the merged branch, so the lane's next issue starts from the latest base.
+
+        The branch goes before the fetch, so a lost connection doesn't leave it behind in the
+        shared repository (#34).
+        """
         self._git(worktree, "switch", "--quiet", "--detach", self._upstream)
         self._git(worktree, "branch", "--quiet", "-D", branch)
+        self._git(worktree, "fetch", "--quiet", self._remote)
+        self._git(worktree, "switch", "--quiet", "--detach", self._upstream)
