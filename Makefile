@@ -1,6 +1,6 @@
 PYTHON_PATHS := plugin/runner tools tests
 
-.PHONY: setup check test fmt
+.PHONY: setup check test fmt contract
 
 setup:
 	uv sync --locked
@@ -11,6 +11,10 @@ fmt:
 
 test:
 	uv run pytest
+
+# On demand, by the owner: the real claude and gh, on this repository (tests/contract).
+contract:
+	uv run pytest -m contract -v
 
 check:
 	uv run ruff format --check $(PYTHON_PATHS)

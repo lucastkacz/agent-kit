@@ -41,14 +41,15 @@ max-args = 5
 [tool.mypy]
 strict = true
 python_version = "3.13"
-mypy_path = ["plugin/runner", "tests", "tools"]
+mypy_path = ["plugin/runner", "tests", "tests/fakes", "tests/contract", "tools"]
 files = ["plugin/runner", "tools", "tests"]
 explicit_package_bases = true
 
 [tool.pytest.ini_options]
-pythonpath = ["plugin/runner", "tests", "tools"]
+pythonpath = ["plugin/runner", "tests", "tests/fakes", "tests/contract", "tools"]
 testpaths = ["tests"]
-addopts = ["-q", "--strict-markers", "--strict-config"]
+addopts = ["-q", "--strict-markers", "--strict-config", "-m", "not contract"]
+markers = ["contract: runs the real claude and gh; `make contract` runs them on demand"]
 filterwarnings = ["error"]
 
 [tool.coverage.run]
