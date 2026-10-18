@@ -19,11 +19,15 @@ from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
-from agent_batch.shell.system import keep_awake
+from agent_batch.shell.system import keep_awake, on_battery
 from agent_batch.ship import ShipError, ship
 
 SCREEN_ENV = "AGENT_BATCH_SCREEN"
 POLL_ENV = "AGENT_BATCH_POLL_SECONDS"
+ON_BATTERY = (
+    "The Mac is on battery power, so it may sleep during the batch unless it's plugged in "
+    "with its lid open."
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -78,6 +82,8 @@ def _run(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
     awake = keep_awake()
     try:
+        if on_battery():
+            ctx.events.emit("on_battery", warning=ON_BATTERY)
         return run_batch(ctx, args.batch, Limits(args.max_issues, args.max_hours, args.lanes))
     finally:
         if awake is not None:
