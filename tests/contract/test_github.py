@@ -16,9 +16,10 @@ from support import KIT, record, unique
 from agent_batch.core import merge
 from agent_batch.core.config import Config
 from agent_batch.core.merge import MergeStatus
+from agent_batch.core.model import Closure
 from agent_batch.shell import proc
 from agent_batch.shell.git import Git
-from agent_batch.shell.github import ISSUE_FIELDS, PR_FIELDS, GitHub
+from agent_batch.shell.github import CLOSURE_FIELDS, ISSUE_FIELDS, PR_FIELDS, GitHub
 
 pytestmark = pytest.mark.contract
 
@@ -50,6 +51,9 @@ def test_issues_are_created_read_labeled_and_commented(clone: Path) -> None:
         assert "blocked" in gh.issue(number).labels
     finally:
         proc.must(["gh", "issue", "close", str(number), "--reason", "not planned"], clone)
+    raw = proc.must(["gh", "issue", "view", str(number), "--json", CLOSURE_FIELDS], clone)
+    record("gh-issue-closure", raw)
+    assert gh.closure(number) == Closure(reason="NOT_PLANNED", prs=())
 
 
 def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(clone: Path) -> None:

@@ -35,6 +35,14 @@ class Issue:
 
 
 @dataclass(frozen=True)
+class Closure:
+    """Why a closed issue was closed, and the PRs that close it."""
+
+    reason: str
+    prs: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class FoundIssue:
     """Work an implementer found along the way, to become an issue of its own."""
 

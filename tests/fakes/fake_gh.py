@@ -5,6 +5,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,7 @@ def api_user(state: State, _argv: list[str], _stdin: str) -> str:
 
 def issue_view(state: State, argv: list[str], _stdin: str) -> str:
     issue = state["issues"][argv[2]]
+    closed = "COMPLETED" if issue["state"] == "CLOSED" else ""
     return json.dumps(
         {
             "number": issue["number"],
@@ -39,8 +41,21 @@ def issue_view(state: State, argv: list[str], _stdin: str) -> str:
             "author": {"login": issue["author"]},
             "labels": [{"name": name} for name in issue["labels"]],
             "state": issue["state"],
+            "url": f"{URL}/issues/{issue['number']}",
+            "stateReason": issue.get("state_reason", closed),
+            "closedByPullRequestsReferences": closing_prs(state, issue["number"]),
         }
     )
+
+
+def closing_prs(state: State, number: int) -> list[dict[str, Any]]:
+    """The open or merged PRs whose body closes the issue; GitHub leaves out the closed ones."""
+    closes = re.compile(rf"\bCloses #{number}\b")
+    return [
+        {"number": pr["number"], "url": f"{URL}/pull/{pr['number']}"}
+        for pr in state.get("prs", {}).values()
+        if pr["state"] != "CLOSED" and closes.search(pr["body"])
+    ]
 
 
 def issue_edit(state: State, argv: list[str], _stdin: str) -> str:

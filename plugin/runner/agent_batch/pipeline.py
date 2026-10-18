@@ -24,6 +24,8 @@ from agent_batch.core.model import (
 from agent_batch.shell.proc import CommandError
 
 RISK_PATHS = ".claude/risk-paths"
+# GitHub's reason for an issue that its PR closed; "NOT_PLANNED" means the work was dropped.
+CLOSED_AS_COMPLETED = "COMPLETED"
 
 
 class Stopped(Exception):
@@ -68,6 +70,8 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
 
 def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outcome:
     issue = ctx.gh.issue(number)
+    if _merged_before(ctx, issue, report):
+        return Outcome.MERGED
     refusal = eligibility.refusal(issue, ctx.owner)
     if refusal is not None:
         raise Stopped(Outcome.SKIPPED, refusal)
@@ -79,6 +83,21 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
     review_until_approved(ctx, lane, job)
     publish(ctx, lane, job)
     return _route(ctx, lane, job)
+
+
+def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
+    """Whether a merged PR closed the issue, as in an earlier run, so a re-run goes on past it."""
+    if issue.state == "OPEN":
+        return False
+    closure = ctx.gh.closure(issue.number)
+    if closure.reason != CLOSED_AS_COMPLETED:
+        return False
+    merged = [pr for pr in closure.prs if ctx.gh.pr_state(pr).state == "MERGED"]
+    if not merged:
+        return False
+    report.pr, report.detail = merged[0], "it merged in an earlier run"
+    report.human_checks = risk.count_human_checks(issue.body)
+    return True
 
 
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
