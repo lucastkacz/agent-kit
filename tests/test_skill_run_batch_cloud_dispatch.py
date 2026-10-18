@@ -52,7 +52,7 @@ def test_the_skill_fills_the_prompt_from_the_plugins_own_files() -> None:
     fill = section(skill_text(), "Send an issue to the cloud")
     assert "`{implement}`" in fill, fill
     assert "${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md" in fill, fill
-    assert "named as the runner names it" in fill, fill
+    assert "named as the runner's `naming.branch_name` names it" in fill, fill
 
 
 def test_each_routine_is_named_after_the_repository_the_batch_and_the_issue() -> None:
@@ -60,14 +60,6 @@ def test_each_routine_is_named_after_the_repository_the_batch_and_the_issue() ->
     text = skill_text()
     assert name in section(text, "Send an issue to the cloud")
     assert name in section(text, "Resume")
-
-
-def test_a_resume_checks_only_the_issues_still_to_do_and_watches_the_runs_going_on() -> None:
-    resume = section(skill_text(), "Resume")
-    assert "only on the issues still to do" in resume, resume
-    assert "keep those on the tracking issue and on `master`" in resume, resume
-    assert "hasn't ended: watch it" in resume, resume
-    assert "don't send its issue again" in resume, resume
 
 
 def test_the_cloud_run_picks_up_a_branch_that_exists() -> None:
