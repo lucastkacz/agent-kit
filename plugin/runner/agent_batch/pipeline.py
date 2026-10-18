@@ -11,6 +11,7 @@ from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
     ClaudeRun,
+    Finding,
     ImplementResult,
     Issue,
     IssueReport,
@@ -40,6 +41,8 @@ class Job:
     branch: str
     report: IssueReport
     work: ImplementResult | None = None
+    # The approved review's findings, which go into the PR's body.
+    findings: tuple[Finding, ...] = ()
 
 
 def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
@@ -131,6 +134,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
         job.report.review_rounds = attempt
         review = review_once(ctx, lane, job)
         if review.approved:
+            job.findings = review.findings
             return
         if attempt == rounds:
             findings = prompts.findings_list(review.findings)
@@ -160,21 +164,24 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
 
 
 def publish(ctx: Context, lane: Lane, job: Job) -> int:
-    """Pushes the branch, opens its PR and files the work found along the way."""
+    """Pushes the branch, opens or updates its PR and files the work found along the way."""
     if job.work is None:
         raise Stopped(Outcome.FAILED, "there's no implementation to publish")
     ctx.git.push(lane.worktree, job.branch)
+    title = naming.pr_title(job.work.title, job.issue)
+    body = naming.pr_body(job.work.pr_body, job.issue.number, job.findings)
     pr = ctx.gh.find_pr(job.branch)
     if pr is None:
-        title = naming.pr_title(job.work.title, job.issue)
-        body = naming.pr_body(job.work.pr_body, job.issue.number)
         pr = ctx.gh.create_pr(job.branch, ctx.config.base_branch, title, body)
+        ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
+    else:
+        ctx.gh.edit_pr(pr, title, body)
+        ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
     for found in job.work.found:
         body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
         number = ctx.gh.create_issue(found.title, body, found.kind)
         ctx.events.emit("issue_found", issue=job.issue.number, found=number)
-    ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     return pr
 
 

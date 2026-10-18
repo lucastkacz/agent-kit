@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, prompts
-from agent_batch.core.model import ImplementResult, IssueReport, Outcome
+from agent_batch.core import eligibility, naming, prompts
+from agent_batch.core.model import ImplementResult, Issue, IssueReport, Outcome
 from agent_batch.pipeline import (
     Job,
     Stopped,
@@ -37,12 +37,12 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
     work = ImplementResult("done", title, body, "", ())
     job = Job(issue, branch, IssueReport(number, Outcome.FAILED), work)
     try:
-        return _ship(ctx, lane, job)
+        return _ship(ctx, lane, job, title)
     except Stopped as stop:
         raise ShipError(stop.detail) from stop
 
 
-def _ship(ctx: Context, lane: Lane, job: Job) -> int:
+def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
     # The review and the risk compare the branch with the base, which may have moved on.
     ctx.git.fetch(lane.worktree)
     require_committed(ctx, lane)
@@ -51,7 +51,9 @@ def _ship(ctx: Context, lane: Lane, job: Job) -> int:
         sys.stdout.write("The review asks for changes:\n\n")
         sys.stdout.write(prompts.findings_list(review.findings) + "\n")
         return CHANGES_REQUESTED
+    job.findings = review.findings
     pr = publish(ctx, lane, job)
+    _explain_title(title, job.issue)
     level = classify(ctx, lane, job)
     if level.high:
         hold(ctx, pr, level)
@@ -61,3 +63,15 @@ def _ship(ctx: Context, lane: Lane, job: Job) -> int:
         outcome = Outcome.ARMED
     ctx.events.emit("shipped", issue=job.issue.number, pr=pr, outcome=outcome.value)
     return 0
+
+
+def _explain_title(given: str, issue: Issue) -> None:
+    """Says why the PR didn't get the given title, since `publish` falls back to the issue's."""
+    refusal = naming.title_refusal(given)
+    if refusal is None:
+        return
+    used = naming.pr_title(given, issue)
+    sys.stdout.write(
+        f"The PR's title is {used!r}, not {given!r}: {refusal}. To use another, ship again "
+        f"with a Conventional Commits title of at most {naming.MAX_TITLE} characters.\n"
+    )
