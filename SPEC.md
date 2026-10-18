@@ -142,7 +142,7 @@ The runner reads `Lanes:`, `Budget:` and `Model:`, and refuses a batch whose `La
 Lane 1: #12, #15
 Lane 2: #13
 Lane 3: #14
-Lanes: 2
+Lanes: 3
 Budget: 4 issues, 3 hours
 Model: opus, high
 Cloud: #16
