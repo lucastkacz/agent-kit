@@ -202,13 +202,23 @@ def _merge(ctx: Context, lane: Lane, job: Job, *, resolve_conflicts: bool) -> Ou
     ctx.events.emit("merge_armed", lane=lane.index, issue=job.issue.number, pr=pr)
     status = _wait(ctx, pr)
     if status is MergeStatus.MERGED:
-        ctx.git.finish_branch(lane.worktree, job.branch)
         ctx.events.emit("merged", lane=lane.index, issue=job.issue.number, pr=pr)
+        _finish(ctx, lane, job)
         return Outcome.MERGED
     if status is MergeStatus.CONFLICT and resolve_conflicts:
         _resolve(ctx, lane, job)
         return _merge(ctx, lane, job, resolve_conflicts=False)
     raise Stopped(Outcome.BLOCKED, f"PR #{pr} didn't merge: {status.value}.")
+
+
+def _finish(ctx: Context, lane: Lane, job: Job) -> None:
+    """Leaves the merged branch; a failure only goes to the log, since the issue is done."""
+    try:
+        ctx.git.finish_branch(lane.worktree, job.branch)
+    except CommandError as error:
+        ctx.events.emit(
+            "cleanup_failed", lane=lane.index, issue=job.issue.number, detail=str(error)
+        )
 
 
 def _wait(ctx: Context, pr: int) -> MergeStatus:
