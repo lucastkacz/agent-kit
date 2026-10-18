@@ -423,7 +423,7 @@ By default nothing takes the screen (§7.2). `--screen` allows the checks that n
 
 ### 11.5 Nothing starts by itself
 
-The owner starts every batch. There are no scheduled or recurring runs.
+The owner starts every batch. There are no scheduled or recurring runs. A batch's cloud issues (§12) go out as one-time routines, created when the owner starts the batch: they are part of that batch, not a scheduled run.
 
 ### 11.6 Engines
 
@@ -452,10 +452,10 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 ### 12.1 Back to the merge gate
 
-A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3):
+A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3.4):
 
 1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached. The cloud's `gh` isn't signed in, so the prompt carries the issue's body. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
-2. **The gate.** Locally, the assistant checks the branch out in a worktree, and `agent-batch ship <issue>` reviews it with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
+2. **The gate.** Locally, the assistant checks the branch out in a worktree. When the issue has a criterion verified by `e2e` (§7.1), it runs `make e2e` in the worktree before `agent-batch ship`, and keeps its evidence (§5, step 4). Then `agent-batch ship <issue>` reviews the branch with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
 
 The local review is not a formality: it catches what the cloud run missed, such as wrong acceptance tests.
 
