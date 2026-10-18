@@ -11,13 +11,15 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 
 ## 1. Start from what's there
 
-- List the open issues without `ready`: `gh issue list --state open --limit 200 --json number,title,labels,milestone`. Without `--limit`, `gh` lists only 30.
+- Work only from the owner's issues (SPEC §10.6). Another person's issue is information, not work: if the owner wants it, write it as a new issue of the owner's.
+- List the owner's open issues without `ready`: `gh issue list --author @me --state open --limit 200 --json number,title,labels,milestone,author`. Without `--limit`, `gh` lists only 30.
 - Read the `blocked` issues and their questions, in each one's latest comment.
 - A `blocked` issue goes in only once the owner answers its question: write the decision into the issue and remove `blocked`, as acceptance does (SPEC §3.3).
-- Read the open issues labeled `batch` and their plans. A batch's run has ended when every issue of its plan, in its lanes and on its `Cloud:` line alike, is closed, labeled `blocked`, has an open PR, or is `deferred` in the runner's summary. An issue's open PR is one that closes it: `gh pr list --state open --limit 200 --json number,closingIssuesReferences`.
-- Look for a batch whose acceptance is pending: its run has ended, and its tracking issue has no "Accepted." comment. Remind the owner of it first.
+- Read the owner's open issues labeled `batch`, with their plans and comments. Count only the owner's comments and PRs (`gh pr list --author @me --state open --limit 200 --json number,closingIssuesReferences`); the runner and `ship` work as the owner.
+- An issue of a batch's plan is done for that batch when it's closed, labeled `blocked`, has an open PR, or is listed with any outcome in the batch's `## Batch summary` (its lanes) or run-batch's "Cloud" comment (its `Cloud:` line). A batch's run has ended when every issue of its plan is done.
+- Look for a batch whose acceptance is pending: its run has ended, and its tracking issue has no "Accepted." comment of the owner's. Remind the owner of it first.
 - A batch whose run hasn't ended is running, or not started yet: mention it, but its acceptance isn't due.
-- List the open `ready` issues an earlier batch left behind, deferred or cut off by the budget (SPEC §11.1, §11.2): open, labeled `ready` and not `blocked`, with no open PR, in a milestone whose batch has ended, and in the plan of no batch whose run hasn't ended. Propose them first: the owner already approved them.
+- Propose first the open `ready` issues an earlier batch left behind, deferred or cut off (SPEC §11.1, §11.2): done for their batch only through its summary or "Cloud" comment, so not `blocked` and with no open PR, in a milestone whose batch has ended, and in the plan of no batch whose run hasn't ended. The owner already approved them.
 - Propose which issues go in the batch, and why, in a few lines.
 
 ## 2. A new idea
@@ -26,7 +28,7 @@ When the owner describes an idea to build, ask only the questions that change wh
 
 ## 3. Write the issues
 
-- Write each new issue on GitHub without `ready`, in the fields of its type's form in SPEC §4.1, such as a task's Goal, Why, Briefing, Acceptance criteria, Out of scope, Stop and ask if, and Risk.
+- Write each new issue on GitHub without `ready`, in the fields of its type's form in SPEC §4.1, such as a task's Goal, Why, Briefing, Acceptance criteria, Out of scope, Stop and ask if, and Risk. Write each field as a `### <Field>` heading, as the issue form renders it. The `### Risk` section starts with `High` or `Low`, since the runner reads only that.
 - Label each new issue with its type: `task`, `bug`, `idea` or `spike` (SPEC §4.2). `gh issue create` doesn't apply the issue forms' labels, so pass it `--label`.
 - Each criterion says how it is verified: `unit`, `integration`, `e2e` or `human(<reason>)`.
 - A criterion is `human(<reason>)` only for one of the reasons in the review skill's check 2: taste; hardware or an operating-system dialog; real accounts, money or personal data; a third-party service without a test environment.
