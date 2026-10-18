@@ -80,6 +80,7 @@ In one sitting, the assistant walks the owner through:
 3. The blocked questions. The owner answers; the assistant writes each decision into its issue and removes `blocked`, so the issue is ready for the next batch.
 4. The batch's human checks, as one checklist.
 5. The run's permission denials and friction, turned into proposed changes to the project or to this kit.
+6. The batch's numbers (§16.2), to see whether the process is getting better.
 
 ### 3.4 Direct mode
 
@@ -107,12 +108,13 @@ Each type has an issue form. Blank issues are disabled.
   - *Risk:* low or high, and why (§9).
 - **Bug:** what happened, what was expected, the steps to reproduce, and the PR that introduced it when known. That last field shows how often problems get past the pipeline.
 - **Idea:** what, why, and the open questions. Ideas are not built; planning turns them into tasks.
+- **Spike:** a question to answer before building, such as whether an approach or a library works. It has a time box and ends in an ADR with the answer. The ADR is merged; the code stays on a throwaway branch and is never merged.
 
 ### 4.2 Labels
 
 | Label | Meaning |
 |---|---|
-| `task`, `bug`, `idea` | The issue's type. |
+| `task`, `bug`, `idea`, `spike` | The issue's type. |
 | `ready` | The owner approved it for a batch. |
 | `blocked` | Waiting on a decision of the owner's. The question is in the issue's latest comment. |
 | `needs-human` | The owner asked to review it, or it has human checks. |
@@ -199,9 +201,13 @@ Agents never bring an app to the front and never use the owner's mouse or keyboa
 
 For web apps (a headless browser) and command-line tools, this comes naturally.
 
-### 7.3 Proportionate checks
+### 7.3 Fast and proportionate checks
 
-Checks fit the change. No mutation testing, no fan-out of parallel test processes that saturate the machine, and every check has a time limit. Review goes deep on high-risk changes and stays light on trivial ones.
+An agent runs the tests dozens of times per issue, so the speed of the tests is the speed of development.
+
+- **Test sizes.** Small tests touch no files, network or other processes, and take milliseconds. Medium tests use local resources, such as a temporary folder or a local database. Large tests drive the running app. `make test` runs the small and medium ones; `make e2e` runs the large ones.
+- **Time budgets.** `make test` finishes in under 30 seconds, and `make check` in under 5 minutes. A project that goes over gets a task to bring it back.
+- **Proportionate.** Checks fit the change. No mutation testing, no fan-out of parallel test processes that saturate the machine, and every check has a time limit. Review goes deep on high-risk changes and stays light on trivial ones.
 
 ### 7.4 Testability by design
 
@@ -219,6 +225,10 @@ Parallel lanes share no running state. Each lane runs its own instance, with its
 
 The PR shows what was run and what it returned: the check summary, the e2e results, and the snapshots or window captures for visual criteria.
 
+### 7.7 Property-based tests
+
+Logic with many possible inputs, such as parsing, calculations or state machines, gets property-based tests on top of examples: the test generates hundreds of cases and checks what must always hold. They find the edge cases nobody thought to write down.
+
 ## 8. Code quality
 
 A rule that a tool checks is followed every time and costs no context. A rule written in prose is followed loosely and loaded into every context that needs it. So most of this section is enforced by tools, and prose covers only what tools can't.
@@ -228,7 +238,7 @@ A rule that a tool checks is followed every time and costs no context. A rule wr
 | Layer | What | When |
 |---|---|---|
 | **Local** | Formatter, strict linter, strict type checker, size and complexity limits, architecture boundaries, tests with coverage of new code, dependency audit | `make check`, in seconds, on every change |
-| **GitHub** | CodeQL code scanning, Dependabot alerts, secret scanning with push protection, dependency review on every PR | On every PR and every push to `master` |
+| **GitHub** | CodeQL code scanning, Dependabot alerts, secret scanning with push protection, dependency review on every PR, OpenSSF Scorecard | On every PR and every push to `master` |
 | **Review** | The reviewer's rubric (§8.6) | Once per issue |
 
 The local layer is the main one: an agent gets its findings in seconds and fixes them before review, so review can focus on design and logic. The GitHub layer is a second net, free for public repositories and with no extra accounts. External quality and security platforms are not part of the base: they duplicate these layers and add accounts and tokens.
@@ -274,6 +284,8 @@ As much of a guide as possible becomes linter configuration. What remains, plus 
 - **Comments explain a non-obvious why,** never what the code does. No dead or commented-out code.
 - **Only what the issue needs.** No speculative abstractions, options or extension points.
 - **Few dependencies.** Each one is pinned, its lockfile is committed, and adding one needs an ADR (it is also high risk, §9.1).
+- **Structured logs.** Every component logs its state changes and errors as structured records with a level, so an agent can reconstruct what happened from the logs instead of asking the owner to reproduce it. Logs never hold secrets or personal data.
+- **A reproducible environment.** The toolchain, the tools and the dependencies are pinned, and `make setup` builds the whole environment from a clean checkout. The same command works on the owner's computer, in a new worktree, in CI and in the cloud.
 
 ### 8.6 The review rubric
 
@@ -287,7 +299,7 @@ Every tool in `make check` can report in a machine-readable form, such as JSON o
 
 ### 8.8 Stack presets
 
-What is concrete about a stack lives in a preset in this kit (`presets/<stack>/`): its tools and their configuration, the folder layout, the CI setup and the `Makefile` commands. `new-project` applies one. A preset is added when a real project needs it.
+What is concrete about a stack lives in a preset in this kit (`presets/<stack>/`): its tools and their configuration, the folder layout, the CI setup, the `Makefile` commands, and a language server configuration, so agents see type errors as they edit and jump to definitions without a text search. `new-project` applies one. A preset is added when a real project needs it.
 
 **No preset, no start.** When a project's stack has no preset, `new-project` says so and stops. The first task is to write the preset here, in a PR the owner merges, and only then is the project created. The same applies when an existing project brings in a new language or stack: the work that needs it is blocked until its preset exists. A project with several stacks, such as a backend in one language and a frontend in another, needs a preset for each.
 
@@ -415,7 +427,7 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 ## 13. Project skeleton
 
-`new-project` creates a repository from `template/` and the stack's preset (§8.8). It creates the GitHub repository with its labels and ruleset, turns on CodeQL, secret scanning with push protection and Dependabot alerts, and opens the project once interactively so that its settings are trusted.
+`new-project` creates a repository from `template/` and the stack's preset (§8.8). It creates the GitHub repository with its labels and ruleset, turns on CodeQL, secret scanning with push protection, Dependabot alerts and private vulnerability reporting, and opens the project once interactively so that its settings are trusted.
 
 ### 13.1 Files
 
@@ -423,10 +435,12 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 - `.claude/settings.json`: the permissions of §10.2, and the plugin.
 - `.claude/risk-paths`: the project's high-risk paths.
 - `.claude/rules/<language>.md`: the language's rules beyond its guide and linter (§8.4).
-- `.github/ISSUE_TEMPLATE/`: the task, bug and idea forms, with blank issues disabled.
+- `.github/ISSUE_TEMPLATE/`: the task, bug, idea and spike forms, with blank issues disabled.
 - `.github/pull_request_template.md`: summary, `Closes #N`, a verification table (criterion, test, result), evidence, human checks with their reasons, the reviewer's verdict, and the risk.
 - `.github/workflows/check.yml`: runs `make check` on PRs and on `master`, and dependency review on PRs. It cancels superseded runs, skips docs-only changes, has a timeout, pins actions by commit SHA and doesn't persist credentials.
 - `.github/dependabot.yml`: monthly, grouped into one PR, labeled `risk:high`.
+- `.github/workflows/scorecard.yml`: runs OpenSSF Scorecard on pushes to `master` and publishes the score.
+- `SECURITY.md`: how to report a vulnerability privately.
 - `Makefile`: the contract below.
 - The preset's tool configuration.
 - `docs/product.md` and `docs/adr/`.
@@ -437,10 +451,11 @@ The same targets in every project, whatever the stack:
 
 | Target | Does |
 |---|---|
-| `make check` | Everything in §8.1's local layer, plus the build. Exactly what CI runs. |
-| `make test` | The tests only, fast. |
+| `make setup` | Builds the environment from a clean checkout, with pinned versions. |
+| `make check` | Everything in §8.1's local layer, plus the build. Exactly what CI runs. Under 5 minutes. |
+| `make test` | The small and medium tests (§7.3). Under 30 seconds. |
 | `make fmt` | Formats the code. |
-| `make e2e` | Drives the running app in the background (§7.2) and checks its visible behavior. |
+| `make e2e` | The large tests: drives the running app in the background (§7.2) and checks its visible behavior. |
 | `make run` | Runs the development build. |
 
 ## 14. Conventions
@@ -465,9 +480,29 @@ A document exists only if it has a unique purpose, a concrete reader, and conten
 
 ## 16. Changing the process
 
+### 16.1 How it changes
+
 - The process changes here: first this document, then the kit that implements it, through a PR on this repository that the owner merges.
 - Projects pick up the new version when the plugin updates.
 - Friction found during acceptance becomes an issue here, with its evidence: the denial log, the blocked question, the step that went wrong.
+
+### 16.2 Measuring it
+
+Every batch records its numbers in its tracking issue, and acceptance compares them with earlier batches:
+
+- issues done, blocked and failed;
+- review rounds per issue;
+- human checks;
+- permission denials. The goal is zero prompts and few denials;
+- escaped bugs: bugs whose "introduced by" field points to a PR of a recent batch;
+- time from approval to merge;
+- usage spent.
+
+A number that gets worse is friction, and friction becomes an issue here.
+
+### 16.3 Testing the kit
+
+The kit is code, and the most important code: when it breaks, every project breaks. The runner and the hooks have unit tests against fake `claude` and `gh` commands. The skills have behavior tests, run with Claude Code's plugin evaluations. A change to the kit merges only when both pass.
 
 ## 17. Out of scope
 
@@ -484,6 +519,7 @@ To settle while building the kit:
 - Whether a headless run can read the subscription's usage, for the budget's share limit.
 - Whether the control tower's phone notifications work as described.
 - How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
+- Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
 
 ## 19. Glossary
 
@@ -496,3 +532,4 @@ To settle while building the kit:
 - **Direct mode:** the pipeline run inside an interactive session, for a small change.
 - **Acceptance:** the session where the owner reviews a batch's results.
 - **Preset:** the concrete tools, configuration and layout for one stack.
+- **Spike:** a time-boxed question, answered with an ADR. Its code is never merged.
