@@ -26,7 +26,10 @@ PROCESS = (
     "first in their own commit, `make check`, then `agent-batch ship <issue>`, which reviews, "
     "opens the pull request and arms its merge. Larger work goes through the plan-batch, "
     "run-batch and accept-batch skills. Agents merge a pull request only when the owner asks for "
-    "that one in the chat, and never commit or push to master."
+    "that one in the chat, naming it by number. Right before, they check that it's open, that its "
+    "head hasn't changed since the owner asked, that CI is green and that it has no conflict, then "
+    "merge it with `gh pr merge <n> --squash --match-head-commit <sha>`. They never commit or push "
+    "to master."
 )
 
 
