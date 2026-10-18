@@ -14,8 +14,10 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 - List the open issues without `ready`: `gh issue list --state open --limit 200 --json number,title,labels,milestone`. Without `--limit`, `gh` lists only 30.
 - Read the `blocked` issues and their questions, in each one's latest comment.
 - A `blocked` issue goes in only once the owner answers its question: write the decision into the issue and remove `blocked`, as acceptance does (SPEC §3.3).
-- Look for a batch whose acceptance is pending: an open issue labeled `batch` whose run has ended, with unchecked items in its Acceptance checklist. Its run has ended when the issue has the runner's summary (`## Batch summary`) for its lanes, and the `run-batch` skill's "Cloud" comment for its `Cloud:` line. Remind the owner of it first.
-- An open issue labeled `batch` whose run hasn't ended is a running batch, or one not started yet: mention it, but its acceptance isn't due.
+- Read the open issues labeled `batch` and their plans. A batch's run has ended when every issue of its plan, in its lanes and on its `Cloud:` line alike, is closed, labeled `blocked`, has an open PR, or is `deferred` in the runner's summary. An issue's open PR is one that closes it: `gh pr list --state open --limit 200 --json number,closingIssuesReferences`.
+- Look for a batch whose acceptance is pending: its run has ended, and its tracking issue has no "Accepted." comment. Remind the owner of it first.
+- A batch whose run hasn't ended is running, or not started yet: mention it, but its acceptance isn't due.
+- List the open `ready` issues an earlier batch left behind, deferred or cut off by the budget (SPEC §11.1, §11.2): open, labeled `ready` and not `blocked`, with no open PR, in a milestone whose batch has ended, and in the plan of no batch whose run hasn't ended. Propose them first: the owner already approved them.
 - Propose which issues go in the batch, and why, in a few lines.
 
 ## 2. A new idea
