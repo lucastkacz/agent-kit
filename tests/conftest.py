@@ -1,4 +1,4 @@
-"""A throwaway project with a git remote, a fake `gh` and a fake `claude` on the PATH."""
+"""A throwaway project with a git remote and fakes of `gh`, `claude`, `caffeinate` and `pmset`."""
 
 from __future__ import annotations
 
@@ -17,6 +17,23 @@ FAKES = Path(__file__).parent / "fakes"
 OWNER = "owner"
 # A project's settings that enable agent-kit, as `new-project` writes them (SPEC §13).
 ENABLED = '{"enabledPlugins": {"agent-kit@agent-kit": true}}\n'
+# What `pmset -g batt` prints on a MacBook, by where it draws its power from.
+AC_POWER = (
+    "Now drawing from 'AC Power'\n"
+    " -InternalBattery-0 (id=21823587)\t100%; charged; 0:00 remaining present: true\n"
+)
+BATTERY_POWER = (
+    "Now drawing from 'Battery Power'\n"
+    " -InternalBattery-0 (id=21823587)\t77%; discharging; 9:48 remaining present: true\n"
+)
+# Shell fakes: `caffeinate` writes down its arguments, `pmset -g batt` prints the power source.
+CAFFEINATE = """#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_CAFFEINATE_LOG"
+"""
+PMSET = """#!/bin/sh
+[ "$*" = "-g batt" ] || exit 64
+cat "$FAKE_PMSET_OUTPUT"
+"""
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -33,6 +50,8 @@ class World:
     scenario: Path
     claude_log: Path
     slept_file: Path
+    caffeinate_log: Path
+    power: Path
 
     def gh(self) -> dict[str, Any]:
         state: dict[str, Any] = json.loads(self.gh_state.read_text())
@@ -93,6 +112,14 @@ class World:
         """The seconds the fake claude's `slept` steps said the computer slept."""
         return float(self.slept_file.read_text()) if self.slept_file.exists() else 0.0
 
+    def on_battery(self) -> None:
+        self.power.write_text(BATTERY_POWER)
+
+    def caffeinate_calls(self) -> list[list[str]]:
+        if not self.caffeinate_log.exists():
+            return []
+        return [line.split() for line in self.caffeinate_log.read_text().splitlines()]
+
     def run(self, *argv: str) -> int:
         return cli.main(list(argv))
 
@@ -103,6 +130,10 @@ def _make_fakes(bin_dir: Path) -> None:
         wrapper = bin_dir / name
         wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n')
         wrapper.chmod(0o755)
+    for name, script in (("caffeinate", CAFFEINATE), ("pmset", PMSET)):
+        fake = bin_dir / name
+        fake.write_text(script)
+        fake.chmod(0o755)
 
 
 def _make_repos(root: Path) -> tuple[Path, Path]:
@@ -153,7 +184,10 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
         scenario=tmp_path / "scenario.json",
         claude_log=tmp_path / "claude.log",
         slept_file=tmp_path / "slept",
+        caffeinate_log=tmp_path / "caffeinate.log",
+        power=tmp_path / "pmset.txt",
     )
+    created.power.write_text(AC_POWER)
     created.gh_state.write_text(
         json.dumps(
             {"login": OWNER, "issues": {}, "prs": {}, "next": 100, "calls": [], "pr_views": {}}
@@ -164,6 +198,8 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setenv("FAKE_GH_STATE", str(created.gh_state))
     monkeypatch.setenv("FAKE_CLAUDE_SCENARIO", str(created.scenario))
     monkeypatch.setenv("FAKE_CLAUDE_LOG", str(created.claude_log))
+    monkeypatch.setenv("FAKE_CAFFEINATE_LOG", str(created.caffeinate_log))
+    monkeypatch.setenv("FAKE_PMSET_OUTPUT", str(created.power))
     monkeypatch.setenv("FAKE_ORIGIN", str(origin))
     monkeypatch.setenv("FAKE_SLEPT", str(created.slept_file))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")

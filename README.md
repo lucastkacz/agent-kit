@@ -51,6 +51,8 @@ Lanes: 2
 Budget: 4 issues, 3 hours
 ```
 
+During a batch, leave the Mac plugged in with its lid open. The runner keeps it awake only on AC power, and says so at the start when it's on battery; closing the lid sleeps it anyway.
+
 SPEC §5, §9 and §11 explain how a batch runs, what merges by itself and what waits for the owner.
 
 ## Developing the kit
