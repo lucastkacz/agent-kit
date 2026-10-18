@@ -32,7 +32,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "run":
             return _run(args)
         return _ship(args)
-    except (CommandError, PlanError, ShipError) as error:
+    except (CommandError, PlanError, ShipError, SettingError) as error:
         sys.stderr.write(f"agent-batch: {error}\n")
         return 1
 
@@ -63,15 +63,24 @@ def _at_least_one(text: str) -> int:
     return int(text)
 
 
+class SettingError(Exception):
+    """An environment variable holds a value the runner can't use."""
+
+
 def _above_zero(text: str) -> float:
-    error = argparse.ArgumentTypeError(f"needs a number above 0, not {text!r}")
+    number = _number_above_zero(text)
+    if number is None:
+        raise argparse.ArgumentTypeError(f"needs a number above 0, not {text!r}")
+    return number
+
+
+def _number_above_zero(text: str) -> float | None:
     try:
         number = float(text)
     except ValueError:
-        raise error from None
-    if not number > 0:  # rather than `number <= 0`, which lets "nan" through
-        raise error
-    return number
+        return None
+    # Rather than `number <= 0`, which lets "nan" through.
+    return number if number > 0 else None
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -94,7 +103,12 @@ def _ship(args: argparse.Namespace) -> int:
 
 def _config(*, screen: bool = False) -> Config:
     poll = os.environ.get(POLL_ENV)
-    return Config(screen=screen, poll_seconds=float(poll) if poll else Config.poll_seconds)
+    if not poll:
+        return Config(screen=screen)
+    seconds = _number_above_zero(poll)
+    if seconds is None:
+        raise SettingError(f"{POLL_ENV} needs a number above 0, not {poll!r}")
+    return Config(screen=screen, poll_seconds=seconds)
 
 
 def _context(cwd: Path, config: Config, log_name: str) -> Context:

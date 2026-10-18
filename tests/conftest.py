@@ -204,6 +204,6 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setenv("FAKE_SLEPT", str(created.slept_file))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("CLAUDECODE", "1")
-    monkeypatch.setenv("AGENT_BATCH_POLL_SECONDS", "0")
+    monkeypatch.setenv("AGENT_BATCH_POLL_SECONDS", "0.001")
     monkeypatch.chdir(project)
     return created
