@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.core import results
@@ -79,8 +80,12 @@ class Claude:
         options = [*IMPLEMENTER, *_resume(resume)]
         run = self._run(cwd, prompt, options, results.IMPLEMENT_SCHEMA)
         if resume is not None and run.data is None and not run.limit_reached:
-            # A session that can't be resumed shouldn't cost the issue: start a fresh one.
-            return self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
+            # A session that can't be resumed shouldn't cost the issue: start a fresh one. Its
+            # denials and cost still happened, so the fresh run's result carries them too.
+            fresh = self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
+            return replace(
+                fresh, denials=run.denials + fresh.denials, cost_usd=run.cost_usd + fresh.cost_usd
+            )
         return run
 
     def review(self, cwd: Path, prompt: str) -> ClaudeRun:
