@@ -46,6 +46,12 @@ def test_it_counts_from_the_latest_acceptance_even_when_its_batch_is_open() -> N
     has(gather(), "--label batch --state all", "latest", "whether or not its batch is closed")
 
 
+def test_it_counts_the_local_reviews_denials_from_ships_event_logs() -> None:
+    has(gather(), ".agent-batch/ship-<i>/events.jsonl", "cloud issues included")
+    has(walk(), ".agent-batch/ship-<i>/events.jsonl")
+    has(gather(), "only the cloud implementation runs leave nothing")
+
+
 def test_it_reads_the_cloud_runs_denials_from_their_whole_run_logs() -> None:
     has(gather(), "`cloud:`", "`list`", "`list_runs`", "`get_run_log`", "`next_cursor`")
     has(walk(), "cloud runs' logs")

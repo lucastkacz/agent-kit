@@ -17,7 +17,8 @@ Before saying anything, read:
 - **The tracking issue:** `gh issue view <n> --json title,body,milestone,comments`. Its plan, the runner's summary and the "Cloud" comment, if there is one.
 - **The batch's issues and their PRs:** the issues on the plan's `Lane N:` and `Cloud:` lines. The tracking issue often has no milestone, but its issues do: take the batch's milestone from them, with `gh issue view <i> --json milestone`. If they have none, or don't share one, stop and ask the owner which milestone it is. The runner opens its PRs without a milestone, so find each issue's PR from the issue: the summary's PR column, or `gh issue view <i> --json closedByPullRequestsReferences`, or `gh pr list --state all --search "Closes #<i> in:body"`. Then read each PR with `gh pr view <pr> --json labels,state,mergedAt,body`, for its labels, merge state and body.
 - **The batch's log:** `.agent-batch/batch-<n>/events.jsonl`. Its `permission_denied` events list each run's denials: the issue, the run, the tool and its input.
-- **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. Cloud runs leave nothing in `.agent-batch/`.
+- **The local reviews' denials:** `.agent-batch/ship-<i>/events.jsonl`, for each issue of the batch shipped with `agent-batch ship`, cloud issues included. Its `permission_denied` events are that review's denials.
+- **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. Only the cloud implementation runs leave nothing in `.agent-batch/`: their denials are in that log.
 - **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, including the work between batches. Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
 - **The earlier batches' acceptance comments:** the `## Acceptance` comments on the other issues labeled `batch`, open or closed (`gh issue list --label batch --state all`), since a batch whose high-risk PR waits stays open after its acceptance. They give the numbers to compare with, the shape of the comment, and the time of the previous acceptance: the latest such comment's `createdAt`, whether or not its batch is closed.
 
@@ -49,7 +50,7 @@ The batch's `human(...)` criteria, as one checklist, each with what to read or t
 
 ### 2.5 The denials and friction
 
-Each denial, from the `permission_denied` events, the cloud runs' logs and `.agent-batch/denials.jsonl`, and each friction: a blocked run, a review that went round twice, a step that went wrong. For each, its cause and a proposed fix: a rule, or an issue, and whether it changes the project or the kit. The owner approves or drops each one.
+Each denial, from the `permission_denied` events of the batch's log and the local reviews' `.agent-batch/ship-<i>/events.jsonl`, the cloud runs' logs and `.agent-batch/denials.jsonl`, and each friction: a blocked run, a review that went round twice, a step that went wrong. For each, its cause and a proposed fix: a rule, or an issue, and whether it changes the project or the kit. The owner approves or drops each one.
 
 ### 2.6 The numbers
 
