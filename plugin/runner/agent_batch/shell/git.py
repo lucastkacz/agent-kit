@@ -41,6 +41,9 @@ class Git:
     def current_branch(self, worktree: Path) -> str:
         return self._git(worktree, "branch", "--show-current").strip()
 
+    def fetch(self, worktree: Path) -> None:
+        self._git(worktree, "fetch", "--quiet", self._remote)
+
     def add_lane_worktree(self, repo: Path, path: Path) -> None:
         self._git(repo, "fetch", "--quiet", self._remote)
         self.remove_worktree(repo, path)

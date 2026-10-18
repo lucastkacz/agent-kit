@@ -43,6 +43,8 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
 
 
 def _ship(ctx: Context, lane: Lane, job: Job) -> int:
+    # The review and the risk compare the branch with the base, which may have moved on.
+    ctx.git.fetch(lane.worktree)
     require_committed(ctx, lane)
     review = review_once(ctx, lane, job)
     if not review.approved:
