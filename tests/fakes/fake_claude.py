@@ -2,7 +2,8 @@
 
 The scenario maps a kind of run (implement, review, fix, resolve) and an issue number to the steps
 that its calls take in order. A step can answer with an `output`, fail with an `error`, print `raw`
-text or `sleep`; when the steps run out, the run succeeds with a default answer.
+text or `sleep`; when the steps run out, the run succeeds with a default answer. A step can also say
+the computer `slept` that many seconds: the test's wall clock moves on by them.
 """
 
 from __future__ import annotations
@@ -77,6 +78,18 @@ def record(argv: list[str], kind: str, number: int) -> None:
             out.write(json.dumps(entry) + "\n")
 
 
+def sleep_computer(seconds: float) -> None:
+    """Adds `seconds` to the sleep the test's wall clock counts (`World.slept`)."""
+    slept = Path(os.environ["FAKE_SLEPT"])
+    with slept.with_suffix(".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        before = float(slept.read_text()) if slept.exists() else 0.0
+        staged = slept.with_suffix(".tmp")
+        staged.write_text(str(before + seconds))
+        # The runner reads the file while this runs; a replace never shows it half written.
+        staged.replace(slept)
+
+
 def git(*args: str) -> None:
     subprocess.run(["git", *args], check=True, capture_output=True)
 
@@ -133,6 +146,8 @@ def main(argv: list[str]) -> int:
     kind, number = classify(argv[argv.index("-p") + 1])
     step, count = next_step(kind, number)
     record(argv, kind, number)
+    if "slept" in step:
+        sleep_computer(float(step["slept"]))
     if "sleep" in step:
         time.sleep(float(step["sleep"]))
     if "raw" in step:
