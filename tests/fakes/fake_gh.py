@@ -82,7 +82,8 @@ def issue_list(state: State, argv: list[str], _stdin: str) -> str:
 
 
 def pr_list(state: State, argv: list[str], _stdin: str) -> str:
-    wanted = [pr for pr in state["prs"].values() if pr["state"] == "OPEN"]
+    wanted_state = option(argv, "--state").upper() if "--state" in argv else "OPEN"
+    wanted = [pr for pr in state["prs"].values() if pr["state"] == wanted_state]
     if "--head" in argv:
         wanted = [pr for pr in wanted if pr["branch"] == option(argv, "--head")]
     if "--label" in argv:

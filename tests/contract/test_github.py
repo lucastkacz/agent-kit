@@ -61,6 +61,7 @@ def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(cl
         title = "test: a contract PR that must not merge"
         number = gh.create_pr(branch, "master", title, "Its checks fail on purpose.")
         assert gh.find_pr(branch) == number
+        assert gh.merged_pr(branch) is None
         sha = git.head(clone)
         gh.arm_merge(number, sha)
         gh.pr_add_label(number, "risk:high")

@@ -53,7 +53,13 @@ class GitHub:
         return _number(url)
 
     def find_pr(self, branch: str) -> int | None:
-        raw = self._json("pr", "list", "--head", branch, "--state", "open", "--json", "number")
+        return self._pr_on(branch, "open")
+
+    def merged_pr(self, branch: str) -> int | None:
+        return self._pr_on(branch, "merged")
+
+    def _pr_on(self, branch: str, state: str) -> int | None:
+        raw = self._json("pr", "list", "--head", branch, "--state", state, "--json", "number")
         return int(raw[0]["number"]) if raw else None
 
     def create_pr(self, branch: str, base: str, title: str, body: str) -> int:

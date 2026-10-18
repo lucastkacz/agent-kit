@@ -65,6 +65,8 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
 
 def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outcome:
     issue = ctx.gh.issue(number)
+    if _merged_before(ctx, issue, report):
+        return Outcome.MERGED
     refusal = eligibility.refusal(issue, ctx.owner)
     if refusal is not None:
         raise Stopped(Outcome.SKIPPED, refusal)
@@ -76,6 +78,18 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
     review_until_approved(ctx, lane, job)
     publish(ctx, lane, job)
     return _route(ctx, lane, job)
+
+
+def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
+    """Whether an earlier run of the batch merged the issue, so a re-run goes on past it."""
+    if issue.state == "OPEN":
+        return False
+    pr = ctx.gh.merged_pr(naming.branch_name(issue))
+    if pr is None:
+        return False
+    report.pr, report.detail = pr, "it merged in an earlier run"
+    report.human_checks = risk.count_human_checks(issue.body)
+    return True
 
 
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
