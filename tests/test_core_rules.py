@@ -7,8 +7,10 @@ from hypothesis import strategies as st
 
 from agent_batch.core import budget, env, merge, report
 from agent_batch.core.merge import MergeStatus
-from agent_batch.core.model import IssueReport, Outcome, PrState
+from agent_batch.core.model import Denial, IssueReport, Outcome, PrState, RunDenial
 from agent_batch.core.plan import BatchPlan
+
+PUSH = RunDenial("review", Denial("Bash", {"command": "git push origin HEAD"}))
 
 
 def pr(state: str = "OPEN", mergeable: str = "MERGEABLE", *checks: str) -> PrState:
@@ -82,7 +84,9 @@ def test_the_summary_counts_and_lists_what_needs_the_owner() -> None:
     reports = [
         IssueReport(11, Outcome.MERGED, pr=21, review_rounds=1, seconds=600, human_checks=1),
         IssueReport(12, Outcome.WAITING_OWNER, "the issue is marked high risk", pr=22),
-        IssueReport(13, Outcome.BLOCKED, "Which currency?\nMore text.", denials=2, cost_usd=0.5),
+        IssueReport(
+            13, Outcome.BLOCKED, "Which currency?\nMore text.", denials=[PUSH, PUSH], cost_usd=0.5
+        ),
         IssueReport(14, Outcome.DEFERRED, "#13 didn't merge"),
     ]
     text = report.render(reports, 1800)

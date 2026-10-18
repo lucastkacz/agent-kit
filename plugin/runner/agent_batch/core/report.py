@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections import Counter
 from collections.abc import Sequence
 
-from agent_batch.core.model import IssueReport, Outcome
+from agent_batch.core.model import IssueReport, Outcome, RunDenial
 
 SECONDS_PER_MINUTE = 60
+# The event log keeps a denial's command whole; the summary only needs enough to recognize it.
+COMMAND_CHARS = 200
+# GitHub refuses a comment over 65,536 characters; the event log keeps every denial anyway.
+DENIAL_LINES = 100
+# A denial is recognized by what it ran or touched; a file's content never goes to GitHub.
+SHOWN_INPUTS = ("command", "file_path", "url")
+BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 
 
@@ -23,10 +32,16 @@ def render(reports: Sequence[IssueReport], seconds: float) -> str:
         "",
         "**Outcomes:** " + " · ".join(f"{o.value} {counts[o]}" for o in Outcome if counts[o]),
         f"**Human checks:** {sum(r.human_checks for r in reports)}",
-        f"**Permission denials:** {sum(r.denials for r in reports)}",
+        f"**Permission denials:** {sum(len(r.denials) for r in reports)}",
         f"**Time:** {seconds / SECONDS_PER_MINUTE:.0f} min",
         f"**Notional cost:** ${sum(r.cost_usd for r in reports):.2f}",
     ]
+    denied = [_denial(r.number, denial) for r in ordered for denial in r.denials]
+    if denied:
+        lines += ["", "### Permission denials", "", *denied[:DENIAL_LINES]]
+    if len(denied) > DENIAL_LINES:
+        more = len(denied) - DENIAL_LINES
+        lines.append(f"- … and {more} more in the batch's event log (`events.jsonl`)")
     waiting = [r for r in ordered if r.outcome in NEEDS_OWNER]
     if waiting:
         lines += ["", "### Needs the owner", "", *(_needs(report) for report in waiting)]
@@ -38,8 +53,26 @@ def _row(report: IssueReport) -> str:
     minutes = f"{report.seconds / SECONDS_PER_MINUTE:.0f}"
     return (
         f"| #{report.number} | {report.outcome.value} | {pr} | {report.review_rounds} "
-        f"| {report.denials} | {minutes} |"
+        f"| {len(report.denials)} | {minutes} |"
     )
+
+
+def _denial(number: int, denied: RunDenial) -> str:
+    """One line per denial: its command, file or URL, else the tool's input as JSON."""
+    tool_input = denied.denial.tool_input
+    shown = [value for key in SHOWN_INPUTS if isinstance(value := tool_input.get(key), str)]
+    text = shown[0] if shown else json.dumps(tool_input, ensure_ascii=False)
+    text = " ".join(text.splitlines())
+    if len(text) > COMMAND_CHARS:
+        text = text[:COMMAND_CHARS] + "…"
+    return f"- #{number} {denied.run}: {denied.denial.tool} {_code(text)}"
+
+
+def _code(text: str) -> str:
+    """Inline code that holds any text, so an agent's `@user` or `#N` stays inert on GitHub."""
+    fence = "`" * (max((len(run) for run in BACKTICKS.findall(text)), default=0) + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{fence}{pad}{text}{pad}{fence}"
 
 
 def _needs(report: IssueReport) -> str:

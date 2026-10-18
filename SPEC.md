@@ -338,7 +338,7 @@ Every repository protects `master` with a ruleset: changes go through a PR, the 
 
 ### 10.1 Zero prompts during a batch
 
-Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged: a batch's runs report theirs in their answers, and a hook logs those of an interactive session in `.agent-batch/denials.jsonl`. Acceptance reviews them, to fix the rule or the habit behind each one.
+Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged: a batch's runs report theirs in their answers, the runner records each one as a `permission_denied` event and lists it in the batch's summary, and a hook logs those of an interactive session in `.agent-batch/denials.jsonl`. Acceptance reviews them, to fix the rule or the habit behind each one.
 
 ### 10.2 Rules
 

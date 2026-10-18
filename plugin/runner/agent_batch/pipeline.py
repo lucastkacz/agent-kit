@@ -17,6 +17,8 @@ from agent_batch.core.model import (
     Outcome,
     ReviewResult,
     Risk,
+    RunDenial,
+    RunKind,
 )
 from agent_batch.shell.proc import CommandError
 
@@ -86,7 +88,7 @@ def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
 
 
 def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
-    work = results.to_implement(_checked(run, job.report, "implementation"))
+    work = results.to_implement(_checked(ctx, run, job.report, "implementation"))
     if work is None:
         raise Stopped(Outcome.FAILED, "the implementer's answer doesn't match its schema")
     if work.status == "blocked":
@@ -97,8 +99,16 @@ def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
     job.work = work
 
 
-def _checked(run: ClaudeRun, report: IssueReport, what: str) -> dict[str, object]:
-    report.denials += run.denials
+def _checked(ctx: Context, run: ClaudeRun, report: IssueReport, what: RunKind) -> dict[str, object]:
+    for denial in run.denials:
+        report.denials.append(RunDenial(what, denial))
+        ctx.events.emit(
+            "permission_denied",
+            issue=report.number,
+            run=what,
+            tool=denial.tool,
+            input=denial.tool_input,
+        )
     report.cost_usd += run.cost_usd
     if run.limit_reached:
         raise Stopped(Outcome.INTERRUPTED, "the subscription's usage limit was reached")
@@ -136,7 +146,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
 
 def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number))
-    review = results.to_review(_checked(run, job.report, "review"))
+    review = results.to_review(_checked(ctx, run, job.report, "review"))
     if review is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
     ctx.events.emit(
@@ -239,7 +249,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     if conflicts:
         prompt = prompts.resolve(job.issue.number, upstream, conflicts)
         run = ctx.claude.resolve(lane.worktree, prompt)
-        answer = results.to_resolve(_checked(run, job.report, "conflict resolution"))
+        answer = results.to_resolve(_checked(ctx, run, job.report, "conflict resolution"))
         if answer is None or not answer.resolved:
             reason = answer.message if answer is not None else "its answer doesn't match its schema"
             raise Stopped(

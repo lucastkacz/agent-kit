@@ -7,6 +7,7 @@ import re
 
 from agent_batch.core.model import (
     ClaudeRun,
+    Denial,
     Finding,
     FoundIssue,
     ImplementResult,
@@ -85,17 +86,33 @@ def parse_run(stdout: str) -> ClaudeRun:
     error = (text or "the run failed") if raw.get("is_error") is True else None
     if error is None and data is None:
         error = "the run returned no structured output"
-    denials = raw.get("permission_denials")
     cost = raw.get("total_cost_usd")
     session = raw.get("session_id")
     return ClaudeRun(
         session_id=session if isinstance(session, str) else None,
         data=None if error else data,
         error=error,
-        denials=len(denials) if isinstance(denials, list) else 0,
+        denials=_denials(raw.get("permission_denials")),
         cost_usd=float(cost) if isinstance(cost, int | float) else 0.0,
         limit_reached=error is not None and LIMIT.search(error) is not None,
     )
+
+
+def _denials(value: object) -> tuple[Denial, ...]:
+    """Every denial counts, even one whose tool or input can't be read, so none goes unreviewed."""
+    if not isinstance(value, list):
+        return ()
+    denials: list[Denial] = []
+    for item in value:
+        entry = _object(item) or {}
+        tool = entry.get("tool_name")
+        denials.append(
+            Denial(
+                tool=tool if isinstance(tool, str) else "unknown tool",
+                tool_input=_object(entry.get("tool_input")) or {},
+            )
+        )
+    return tuple(denials)
 
 
 def _object(value: object) -> dict[str, object] | None:

@@ -84,7 +84,7 @@ def test_the_reviewer_cant_write_and_its_denial_is_reported(project: Path) -> No
     record("claude-review", raw)
 
     assert not (project / "marker.txt").exists()
-    assert run.denials >= 1
+    assert len(run.denials) >= 1
 
 
 def test_the_batch_settings_deny_pushing(project: Path) -> None:
@@ -95,4 +95,4 @@ def test_the_batch_settings_deny_pushing(project: Path) -> None:
     )
     _, run = ask(project, prompt, results.IMPLEMENT_SCHEMA, claude.IMPLEMENTER)
 
-    assert run.denials >= 1
+    assert len(run.denials) >= 1

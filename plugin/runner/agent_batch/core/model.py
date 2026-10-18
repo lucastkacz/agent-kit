@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
 
 ImplementStatus = Literal["done", "blocked", "failed"]
 IssueKind = Literal["bug", "idea", "task"]
+RunKind = Literal["implementation", "review", "conflict resolution"]
 
 
 class Outcome(StrEnum):
@@ -72,13 +73,29 @@ class ResolveResult:
 
 
 @dataclass(frozen=True)
+class Denial:
+    """A tool call that the run's permissions refused."""
+
+    tool: str
+    tool_input: dict[str, object]
+
+
+@dataclass(frozen=True)
+class RunDenial:
+    """A denial and the run it came from: implementation, review or conflict resolution."""
+
+    run: RunKind
+    denial: Denial
+
+
+@dataclass(frozen=True)
 class ClaudeRun:
     """What a headless Claude run returned, before its content is validated."""
 
     session_id: str | None
     data: dict[str, object] | None
     error: str | None
-    denials: int = 0
+    denials: tuple[Denial, ...] = ()
     cost_usd: float = 0.0
     limit_reached: bool = False
 
@@ -106,7 +123,7 @@ class IssueReport:
     detail: str = ""
     pr: int | None = None
     review_rounds: int = 0
-    denials: int = 0
+    denials: list[RunDenial] = field(default_factory=list)
     cost_usd: float = 0.0
     seconds: float = 0.0
     human_checks: int = 0
