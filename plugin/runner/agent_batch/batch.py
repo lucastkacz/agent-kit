@@ -39,7 +39,7 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
     at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
     model, effort = plan.choose_model(limits.model, limits.effort, batch_plan)
     ctx = replace(ctx, claude=ctx.claude.with_model(model, effort))
-    described = plan.describe_model(model, effort)
+    described = report.model_lines(model, effort)
     lanes = batch_plan.lanes
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
     if on_battery:

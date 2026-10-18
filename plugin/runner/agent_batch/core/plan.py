@@ -1,4 +1,4 @@
-"""The lane plan, lanes at a time, budget and model written in a batch's tracking issue (§4.3)."""
+"""The lane plan and the optional lines of a batch's tracking issue (SPEC §4.3)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ BUDGET_ISSUES = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*issues?\b", re.IGNORECA
 BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
 LANES_AT_ONCE_LINE = re.compile(r"^[ \t]*lanes[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 MODEL_LINE = re.compile(r"^[ \t]*model[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
-MODEL_NAME = re.compile(r"^[^\s,]+$")
+# An alias, such as `opus`, or a full name, such as `claude-opus-5-5` or `opus[1m]`.
+MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\]]*$")
 # The levels `claude --effort` takes.
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
@@ -72,13 +73,10 @@ def choose_model(
     model: str | None, effort: str | None, batch: BatchPlan
 ) -> tuple[str | None, str | None]:
     """The runs' model and effort: each from the command line, else from the batch issue."""
-    return (model or batch.model, effort or batch.effort)
-
-
-def describe_model(model: str | None, effort: str | None) -> list[str]:
-    """The model and effort as the batch's comments state them, when they're set."""
-    shown = (("Model", model), ("Effort", effort))
-    return [f"**{name}:** {value}" for name, value in shown if value is not None]
+    return (
+        model if model is not None else batch.model,
+        effort if effort is not None else batch.effort,
+    )
 
 
 def _lanes_at_once(body: str) -> int | None:

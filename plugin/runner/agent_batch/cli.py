@@ -14,7 +14,7 @@ from agent_batch.batch import Limits, run_batch
 from agent_batch.context import Context
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
-from agent_batch.core.plan import EFFORTS, PlanError
+from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
@@ -61,8 +61,14 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _model_flags(parser: argparse.ArgumentParser, default: str) -> None:
-    parser.add_argument("--model", help=f"the runs' model (default: {default})")
+    parser.add_argument("--model", type=_model, help=f"the runs' model (default: {default})")
     parser.add_argument("--effort", choices=EFFORTS, help=f"the runs' effort (default: {default})")
+
+
+def _model(text: str) -> str:
+    if not MODEL_NAME.match(text):
+        raise argparse.ArgumentTypeError(f"needs a model, such as opus, not {text!r}")
+    return text
 
 
 def _at_least_one(text: str) -> int:
