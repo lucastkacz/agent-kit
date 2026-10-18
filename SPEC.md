@@ -61,7 +61,8 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 ### 3.1 Planning: owner and assistant
 
 - The owner describes the idea. The assistant asks only the questions that change what gets built, one topic at a time.
-- The assistant writes the issues (§4) and proposes the batch: which issues, in which lanes, with what budget.
+- The assistant writes the issues (§4) and proposes the batch: which issues, in which lanes, with what budget, which of them go to the cloud (§12) and what that gains, and the model and effort, with the owner's own settings as the default.
+- Issues that touch the same files share a lane, in order; the others get lanes of their own. A high-risk issue goes last in its lane or alone, and when every issue is high risk, one per lane (§11.1). `Lanes:` is the number of independent lanes.
 - The owner approves the batch as a whole. Only then does the assistant label its issues `ready`.
 
 ### 3.2 The batch: agents, unattended
