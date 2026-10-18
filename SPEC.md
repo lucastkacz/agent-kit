@@ -533,8 +533,7 @@ To settle while building the kit:
 - Whether the control tower's phone notifications work as described.
 - How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
 - Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
-- Whether headless runs in a lane's worktree pick up the project's trusted settings, and whether `--resume` finds the lane's session there.
-- The exact shape of a headless run's JSON with a schema. The runner reads `structured_output`, and falls back to JSON in the result text.
+- Whether headless runs in a lane's worktree pick up the project's own permission rules, which apply only in a trusted folder. The contract tests settled the rest: a run's JSON, resuming a session from the same folder, the reviewer's denials, and the batch settings' deny rules.
 
 ## 19. Glossary
 

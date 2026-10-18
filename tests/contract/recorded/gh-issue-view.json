@@ -1,0 +1,20 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjc2ODUxMzM1",
+    "is_bot": false,
+    "login": "lucastkacz",
+    "name": ""
+  },
+  "body": "Opened by a contract test.\n\n### Risk\n\nLow\n",
+  "labels": [
+    {
+      "id": "LA_kwDOVN9l088AAAAC9xPlDg",
+      "name": "task",
+      "description": "Work to build",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 8,
+  "state": "OPEN",
+  "title": "contract-issue-20261018-031803-88e0"
+}
