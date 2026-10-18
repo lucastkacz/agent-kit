@@ -55,6 +55,21 @@ def test_the_skill_fills_the_prompt_from_the_plugins_own_files() -> None:
     assert "named as the runner names it" in fill, fill
 
 
+def test_each_routine_is_named_after_the_repository_the_batch_and_the_issue() -> None:
+    name = "`<owner/name> batch <batch>: #<n>`"
+    text = skill_text()
+    assert name in section(text, "Send an issue to the cloud")
+    assert name in section(text, "Resume")
+
+
+def test_a_resume_checks_only_the_issues_still_to_do_and_watches_the_runs_going_on() -> None:
+    resume = section(skill_text(), "Resume")
+    assert "only on the issues still to do" in resume, resume
+    assert "keep those on the tracking issue and on `master`" in resume, resume
+    assert "hasn't ended: watch it" in resume, resume
+    assert "don't send its issue again" in resume, resume
+
+
 def test_the_cloud_run_picks_up_a_branch_that_exists() -> None:
     work = section(prompt_text(), "How to work")
     assert "git ls-remote --exit-code --heads origin {branch}" in work, work
