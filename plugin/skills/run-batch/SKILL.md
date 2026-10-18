@@ -1,6 +1,6 @@
 ---
 name: run-batch
-description: Starts, runs or resumes a batch when the owner asks: starts `agent-batch run` for the lanes, sends the `Cloud:` issues to Anthropic's cloud, watches both as the control tower, ships each cloud branch, and notifies the owner's phone only when something needs them.
+description: Starts, runs or resumes a batch when the owner asks. It starts `agent-batch run` for the lanes, sends the `Cloud:` issues to Anthropic's cloud, watches both as the control tower, ships each cloud branch, and notifies the owner's phone only when something needs them.
 ---
 
 # Run a batch
@@ -16,7 +16,7 @@ The batch is the tracking issue the owner names, else the open issue labeled `ba
 
 ## Check before starting
 
-Only the owner's issues are work. The owner is the login that `gh api user --jq .login` prints.
+Only the owner's issues are work. The owner is the login that `gh api user --jq .login` prints. On a resume, Resume says which of these checks apply.
 
 - The tracking issue is open, opened by the owner and labeled `batch`. The runner checks this too, but a batch with only a `Cloud:` line never starts it.
 - Every issue of the plan, lanes and cloud, is one the runner would take: `gh issue view <n> --json labels,state,author,body` shows it `OPEN`, opened by the owner, labeled `ready` and not `blocked`, and with a `### Risk` section whose first line starts with high or low. A cloud run can't check its issue, since the cloud's `gh` isn't signed in: for a `Cloud:` issue, this is the only check before its branch is pushed.
@@ -35,7 +35,7 @@ Only the owner's issues are work. The owner is the login that `gh api user --jq 
 One routine per `Cloud:` issue, with the `RemoteTrigger` tool:
 
 1. Fill `cloud-prompt.md`, in this skill's folder (`${CLAUDE_SKILL_DIR}`): `{repository}` is the project's `owner/name`, `{number}` and `{title}` the issue's, `{body}` its body verbatim, `{branch}` the branch `<issue>-<short-name>` named as the runner names it, so that an issue keeps one branch between a lane and the cloud (its number, a hyphen, then its title's lowercase ASCII words joined by hyphens, as many whole words as fit in 40 characters), and `{implement}` the implement skill verbatim, read from the plugin's own `${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md`. The cloud's `gh` isn't signed in, and the project's repository holds none of the kit's files, so the body and the skill have to travel in the prompt.
-2. `create` a one-time routine named `batch <batch>: #<n>`, so that a resume finds it: `run_once_at` about 3 minutes ahead, the project's repository as its source, the tools `Bash`, `Read`, `Write`, `Edit`, `Glob` and `Grep`, the `Model:` line's model, and the filled prompt. Find the account's environment at run time; never write its id or a trigger's id in the kit or the project.
+2. `create` a one-time routine named `<owner/name> batch <batch>: #<n>`, with the project's repository first, so that a resume finds it and no other project's routine matches: `run_once_at` about 3 minutes ahead, the project's repository as its source, the tools `Bash`, `Read`, `Write`, `Edit`, `Glob` and `Grep`, the `Model:` line's model, and the filled prompt. Find the account's environment at run time; never write its id or a trigger's id in the kit or the project.
 3. Then, right after `create`, `update` the routine with `clear_mcp_connections: true`: creating one attaches the account's connectors even when the request asks for none.
 
 When you dispatch them, tell the owner:
@@ -84,8 +84,11 @@ Comment "Cloud" on the tracking issue once the cloud issues have all shipped or 
 
 When the owner asks to continue a batch, don't start it over:
 
+- Of the checks before starting, keep those on the tracking issue and on `master`, and that no issue is both in a lane and on the `Cloud:` line. Run the per-issue check only on the issues still to do: open, with no PR for their branch, and, for a `Cloud:` issue, with no routine yet. Issues already merged, blocked or shipped are left to the runner and its summary.
 - Start the runner again if its lanes didn't finish; it picks up the branches that exist.
-- Find the batch's routines that already ran with `RemoteTrigger`'s `list`, by their names `batch <batch>: #<n>`, and `list_runs`. Each one's branch is the one in its own prompt, which you wrote. Bring back, as above, those whose branch has no PR yet: `gh pr list --head <branch> --state all` prints nothing.
+- Find the batch's routines with `RemoteTrigger`'s `list`: those named `<owner/name> batch <batch>: #<n>` with this project's `owner/name`. Each one's branch is the one in its own prompt, which you wrote. Then, by `list_runs`:
+  - a routine whose run hasn't ended: watch it, as in Watch, and don't send its issue again;
+  - a routine whose run ended: bring its branch back, as above, when it has no PR yet: `gh pr list --head <branch> --state all` prints nothing.
 - Send to the cloud only the `Cloud:` issues that have no routine yet.
 
 ## Next step
