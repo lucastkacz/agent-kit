@@ -10,7 +10,8 @@ from dataclasses import dataclass
 LANE_LINE = re.compile(r"^[ \t]*lane[ \t]+\d+[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 ISSUE_REF = re.compile(r"#(\d+)\b")
 BUDGET_LINE = re.compile(r"^[ \t]*budget[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
-BUDGET_ISSUES = re.compile(r"(\d+)\s*issues?\b", re.IGNORECASE)
+# The lookbehind keeps the count from matching the tail of a decimal, such as `0 issues` in `1.0`.
+BUDGET_ISSUES = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*issues?\b", re.IGNORECASE)
 BUDGET_HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*h(?:ours?)?\b", re.IGNORECASE)
 LANES_AT_ONCE_LINE = re.compile(r"^[ \t]*lanes[ \t]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 
@@ -70,6 +71,8 @@ def _budget(body: str) -> tuple[int | None, float | None]:
         return None, None
     issues = BUDGET_ISSUES.search(line.group(1))
     hours = BUDGET_HOURS.search(line.group(1))
+    if issues and not issues.group(1).isdigit():
+        raise PlanError(f"`Budget:` needs a whole number of issues, not {issues.group(0)!r}")
     if issues and int(issues.group(1)) == 0:
         raise PlanError(f"`Budget:` needs at least 1 issue, not {issues.group(0)!r}")
     if hours and float(hours.group(1)) == 0:
