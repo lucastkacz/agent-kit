@@ -31,7 +31,7 @@ flowchart LR
 
 ## What it does
 
-- **Guardrails it enforces:** agents never push to the main branch, never read secrets, and build nothing outside an approved issue, and a batch's agents never merge. These are blocked by rules and code, not just asked for. In a session, an agent merges a pull request only when the owner asks for that one.
+- **Guardrails it enforces:** agents never push to the main branch, never read secrets or build anything outside an approved issue, and a batch's agents never merge. These are blocked by rules and code, not just asked for. In a session, an agent merges a pull request only when the owner asks for that one.
 - **Quality it checks:** every criterion that can be automated has a test, written before the code. Formatting, linting, types, size and complexity limits, coverage and a dependency audit run on every change.
 - **What waits for the person:** the questions only the owner can answer, the high-risk changes to merge, and the checks that need human eyes. Everything else keeps moving.
 
