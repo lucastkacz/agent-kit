@@ -27,6 +27,11 @@ KINDS = (
     ("resolve", re.compile(r"^Merging .* into the branch of #(\d+)")),
 )
 DONE = {"status": "done", "title": "", "pr_body": "", "message": "", "found": []}
+DENIAL = {
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_fake",
+    "tool_input": {"command": "git push origin HEAD"},
+}
 
 
 def default_output(kind: str, number: int) -> dict[str, Any]:
@@ -118,7 +123,11 @@ def resolve_conflicts() -> None:
 
 
 def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any]:
-    """What the fake prints, in the shape `tests/contract/recorded/claude-*.json` recorded."""
+    """What the fake prints, in the shape `tests/contract/recorded/claude-*.json` recorded.
+
+    A step's `denials` is either how many copies of `DENIAL` it had, or the list of its denials.
+    """
+    denials = step.get("denials", 0)
     return {
         "type": "result",
         "subtype": "success",
@@ -126,7 +135,7 @@ def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any
         "result": "",
         "session_id": f"session-{kind}-{number}-{count}",
         "total_cost_usd": 0.01,
-        "permission_denials": [{"tool_name": "Bash"}] * int(step.get("denials", 0)),
+        "permission_denials": denials if isinstance(denials, list) else [DENIAL] * int(denials),
         "structured_output": step.get("output") or default_output(kind, number),
     }
 
