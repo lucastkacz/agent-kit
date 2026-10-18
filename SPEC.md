@@ -61,7 +61,8 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 ### 3.1 Planning: owner and assistant
 
 - The owner describes the idea. The assistant asks only the questions that change what gets built, one topic at a time.
-- The assistant writes the issues (§4) and proposes the batch: which issues, in which lanes, with what budget.
+- The assistant writes the issues (§4) and proposes the batch: which issues, in which lanes, with what budget, which of them go to the cloud (§12) and what that gains, and the model and effort, with the owner's own settings as the default.
+- Issues that touch the same files share a lane, in order; the others get lanes of their own. A high-risk issue goes last in its lane or alone, and when every issue is high risk, one per lane (§11.1). `Lanes:` is the number of independent lanes.
 - The owner approves the batch as a whole. Only then does the assistant label its issues `ready`.
 
 ### 3.2 The batch: agents, unattended
@@ -76,11 +77,13 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 In one sitting, the assistant walks the owner through:
 
 1. What merged.
-2. The high-risk PRs, each with a short explanation and a link to merge it.
+2. The high-risk PRs, each with a short explanation, and one command that merges them all.
 3. The blocked questions. The owner answers; the assistant writes each decision into its issue and removes `blocked`, so the issue is ready for the next batch.
 4. The batch's human checks, as one checklist.
 5. The run's permission denials and friction, turned into proposed changes to the project or to this kit.
 6. The batch's numbers (§16.2), to see whether the process is getting better.
+
+The assistant then shows the acceptance comment and writes nothing on GitHub until the owner says it's OK. With the OK, it posts the comment on the tracking issue, ticks its checklist, and closes the tracking issue and the milestone. A high-risk PR that hasn't merged yet doesn't hold back the acceptance, but its checklist item stays open, and the tracking issue and the milestone close only when the owner has merged it and asks to close the batch.
 
 ### 3.4 Direct mode
 
@@ -141,7 +144,7 @@ The runner reads `Lanes:`, `Budget:` and `Model:`, and refuses a batch whose `La
 Lane 1: #12, #15
 Lane 2: #13
 Lane 3: #14
-Lanes: 2
+Lanes: 3
 Budget: 4 issues, 3 hours
 Model: opus, high
 Cloud: #16
@@ -412,7 +415,7 @@ A batch has a budget: a number of issues, a number of hours and, when the subscr
 
 ### 11.3 The control tower and notifications
 
-The interactive session that started the batch watches the runner's log. It sends the owner a phone notification when an issue is blocked, when the budget is reached and when the batch ends. If that session closes, the runner keeps going, and the batch issue still gets its summary.
+The interactive session that started the batch watches the runner's log. It also sends the batch's `Cloud:` issues to the cloud, one one-time routine per issue, watches their runs, and brings each pushed branch back through `agent-batch ship`, a fresh local review that opens its PR. It sends the owner a phone notification when an issue is blocked, when the budget is reached, when a cloud run fails and when the whole batch ends, lanes and cloud; never for each PR. It comments the cloud issues' results on the batch issue, since the runner's summary doesn't know them. If that session closes, a runner started in a terminal keeps going, and the batch issue still gets its summary; a runner the session started stops with it, and the lane issues it didn't finish go to the next batch. The cloud branches wait on GitHub until the owner resumes the batch, which brings them back.
 
 ### 11.4 Using the screen
 
@@ -428,7 +431,7 @@ The runner's engine decides where agent runs happen: `local`, on the owner's com
 
 ## 12. Delegating to the cloud
 
-Claude Code can also run in a virtual machine in Anthropic's cloud instead of the owner's computer. The session clones the repository, works on a branch and opens a PR, using the owner's subscription. The owner's computer stays free, sessions run in parallel, each in its own machine, and since each machine is isolated, no prompts are needed.
+Claude Code can also run in a virtual machine in Anthropic's cloud instead of the owner's computer. The session clones the repository and works on a branch, using the owner's subscription. The owner's computer stays free, sessions run in parallel, each in its own machine, and since each machine is isolated, no prompts are needed.
 
 **Good for the cloud:**
 
@@ -446,6 +449,15 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 - planning and acceptance, which happen with the owner.
 
 **Same rules:** ready issues only, tests first, review, a PR, and merging by risk. No real secrets in cloud environments, and network access limited to GitHub and package registries.
+
+### 12.1 Back to the merge gate
+
+A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3):
+
+1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached. The cloud's `gh` isn't signed in, so the prompt carries the issue's body. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
+2. **The gate.** Locally, the assistant checks the branch out in a worktree, and `agent-batch ship <issue>` reviews it with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
+
+The local review is not a formality: it catches what the cloud run missed, such as wrong acceptance tests.
 
 ## 13. Project skeleton
 
@@ -549,7 +561,7 @@ To settle while building the kit:
 
 - Whether a headless run can read the subscription's usage, for the budget's share limit.
 - Whether the control tower's phone notifications work as described.
-- How the cloud engine dispatches issues and brings their PRs back to the merge gate. This gets tried on a project that builds on Linux.
+- How the runner dispatches issues to the cloud by itself. For now the assistant does it by hand, and its work comes back to the merge gate as §12.1 says.
 - Whether language servers (§8.8) and plugin evaluations (§16.3) work as described here.
 - Whether headless runs in a lane's worktree pick up the project's own permission rules, which apply only in a trusted folder. The contract tests settled the rest: a run's JSON, resuming a session from the same folder, the reviewer's denials, and the batch settings' deny rules.
 
