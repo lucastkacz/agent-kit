@@ -21,6 +21,7 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 - Run them. They must fail, and for the reason the criterion names: an import error doesn't count.
 - Commit them on their own, as `test: acceptance tests for #$ARGUMENTS`.
 - If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why.
+- To restore a file from a commit, run `git restore --source <commit> -- <path>`. Never use `git checkout`: the batch denies it, so that no agent changes branches.
 - A `human(<reason>)` criterion gets no test; it goes in the PR body (step 6).
 - When no criterion can be automated (documentation only, say), there's no acceptance commit.
 
