@@ -31,6 +31,17 @@ def test_it_does_not_expect_an_approved_reviews_low_findings() -> None:
     assert "keeps its low findings nowhere" in gather, gather
 
 
+def test_it_reads_the_acceptance_comments_of_open_batches_too() -> None:
+    gather = section("Gather everything")
+    assert "gh issue list --label batch --state all" in gather, gather
+    assert "the latest such comment's `createdat`, whether or not its batch is closed" in gather
+
+
+def test_it_compares_the_sessions_times_with_githubs_created_at() -> None:
+    gather = section("Gather everything")
+    assert "`createdat` are both utc iso times of the same width up to the seconds" in gather
+
+
 def test_the_owner_runs_the_merge_command_never_the_assistant() -> None:
     walk = section("Walk the owner through")
     assert "for the owner to run; you never run it" in walk, walk
