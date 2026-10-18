@@ -158,7 +158,7 @@ Bugs, ideas and improvements found while working become new issues without `read
 The same steps run in a batch and in direct mode.
 
 1. **Worktree and branch.** Each lane has its own worktree. Each issue gets a branch `<issue>-<short-name>` in it, from the latest `origin/master`; if the branch already exists from an earlier batch, its work is picked up. In direct mode, the branch is wherever the assistant works.
-2. **Acceptance tests first.** The implementer writes a test for each automatable criterion and commits them on their own (`test: acceptance tests for #N`). They fail, for the right reason. After that commit they don't change; if one looks wrong, the issue is blocked with the question.
+2. **Acceptance tests first.** The implementer writes a test for each automatable criterion and commits them on their own (`test: acceptance tests for #N`). They fail, for the right reason. They are formatted before that commit, and after it they don't change: a later test goes in a file of its own. If one looks wrong, the issue is blocked with the question. When the test is indeed wrong, the owner can approve fixing it inside the acceptance commit and rebuilding the branch on `master`.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
 5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. After two rounds without approval, the issue is blocked.
