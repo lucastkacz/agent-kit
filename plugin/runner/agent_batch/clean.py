@@ -12,7 +12,7 @@ from pathlib import Path
 from agent_batch.context import Context
 from agent_batch.core import cleanup
 from agent_batch.core.cleanup import Verdict
-from agent_batch.core.config import LANE, WORKTREES
+from agent_batch.core.config import LANE, LANE_FOLDERS
 from agent_batch.core.model import LocalBranch, MergedPr
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
@@ -82,6 +82,7 @@ def _lane(ctx: Context, worktree: Path | None) -> str | None:
     """The name of the runner's lane worktree this is, such as `lane-1`, if it's one."""
     if worktree is None:
         return None
-    lanes = (ctx.repo / ctx.config.state_dir / WORKTREES).resolve()
+    state = (ctx.repo / ctx.config.state_dir).resolve()
     folder = worktree.resolve()
-    return folder.name if folder.parent == lanes and folder.name.startswith(LANE) else None
+    in_lanes = folder.parent in {state / lanes for lanes in LANE_FOLDERS}
+    return folder.name if in_lanes and folder.name.startswith(LANE) else None
