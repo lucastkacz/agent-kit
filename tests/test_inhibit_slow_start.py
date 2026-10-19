@@ -18,28 +18,25 @@ sleep 1
 echo "Failed to inhibit: Access denied" >&2
 exit 1
 """
-# `systemd-inhibit` runs its command, what follows its flags, once it holds the lock.
-SLOW_HOLDING_INHIBIT = """#!/bin/sh
-sleep 1
-while [ "${1#--}" != "$1" ]; do shift; done
-exec "$@"
-"""
-
-
-def _tail(started: Path) -> str:
-    """`tail --pid=<pid> -f /dev/null` on any computer: it says it started, and lasts the pid."""
-    return f"""#!/bin/sh
-touch "{started}"
-pid="${{1#--pid=}}"
+# `tail --pid=<pid> -f /dev/null` on any computer: it lasts the pid.
+TAIL = """#!/bin/sh
+pid="${1#--pid=}"
 while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
 """
+# One that neither takes its lock nor exits, as when the system bus never answers. It stays the
+# fake, not a `sleep` it execs, so a process left behind still names the fake's path.
+STUCK_INHIBIT = """#!/bin/sh
+while :; do sleep 0.1; done
+"""
 
 
-def _stuck_inhibit(pid_file: Path) -> str:
-    """One that neither takes its lock nor exits, as when the system bus never answers."""
+def _slow_holding_inhibit(held: Path) -> str:
+    """`systemd-inhibit` runs its command, what follows its flags, once it holds the lock."""
     return f"""#!/bin/sh
-echo $$ > "{pid_file}"
-exec sleep 30
+sleep 1
+while [ "${{1#--}}" != "$1" ]; do shift; done
+touch "{held}"
+exec "$@"
 """
 
 
@@ -61,15 +58,15 @@ def test_a_systemd_inhibit_that_fails_after_a_slow_start_holds_nothing(world: Wo
 def test_a_systemd_inhibit_that_takes_its_lock_after_a_slow_start_is_the_running_hold(
     world: World,
 ) -> None:
-    started = world.root / "tail-started"
-    world.replace_fake("systemd-inhibit", SLOW_HOLDING_INHIBIT)
-    (world.root / "bin" / "tail").write_text(_tail(started))
+    held = world.root / "inhibit-held"
+    world.replace_fake("systemd-inhibit", _slow_holding_inhibit(held))
+    (world.root / "bin" / "tail").write_text(TAIL)
     (world.root / "bin" / "tail").chmod(0o755)
 
     hold = system.keep_awake("linux")
     try:
         assert hold is not None, "a lock that holds counted as none"
-        assert started.exists(), "it returned before systemd-inhibit held the lock"
+        assert held.exists(), "it returned before systemd-inhibit held the lock"
         assert hold.poll() is None, "the hold isn't running"
     finally:
         _end(hold)
@@ -78,8 +75,7 @@ def test_a_systemd_inhibit_that_takes_its_lock_after_a_slow_start_is_the_running
 def test_a_systemd_inhibit_that_neither_holds_nor_exits_is_ended_after_the_bound(
     world: World, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    pid_file = world.root / "inhibit.pid"
-    world.replace_fake("systemd-inhibit", _stuck_inhibit(pid_file))
+    world.replace_fake("systemd-inhibit", STUCK_INHIBIT)
     monkeypatch.setattr(system, "INHIBIT_WAIT", 0.2, raising=False)
 
     began = time.monotonic()
@@ -89,7 +85,9 @@ def test_a_systemd_inhibit_that_neither_holds_nor_exits_is_ended_after_the_bound
 
     assert hold is None, "a systemd-inhibit that holds nothing counted as a hold"
     assert took < 5, f"the batch's start waited {took:.1f} s, past the bound"
-    assert not system.is_running(int(pid_file.read_text())), "it was left running"
+    fake = str(world.root / "bin" / "systemd-inhibit")
+    left = subprocess.run(["pgrep", "-f", fake], capture_output=True, text=True, check=False)
+    assert left.stdout == "", "it was left running"
 
 
 def test_the_failing_systemd_inhibit_isnt_run_ahead_of_the_call_it_checks(
