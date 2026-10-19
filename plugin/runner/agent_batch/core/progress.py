@@ -26,6 +26,14 @@ TOKEN_FIELDS = (
 )
 HEADER = ("RUN", "ISSUE", "STEP", "ROUND", "LAST ACTION", "TIME", "COST")
 NOTHING = "Nothing is running: no batch lane and no `agent-batch ship`.\n"
+# The steps' names in the status line, which has little room (#108).
+SHORT_STEPS = {
+    IMPLEMENTATION: "implement",
+    REVIEW: "review",
+    PULL_REQUEST: "PR",
+    RISK_AND_MERGE: "merge",
+}
+SEPARATOR = " · "
 
 
 @dataclass(frozen=True)
@@ -76,6 +84,16 @@ def actions(line: str, root: str) -> list[str]:
     ]
 
 
+def session_cwd(text: str) -> str | None:
+    """The working directory in the JSON that Claude Code passes a status line; None if absent."""
+    try:
+        session = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    cwd = session.get("cwd") if isinstance(session, dict) else None
+    return cwd if isinstance(cwd, str) and cwd else None
+
+
 def usage(line: str) -> tuple[str, int] | None:
     """An assistant message's id and its tokens, in one line of the stream; None if it has none.
 
@@ -119,8 +137,8 @@ def short_action(tool: str, tool_input: object, root: str) -> str:
         detail = lines[0] if lines else ""
     if not detail:
         return tool
-    # The table goes to the owner's terminal, where an escape sequence could rewrite or garble it.
-    detail = "".join(char if char.isprintable() else "?" for char in detail)
+    # The table goes to the owner's terminal.
+    detail = _printable(detail)
     if len(detail) > INPUT_LENGTH:
         detail = detail[: INPUT_LENGTH - 1] + "…"
     return f"{tool}({detail})"
@@ -189,6 +207,35 @@ def render(rows: Sequence[Row], now: float) -> str:
         + "\n"
         for line in table
     )
+
+
+def line(rows: Sequence[Row], now: float, branch: str) -> str:
+    """One short line: each lane's issue, step, and its round or its minutes (#108).
+
+    With nothing running, the branch, so that the line still says where the session is.
+    """
+    if not rows:
+        text = f"nothing running{SEPARATOR}{branch}" if branch else "nothing running"
+    else:
+        ordered = sorted(rows, key=lambda row: (row.run, row.lane))
+        text = SEPARATOR.join(_short(row, now) for row in ordered)
+    return _printable(text) + "\n"
+
+
+def _short(row: Row, now: float) -> str:
+    state = row.state
+    name = f"L{row.lane}" if row.lane else "ship"
+    step = SHORT_STEPS.get(state.step, state.step)
+    if state.round:
+        done = f"{state.round}/{max(state.round, state.rounds)}"
+    else:
+        done = f"{_whole_minutes(now - state.started)}m"
+    return f"{name} #{state.issue} {step} {done}"
+
+
+def _printable(text: str) -> str:
+    # The terminal draws it: an escape sequence in a branch's name could rewrite or garble it.
+    return "".join(char if char.isprintable() else "?" for char in text)
 
 
 def _cells(row: Row, now: float) -> tuple[str, ...]:
