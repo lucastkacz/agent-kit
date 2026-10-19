@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from agent_batch.context import Context, Lane
 from agent_batch.core import budget
 from agent_batch.core.budget import Budget
+from agent_batch.core.config import LANE, WORKTREES
 from agent_batch.core.model import IssueReport, Outcome
 from agent_batch.pipeline import run_issue
 from agent_batch.shell.proc import CommandError
@@ -38,7 +39,7 @@ class Gate:
 
 
 def run_lane(ctx: Context, gate: Gate, index: int, numbers: Sequence[int]) -> list[IssueReport]:
-    worktree = ctx.repo / ctx.config.state_dir / "worktrees" / f"lane-{index}"
+    worktree = ctx.repo / ctx.config.state_dir / WORKTREES / f"{LANE}{index}"
     try:
         ctx.git.add_lane_worktree(ctx.repo, worktree)
     except CommandError as error:
@@ -77,4 +78,7 @@ def _set_aside(
 ) -> list[IssueReport]:
     for number in numbers:
         ctx.events.emit("issue_set_aside", issue=number, outcome=outcome.value, detail=detail)
-    return [IssueReport(number=number, outcome=outcome, detail=detail) for number in numbers]
+    return [
+        IssueReport(number=number, outcome=outcome, detail=detail, unannounced=True)
+        for number in numbers
+    ]

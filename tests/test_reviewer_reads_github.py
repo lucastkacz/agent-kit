@@ -45,3 +45,11 @@ def test_the_review_skill_names_the_commands_it_has_for_reading_github() -> None
         "agent-batch gh-read api",
     ):
         assert command in text, f"the review skill doesn't name `{command}`"
+
+
+def test_the_review_skill_says_gh_read_refuses_web_on_pull_requests() -> None:
+    text = REVIEW_SKILL.read_text(encoding="utf-8")
+    pull_requests = next(line for line in text.splitlines() if "Pull requests:" in line)
+
+    assert "`--web`/`-w`" in pull_requests
+    assert "refuses" in pull_requests

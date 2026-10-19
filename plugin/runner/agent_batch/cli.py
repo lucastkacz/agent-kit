@@ -1,4 +1,4 @@
-"""`agent-batch`: runs a batch, ships one issue, shows what runs, or reads GitHub for a reviewer."""
+"""`agent-batch`: runs a batch or ships an issue, shows what runs, cleans branches, reads GitHub."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.batch import Limits, run_batch
+from agent_batch.clean import clean_branches
 from agent_batch.context import Context
 from agent_batch.core import gh_read, progress
 from agent_batch.core.config import Config
@@ -39,6 +40,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _gh_read(args.args)
         if args.command == "status":
             return _status()
+        if args.command == "clean":
+            return _clean()
         return _ship(args)
     except (CommandError, PlanError, ShipError, gh_read.Refused, SettingError) as error:
         sys.stderr.write(f"agent-batch: {error}\n")
@@ -65,6 +68,7 @@ def _parser() -> argparse.ArgumentParser:
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
     _model_flags(direct, "claude's own")
     commands.add_parser("status", help="show what each lane of a batch, and each ship, is doing")
+    commands.add_parser("clean", help="delete the local branches whose PR merged at their head")
     read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
     read.add_argument(
         "args", nargs=argparse.REMAINDER, help="pr view|list|diff|checks ..., or api <endpoint> ..."
@@ -134,6 +138,11 @@ def _status() -> int:
     repo = Git(config).main_root(Path.cwd())
     rows = status.running(repo / config.state_dir)
     sys.stdout.write(progress.render(rows, time.time()))
+    return 0
+
+
+def _clean() -> int:
+    clean_branches(_context(Path.cwd(), _config(), "clean"))
     return 0
 
 

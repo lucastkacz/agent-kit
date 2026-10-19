@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_batch.core.model import Closure, Issue, PrState
+from agent_batch.core.model import Closure, Issue, MergedPr, PrState
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
 
@@ -14,6 +14,7 @@ from agent_batch.shell.proc import CommandError
 ISSUE_FIELDS = "number,title,body,author,labels,state"
 CLOSURE_FIELDS = "url,stateReason,closedByPullRequestsReferences"
 PR_FIELDS = "state,mergeable,headRefOid,statusCheckRollup"
+MERGED_PR_FIELDS = "number,headRefName,headRefOid"
 
 
 class GitHub:
@@ -56,9 +57,27 @@ class GitHub:
     def closure(self, number: int) -> Closure:
         return closure_of(self._json("issue", "view", str(number), "--json", CLOSURE_FIELDS))
 
-    def find_pr(self, branch: str) -> int | None:
-        raw = self._json("pr", "list", "--head", branch, "--state", "open", "--json", "number")
+    def find_pr(self, branch: str, label: str | None = None) -> int | None:
+        """The branch's open PR, if it has one; with `label`, only a PR that has that label."""
+        labeled = ("--label", label) if label is not None else ()
+        raw = self._json(
+            "pr", "list", "--head", branch, "--state", "open", *labeled, "--json", "number"
+        )
         return int(raw[0]["number"]) if raw else None
+
+    def recent_merged_prs(self, limit: int) -> list[MergedPr]:
+        """The latest merged PRs, newest first, each with the head it merged at."""
+        raw = self._json(
+            "pr", "list", "--state", "merged", "--limit", str(limit), "--json", MERGED_PR_FIELDS
+        )
+        return [_merged_pr(pr) for pr in raw]
+
+    def merged_prs(self, branch: str) -> list[MergedPr]:
+        """The branch's merged PRs, each with the head it merged at, kept after the merge."""
+        raw = self._json(
+            "pr", "list", "--head", branch, "--state", "merged", "--json", MERGED_PR_FIELDS
+        )
+        return [_merged_pr(pr) for pr in raw]
 
     def create_pr(self, branch: str, base: str, title: str, body: str) -> int:
         url = self._gh(
@@ -106,6 +125,12 @@ def closure_of(raw: Any) -> Closure:
         if str(pr.get("url", "")).startswith(f"{repository}/pull/")
     )
     return Closure(reason=str(raw.get("stateReason") or ""), prs=prs)
+
+
+def _merged_pr(raw: Any) -> MergedPr:
+    return MergedPr(
+        number=int(raw["number"]), branch=str(raw["headRefName"]), head=str(raw["headRefOid"])
+    )
 
 
 def _number(url: str) -> int:

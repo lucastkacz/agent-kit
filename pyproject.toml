@@ -39,8 +39,6 @@ max-args = 5
 "tests/**" = ["S101", "PLR2004", "S603", "S607"]
 # The fakes stand in for command-line tools, and the tools are command-line tools.
 "tests/fakes/**" = ["T201"]
-# #70's acceptance tests are frozen after their commit, and their docstring's line is too long.
-"tests/test_skill_plan_batch_trusted_inputs.py" = ["E501"]
 "tools/**" = ["T201"]
 
 [tool.mypy]
@@ -80,7 +78,7 @@ type = "layers"
 layers = [
   "agent_batch.cli",
   "agent_batch.batch | agent_batch.ship",
-  "agent_batch.lane",
+  "agent_batch.lane | agent_batch.clean",
   "agent_batch.pipeline",
   "agent_batch.context",
   "agent_batch.shell",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Literal
 
 ImplementStatus = Literal["done", "blocked", "failed"]
@@ -120,6 +121,25 @@ class PrState:
 
 
 @dataclass(frozen=True)
+class MergedPr:
+    """A merged PR, its branch, and the commit the branch ended at when it merged."""
+
+    number: int
+    branch: str
+    head: str
+
+
+@dataclass(frozen=True)
+class LocalBranch:
+    """A branch of the shared repository, and the worktree it's checked out in, if any."""
+
+    name: str
+    head: str
+    worktree: Path | None = None
+    main_folder: bool = False
+
+
+@dataclass(frozen=True)
 class Risk:
     high: bool
     reasons: tuple[str, ...]
@@ -138,3 +158,5 @@ class IssueReport:
     cost_usd: float = 0.0
     seconds: float = 0.0
     human_checks: int = 0
+    # The runner couldn't post its detail on GitHub, so only the batch's event log holds it.
+    unannounced: bool = False

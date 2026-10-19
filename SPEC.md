@@ -173,10 +173,10 @@ The same steps run in a batch and in direct mode.
 2. **Acceptance tests first.** The implementer writes a test for each automatable criterion and commits them on their own (`test: acceptance tests for #N`). They fail, for the right reason. They are formatted before that commit, and after it they don't change: a later test goes in a file of its own. If one looks wrong, the issue is blocked with the question. When the test is indeed wrong, the owner can approve fixing it inside the acceptance commit and rebuilding the branch on `master`.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
-5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. A re-review gets the earlier rounds' findings and checks that each was fixed or answered. From the third review of a branch on, a new medium finding that isn't a regression doesn't block: it's filed as an issue, as work found along the way is (§4.5). A high finding, or a regression, still blocks. In a batch, after two rounds without approval, the issue is blocked.
+5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. A re-review gets the earlier rounds' findings and checks that each was fixed or answered. In a batch, after two rounds without approval, the issue is blocked, so a branch's third review happens later: in `agent-batch ship`, after a merge conflict is resolved (§11.1), or in a batch once the owner unblocks the issue. The rounds are counted from the event log, across runs. From the third review of a branch on, a new medium finding that isn't a regression doesn't block: it's filed as an issue, as work found along the way is (§4.5). A high finding, or a regression, still blocks.
 6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body. The runner adds the approved review's findings under `## Review findings`, and when the branch is published again it updates the open PR's title and body.
 7. **Risk and merge.** The runner classifies the risk (§9). Low: auto-merge armed, squash, pinned to the reviewed commit. High: label `risk:high`, and the owner merges.
-8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends.
+8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends. A branch whose PR merged after its lane ended, such as a high-risk PR the owner merged, or a cloud issue's branch, is deleted by `agent-batch clean`: `agent-batch run` runs it when it starts, and the acceptance runs it when it closes a batch. It deletes a local branch only when its PR merged at the branch's head, and removes its worktree only when that has no changes and isn't a lane's, which its lane cleans up; it keeps every other branch and says why.
 
 ## 6. Contexts
 
@@ -338,6 +338,7 @@ Everything else is low risk. The list is narrow on purpose (principle 9).
 ### 9.2 Who merges
 
 - **A batch's runs never merge.** Their settings deny `gh pr` and `gh api` (`plugin/runner/agent_batch/data/batch-settings.json`).
+  - The reviewer, which runs on the owner's admin token, reads pull requests and the API through `agent-batch gh-read` instead. It runs only `pr view`, `pr list`, `pr diff`, `pr checks` and GET `api` calls, and refuses methods, bodies, fields and GraphQL before `gh` runs, so it can't merge or write (`plugin/runner/agent_batch/core/gh_read.py`).
 - **In a session with the owner,** an agent merges a PR only when the owner, live in that session's chat, names it by number and asks for the merge. A message sent to the session from the phone, through Remote Control, counts.
   - One message may name several PRs, each by its number ("merge #63, #64 and #65"). "All of them", "the rest" or "the next ones" name none.
   - The authorization covers that PR at its head commit when it was given. A later push to it voids the authorization.
@@ -356,7 +357,7 @@ Every repository protects `master` with a ruleset: changes go through a PR, the 
 
 ### 10.1 Zero prompts during a batch
 
-Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged: a batch's runs report theirs in their answers, the runner records each one as a `permission_denied` event and lists it in the batch's summary, and a hook logs those of an interactive session in `.agent-batch/denials.jsonl`. Acceptance reviews them, to fix the rule or the habit behind each one.
+Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged: a batch's runs report theirs in their answers, the runner records each one as a `permission_denied` event and lists it in the batch's summary, and a hook logs those of an interactive session in `.agent-batch/denials.jsonl`. The protect-master hook also writes each command it blocks to `.agent-batch/denials.jsonl`, from any session: interactive sessions, a batch's lanes and the reviews; from a lane's worktree, to the main checkout's file. Acceptance reviews them, to fix the rule or the habit behind each one.
 
 ### 10.2 Rules
 
@@ -416,7 +417,7 @@ A batch has a budget: a number of issues, a number of hours and, when the subscr
 
 ### 11.3 The control tower and notifications
 
-The interactive session that started the batch watches the runner's log. It also sends the batch's `Cloud:` issues to the cloud, one one-time routine per issue, watches their runs, and brings each pushed branch back through `agent-batch ship`, a fresh local review that opens its PR. It sends the owner a phone notification when an issue is blocked, when the budget is reached, when a cloud run fails and when the whole batch ends, lanes and cloud; never for each PR. It comments the cloud issues' results on the batch issue, since the runner's summary doesn't know them. If that session closes, a runner started in a terminal keeps going, and the batch issue still gets its summary; a runner the session started stops with it, and the lane issues it didn't finish go to the next batch. The cloud branches wait on GitHub until the owner resumes the batch, which brings them back.
+The interactive session that started the batch watches the runner's log. It also sends the batch's `Cloud:` issues to the cloud, one one-time routine per issue, watches their runs, and brings each pushed branch back through `agent-batch ship`, a fresh local review that opens its PR. It sends the owner a phone notification when an issue is blocked, when the budget is reached, when a cloud run fails and when the whole batch ends, lanes and cloud; never for each PR. It comments the cloud issues' results on the batch issue, since the runner's summary doesn't know them. If that session closes, a runner started in a terminal keeps going, and the batch issue still gets its summary; a runner the session started stops with it, and the lane issues it didn't finish wait for the owner to resume the batch. Resuming the batch starts its runner again, which goes on past the issues that merged and the PRs that wait for the owner. The cloud branches wait on GitHub too, and the resume brings them back.
 
 ### 11.4 Using the screen
 
@@ -503,7 +504,7 @@ The same targets in every project, whatever the stack:
 - Branches are named `<issue>-<short-name>`.
 - One issue, one PR, kept small.
 - PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`, `build:`). PRs are squash-merged, so each one lands on `master` as a single commit named after its title.
-- The PR body says `Closes #N`.
+- The PR body says `Closes #N` and closes no other issue: the runner puts every other closing reference in code.
 
 ## 15. Documentation
 

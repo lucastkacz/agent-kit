@@ -90,3 +90,7 @@ def test_it_opens_kit_friction_in_the_kits_repository_without_naming_it() -> Non
 def test_it_closes_a_batch_once_its_waiting_high_risk_pr_merged() -> None:
     has(section("Record the acceptance"), "tick that item", "without walking the batch again")
     assert "close an accepted batch" in frontmatter(SKILL)["description"]
+
+
+def test_it_reads_protect_masters_blocks_from_any_session_in_the_denials_log() -> None:
+    has(gather(), "protect-master's blocks", "from any session", "lanes and reviews included")

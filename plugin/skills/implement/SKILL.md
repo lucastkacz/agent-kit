@@ -18,7 +18,8 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 ## 2. Acceptance tests first
 
 - Write a test for each criterion verified by `unit`, `integration` or `e2e`. Name each test after the behavior it checks.
-- Run `make fmt`, then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
+- Run `make fmt`. `make fmt` must exit 0: read its output, and never hide it; fix by hand an error it can't fix before the acceptance commit. Never silence a rule to pass it.
+- Then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
 - Commit them on their own, as `test: acceptance tests for #$ARGUMENTS`.
 - After that commit, the acceptance tests' files don't change, not even to format them. Later tests go in files of their own, never in the acceptance tests' files.
 - If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why.
@@ -63,7 +64,11 @@ Before answering, everything is committed, the working tree is clean, and `make 
 - **`message`:** the question when `blocked`, the reason when `failed`, and empty when `done`.
 - **`found`:** the work from step 4.
 
-When the reviewer's findings come back in this same session, address each one, keep `make check` green, commit, and answer again with the same fields.
+When the reviewer's findings come back in this same session, fix or answer each finding, keep `make check` green, commit, and answer again with the same fields:
+
+- Fix every finding you agree with. Answer one only when you're sure it's wrong, or when it asks for work outside the issue.
+- An answer is a commit whose subject names the finding's location and whose body says why it stays as it is (`git commit --allow-empty` when nothing else changes), or a code comment where the finding points. The next review reads only the commits' subjects, and treats an answered finding as settled.
+- Always fix a finding about `make check` failing, missing or changed acceptance tests, or an unmet criterion.
 
 ## Direct mode
 
@@ -73,4 +78,4 @@ When the owner is in the session and no answer format was given, talk to them in
 agent-batch ship $ARGUMENTS --title "<title>" --body-file <file>
 ```
 
-`agent-batch ship` runs a fresh review, opens the pull request and arms its merge. If the review asks for changes, address them and ship again.
+`agent-batch ship` runs a fresh review, opens the pull request and arms its merge. If the review asks for changes, fix or answer each finding by the rule in step 6, and ship again.

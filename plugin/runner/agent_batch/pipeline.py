@@ -79,6 +79,8 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
         raise Stopped(Outcome.SKIPPED, refusal)
     report.human_checks = risk.count_human_checks(issue.body)
     job = Job(issue=issue, branch=naming.branch_name(issue), report=report)
+    if _waiting_before(ctx, job):
+        return Outcome.WAITING_OWNER
     ctx.git.start_branch(lane.worktree, job.branch)
     ctx.events.emit("issue_started", lane=lane.index, issue=number, branch=job.branch)
     state = progress.LaneState(
@@ -103,6 +105,15 @@ def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
         return False
     report.pr, report.detail = merged[0], "it merged in an earlier run"
     report.human_checks = risk.count_human_checks(issue.body)
+    return True
+
+
+def _waiting_before(ctx: Context, job: Job) -> bool:
+    """Whether an earlier run left the issue's PR to the owner, so a re-run doesn't redo it."""
+    pr = ctx.gh.find_pr(job.branch, HIGH_RISK)
+    if pr is None:
+        return False
+    job.report.pr, job.report.detail = pr, "its PR has waited for the owner since an earlier run"
     return True
 
 
@@ -188,7 +199,9 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     number = len(earlier) + 1
     head = ctx.git.head(lane.worktree)
     ctx.status.step(lane.index, progress.REVIEW, job.report.review_rounds)
+    started = ctx.clock()
     run = _watched(ctx, lane).review(lane.worktree, prompts.review(job.issue.number, earlier))
+    seconds = ctx.clock() - started
     answer = results.to_review(_checked(ctx, lane, run, job.report, "review"))
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
@@ -198,6 +211,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     for finding in filed:
         _file(ctx, job, rounds.found_issue(finding, number))
     # Every finding, filed ones included, so that the next review can read what this one found.
+    # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
     ctx.events.emit(
         "reviewed",
         lane=lane.index,
@@ -207,6 +221,8 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
         round=number,
         approved=review.approved,
         findings=[asdict(finding) for finding in answer.findings],
+        cost_usd=run.cost_usd,
+        seconds=round(seconds, 1),
     )
     return review
 
@@ -359,4 +375,5 @@ def _announce(ctx: Context, report: IssueReport) -> None:
         ctx.gh.add_label(report.number, BLOCKED)
         ctx.gh.comment(report.number, body)
     except CommandError as error:
+        report.unannounced = True
         ctx.events.emit("announce_failed", issue=report.number, detail=str(error))

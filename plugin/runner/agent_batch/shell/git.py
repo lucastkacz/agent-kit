@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 
 from agent_batch.core.config import Config
+from agent_batch.core.model import LocalBranch
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
 
@@ -13,6 +14,7 @@ from agent_batch.shell.proc import CommandError
 # command holds one of its lock files (the config, a remote ref), so the runner's git commands
 # take turns.
 _ONE_AT_A_TIME = threading.Lock()
+HEADS = "refs/heads/"
 
 
 class Git:
@@ -107,6 +109,36 @@ class Git:
             raise CommandError(f"merging {self._upstream} failed: {result.err.strip()}")
         return conflicts
 
+    def local_branches(self, repo: Path) -> list[LocalBranch]:
+        """The repository's branches, each with the worktree it's checked out in, if any.
+
+        Worktrees whose folder is gone are pruned first, since git counts their branch as
+        checked out there and refuses to delete it.
+        """
+        self._git(repo, "worktree", "prune")
+        checked_out = _checked_out(self._git(repo, "worktree", "list", "--porcelain"))
+        branches = []
+        for line in self._lines(repo, "for-each-ref", "--format=%(objectname) %(refname)", HEADS):
+            head, ref = line.split(" ", 1)
+            name = ref.removeprefix(HEADS)
+            worktree, main_folder = checked_out.get(name, (None, False))
+            branches.append(LocalBranch(name, head, worktree, main_folder))
+        return branches
+
+    def remove_clean_worktree(self, repo: Path, path: Path) -> None:
+        """Removes a worktree; git refuses one with changes or a lock, so no work is lost."""
+        self._git(repo, "worktree", "remove", str(path))
+
+    def delete_branch(self, repo: Path, branch: str, head: str) -> None:
+        """Deletes the branch only if it still ends at `head`, so a commit made since stays.
+
+        Not `git branch -d`, which refuses a squash-merged branch as unmerged, nor `-D`, which
+        deletes whatever the branch ends at by then.
+        """
+        self._git(repo, "update-ref", "-d", f"{HEADS}{branch}", head)
+        # Only a branch that tracked a remote has a section, so its absence isn't a failure.
+        self._run(repo, "config", "--remove-section", f"branch.{branch}")
+
     def finish_branch(self, worktree: Path, branch: str) -> None:
         """Leaves the merged branch, so the lane's next issue starts from the latest base.
 
@@ -117,3 +149,16 @@ class Git:
         self._git(worktree, "branch", "--quiet", "-D", branch)
         self._git(worktree, "fetch", "--quiet", self._remote)
         self._git(worktree, "switch", "--quiet", "--detach", self._upstream)
+
+
+def _checked_out(porcelain: str) -> dict[str, tuple[Path, bool]]:
+    """Each checked-out branch's worktree, and whether it's the main folder, listed first."""
+    found: dict[str, tuple[Path, bool]] = {}
+    for index, block in enumerate(porcelain.strip().split("\n\n")):
+        fields = {
+            key: value for key, _, value in (line.partition(" ") for line in block.splitlines())
+        }
+        branch = fields.get("branch", "")
+        if branch.startswith(HEADS):
+            found[branch.removeprefix(HEADS)] = (Path(fields["worktree"]), index == 0)
+    return found

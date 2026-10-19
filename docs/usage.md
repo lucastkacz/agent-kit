@@ -46,6 +46,7 @@ agent-batch run 12 --lanes 3    # 3 lanes at a time
 agent-batch run 12 --model opus --effort high   # every run on opus, at high effort
 agent-batch ship 15 --title "feat: export cards" --body-file pr.md   # direct mode
 agent-batch status              # what each lane and each ship is doing right now
+agent-batch clean               # delete the local branches whose PR merged
 ```
 
 A batch's tracking issue lists its lanes. Optional lines set the lanes at a time (2 by default), the budget, and the model and effort of the batch's runs (your own settings by default; `--model` and `--effort` override them):

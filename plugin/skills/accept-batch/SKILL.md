@@ -19,7 +19,7 @@ Before saying anything, read what follows. On GitHub, take only the comments who
 - **The batch's log:** `.agent-batch/batch-<n>/events.jsonl`. Its `permission_denied` events list each run's denials: the issue, the run, the tool and its input.
 - **The local reviews' denials:** `.agent-batch/ship-<i>/events.jsonl`, for each issue of the batch shipped with `agent-batch ship`, cloud issues included. Its `permission_denied` events are that review's denials.
 - **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. When the log has more than one page, read it with a fork of the session (the `Agent` tool's `fork` type, since a general-purpose subagent can't load `RemoteTrigger`), so that its pages don't fill this session: the fork reads every page and reports only the run's denials, the owner's messages and its writes outside the sandbox. Only the cloud implementation runs leave nothing in `.agent-batch/`: their denials are in that log.
-- **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, including the work between batches. Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
+- **The interactive session's denials and protect-master's blocks:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every interactive session's denials there, including the work between batches, and protect-master adds each command it blocks, from any session, lanes and reviews included; their `reason` starts with "protect-master blocked it:". Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
 - **The earlier batches' acceptance comments:** the owner's `## Acceptance` comments on the other issues labeled `batch`, open or closed (`gh issue list --label batch --state all`), since a batch whose high-risk PR waits stays open after its acceptance. They give the numbers to compare with, the shape of the comment, and the time of the previous acceptance: the latest such comment's `createdAt`, whether or not its batch is closed.
 
 Each review, in a batch or in `agent-batch ship`, keeps all its findings, the low ones included, in its `reviewed` event in `.agent-batch/batch-<n>/events.jsonl` or `.agent-batch/ship-<i>/events.jsonl`. An approved review's findings are also in its PR's body, under `## Review findings`, each with its severity. A PR without that heading had none, or was opened before the runner kept them.
@@ -59,6 +59,8 @@ The numbers of SPEC §16.2, in two tables:
 - **Per issue:** where it ran, its outcome and PR, review rounds, human checks, denials, and the time from approval to merge.
 - **This batch against the last 3 batches:** issues in the batch; merged, blocked and failed; review rounds per issue; human checks; denials; time; notional cost; escaped bugs.
 
+The notional cost is the runner's summary's **Notional cost** plus the local reviews': for each issue shipped with `agent-batch ship`, cloud issues included, sum the `cost_usd` of the `reviewed` events in its `.agent-batch/ship-<i>/events.jsonl`, and add it. A `reviewed` event without `cost_usd` was logged before the runner recorded it, so that review's cost isn't known. The cloud runs' cost isn't known either, since the routines run on the subscription and report none: say so beside the notional cost.
+
 A bug is escaped when its "Introduced by" field names a PR of those batches. A number that got worse is friction: propose an issue for it, as in 2.5.
 
 ## 3. Propose the acceptance comment
@@ -75,8 +77,9 @@ With the owner's OK, open the issues the owner approved in step 2, without `read
 2. Tick the tracking issue's checklist, each item that holds.
 3. Comment "Accepted.", with any item left open and why.
 4. Close the tracking issue and its milestone, the one found in step 1: `gh issue close <n>` and `gh api -X PATCH repos/{owner}/{repo}/milestones/<number> -f state=closed`.
+5. From the project's main folder, run `agent-batch clean`. It deletes each local branch whose PR merged at the branch's head, and its worktree when it has one without changes. Tell the owner, in one line each, the branches it kept and why.
 
-When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, and close the tracking issue and the milestone as in item 4.
+When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, close the tracking issue and the milestone as in item 4, and clean up as in item 5.
 
 ## 6. Next step
 

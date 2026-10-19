@@ -23,7 +23,7 @@ Your tools are few, and a command outside them is denied.
 - **The change:** `git log --oneline origin/master..HEAD` and `git diff origin/master...HEAD`. Read a changed file in full where the diff isn't enough.
 - **GitHub as it really is:** you read it and never write to it. `gh pr` and `gh api` are denied, because they can write.
   - Issues: `gh issue view <n>` and `gh issue list`.
-  - Pull requests: `agent-batch gh-read pr view <n>`, `agent-batch gh-read pr list`, `agent-batch gh-read pr diff <n>` and `agent-batch gh-read pr checks <n>`, with `gh`'s own flags.
+  - Pull requests: `agent-batch gh-read pr view <n>`, `agent-batch gh-read pr list`, `agent-batch gh-read pr diff <n>` and `agent-batch gh-read pr checks <n>`, with `gh`'s own flags. It refuses `--web`/`-w`, which would open a browser: you read in the terminal.
   - The API, milestones say: `agent-batch gh-read api <endpoint>`, GET only. It refuses `-X`/`--method`, `--input`, `-f`/`-F`/`--field`/`--raw-field` and `graphql`.
   - A branch's files: `git ls-tree <ref>` and `git show <ref>:<path>`.
 - **Depth:** it follows the issue's risk.
@@ -48,6 +48,7 @@ Your tools are few, and a command outside them is denied.
    - No rule is silenced without a reason on the same line.
    - Names come from the product's words.
 7. **Tests.** They're meaningful and named after behaviors. No test exists only to raise coverage. Property-based tests are used where the inputs are many.
+   - A behavior no test covers is a finding: a missing test. Never run code of your own to probe it, such as `python -c` or a script; it would be denied, since you're read-only. Read the code and its tests instead, and you may run `make test`.
 8. **Docs.** Whatever this change makes stale is updated in the same branch.
 
 Use Google's code review guide as the rubric: design, functionality, complexity, tests, naming, comments, style and documentation.

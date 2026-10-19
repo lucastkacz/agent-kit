@@ -14,6 +14,7 @@ READS = "it runs only `pr view`, `pr list`, `pr diff`, `pr checks` and GET `api`
 GET_ONLY = "api calls are GET only, so gh-read sets the method itself"
 NO_BODY = "api calls send no body or fields, which would make them a POST"
 REST_ONLY = "GraphQL can run mutations, so gh-read calls only the REST API"
+NO_BROWSER = "it would open a browser on the owner's computer; the reviewer reads in the terminal"
 # The `gh api` flags, long and short, that would choose the method or send a body.
 LONG_FLAGS = {"--method": GET_ONLY, "--input": NO_BODY, "--field": NO_BODY, "--raw-field": NO_BODY}
 SHORT_FLAGS = {"X": GET_ONLY, "f": NO_BODY, "F": NO_BODY}
@@ -27,6 +28,8 @@ def command(args: Sequence[str]) -> list[str]:
     """The `gh` command line for a read, or `Refused` saying why the call isn't one."""
     match list(args):
         case ["pr", read, *rest] if read in PR_READS:
+            for arg in rest:
+                _check_pr_arg(arg)
             return ["gh", "pr", read, *rest]
         case ["api", *rest]:
             for arg in rest:
@@ -34,6 +37,19 @@ def command(args: Sequence[str]) -> list[str]:
             return ["gh", "api", "--method", "GET", *rest]
     called = " ".join(["gh", *args[:2]])
     raise Refused(f"gh-read refuses `{called}`: {READS}")
+
+
+def _check_pr_arg(arg: str) -> None:
+    """Refuses `--web`/`-w`, which would open a browser on the owner's computer mid-batch."""
+    if _opens_browser(arg):
+        raise Refused(f"gh-read refuses `{arg}`: {NO_BROWSER}")
+
+
+def _opens_browser(arg: str) -> bool:
+    if arg.startswith("--"):
+        return arg.partition("=")[0] == "--web"
+    # As in `_api_refusal`, a short flag counts anywhere in a cluster such as `-cw`.
+    return arg.startswith("-") and "w" in arg[1:]
 
 
 def _check_api_arg(arg: str) -> None:
