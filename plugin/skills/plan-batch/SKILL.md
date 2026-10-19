@@ -21,6 +21,9 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 - A batch whose run hasn't ended is running, or not started yet: mention it, but its acceptance isn't due.
 - Propose first the open `ready` issues an earlier batch left behind, deferred or cut off (SPEC §11.1, §11.2): done for their batch only through its summary or "Cloud" comment, so not `blocked` and with no open PR, in a milestone whose batch has ended, and in the plan of no batch whose run hasn't ended. The owner already approved them.
 - A cloud issue whose "Cloud" comment says its review asked for changes or its `ship` failed isn't left behind: run-batch keeps its `.agent-batch/worktrees/ship-<n>` with its branch checked out, so a lane couldn't switch to it. Tell the owner it waits for a direct-mode fix in its kept worktree, with the implement skill, and leave it out of the plan.
+- Size the candidates. Every issue pays the same fixed cost, whatever its size: an agent that starts with no context, acceptance tests, two to four `make check` runs, a fresh review, and a PR to merge. Before you propose lanes, group the issues that share an area and a reason (the same file or function, the same SPEC section, the same skill, or the same root cause) into one issue.
+- Don't group unrelated issues just to have fewer: a large diff is reviewed worse and takes more rounds, one bad part holds back the good ones, and independent issues run side by side in separate lanes.
+- Aim for one to five acceptance criteria and a diff of roughly 50 to 400 lines per issue. A smaller change joins an issue of the same area; a larger one is split.
 - Propose which issues go in the batch, and why, in a few lines.
 
 ## 2. A new idea
@@ -30,6 +33,7 @@ When the owner describes an idea to build, ask only the questions that change wh
 ## 3. Write the issues
 
 - Write each new issue on GitHub without `ready`, in the fields of its type's form in SPEC §4.1, such as a task's Goal, Why, Briefing, Acceptance criteria, Out of scope, Stop and ask if, and Risk. Write each field as a `### <Field>` heading, as the issue form renders it. The `### Risk` section starts with `High` or `Low`, since the runner reads only that.
+- A new issue follows the same size rules as step 1: it joins an issue of its area when it's small, and it's split when it's large.
 - Label each new issue with its type: `task`, `bug`, `idea` or `spike` (SPEC §4.2). `gh issue create` doesn't apply the issue forms' labels, so pass it `--label`.
 - Each criterion says how it is verified: `unit`, `integration`, `e2e` or `human(<reason>)`.
 - A criterion is `human(<reason>)` only for one of the reasons in the review skill's check 2: taste; hardware or an operating-system dialog; real accounts, money or personal data; a third-party service without a test environment.
@@ -39,6 +43,7 @@ When the owner describes an idea to build, ask only the questions that change wh
 
 Show the owner the whole plan at once:
 
+- **Merges.** Each merge of step 1: the issues it joins and why they belong together, such as "#94 and #95: both change `core/naming.py`". The owner approves each merge with the plan.
 - **Lanes.** Issues that touch the same files share a lane, in order; the others get lanes of their own.
 - **Risk.** A high-risk issue goes last in its lane, or alone. When every issue is high risk, one per lane: a waiting issue defers the rest of its lane (SPEC §11.1). When that clashes with sharing a lane, risk wins: a second high-risk issue on the same files goes alone, and its PR may need its branch updated after the first merges.
 - **`Lanes:`** `Lanes:` is the number of independent lanes, so they all run at once. Never leave it at the runner's default. A batch with no local lanes, all in the cloud, has no `Lane` or `Lanes:` lines: the runner refuses `Lanes: 0`.
@@ -66,14 +71,15 @@ One approval from the owner, for the whole batch. If they change something, upda
 
 Once the owner approves, in this order:
 
-1. Create a milestone named "Batch N", with N one more than the highest batch number so far, in the milestones' titles and in the `batch` issues' titles, closed ones included: `gh api --paginate 'repos/{owner}/{repo}/milestones?state=all' --jq '.[].title'` and `gh issue list --state all --label batch --limit 200 --json title`. Both list only open ones by default. Create it with `gh api repos/{owner}/{repo}/milestones -f title="Batch N"`.
-2. Open the tracking issue labeled `batch`, titled `Batch N: <goal>`, in the milestone, with these sections:
+1. Make each merge: write one issue that holds the merged ones, with the criteria of each, in the fields of step 3. Close each merged issue as a duplicate of it, with a comment that names it: `gh issue close <n> --reason "not planned" --comment "Merged into #<m>."`.
+2. Create a milestone named "Batch N", with N one more than the highest batch number so far, in the milestones' titles and in the `batch` issues' titles, closed ones included: `gh api --paginate 'repos/{owner}/{repo}/milestones?state=all' --jq '.[].title'` and `gh issue list --state all --label batch --limit 200 --json title`. Both list only open ones by default. Create it with `gh api repos/{owner}/{repo}/milestones -f title="Batch N"`.
+3. Open the tracking issue labeled `batch`, titled `Batch N: <goal>`, in the milestone, with these sections:
    - **Goal:** what the batch delivers, in one or two sentences.
    - **Plan:** the lane plan, with its `Lanes:`, `Budget:`, `Cloud:` and `Model:` lines.
    - **Notes:** why the lanes are what they are, and anything the owner should know while it runs.
    - **Acceptance:** an Acceptance checklist: the PRs merged, each run's denials reviewed (SPEC §10.1), and the batch's numbers recorded (SPEC §16.2).
-3. Assign the batch's issues to the milestone.
-4. Then, and only then label them `ready`.
+4. Assign the batch's issues to the milestone.
+5. Then, and only then label them `ready`.
 
 ## 7. Next step
 
