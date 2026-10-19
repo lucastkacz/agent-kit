@@ -374,6 +374,7 @@ def announce(ctx: Context, report: IssueReport) -> None:
     try:
         ctx.gh.add_label(report.number, BLOCKED)
         ctx.gh.comment(report.number, body)
+        # A lane's set-aside reports start out unannounced; this one now has its comment.
         report.unannounced = False
     except CommandError as error:
         report.unannounced = True
