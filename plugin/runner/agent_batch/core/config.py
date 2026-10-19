@@ -8,6 +8,9 @@ READY = "ready"
 BLOCKED = "blocked"
 BATCH = "batch"
 HIGH_RISK = "risk:high"
+# The lanes' worktrees: `<state_dir>/worktrees/lane-<n>`.
+WORKTREES = "worktrees"
+LANE = "lane-"
 
 
 @dataclass(frozen=True)
