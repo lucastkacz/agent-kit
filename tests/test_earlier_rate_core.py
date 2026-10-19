@@ -42,7 +42,9 @@ def test_the_earlier_rate_leaves_out_runs_logged_without_tokens_or_a_cost() -> N
         {"cost_usd": 0.75, "tokens": 3000},
     ]
 
-    assert progress.earlier_rate(records) == (pytest.approx(1.0), 5000)
+    spent_usd, spent_tokens = progress.earlier_rate(records)
+    assert spent_usd == pytest.approx(1.0)
+    assert spent_tokens == 5000
 
 
 def test_with_no_earlier_run_there_is_no_rate() -> None:
