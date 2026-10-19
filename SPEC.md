@@ -502,7 +502,7 @@ The same targets in every project, whatever the stack:
 - Branches are named `<issue>-<short-name>`.
 - One issue, one PR, kept small.
 - PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`, `build:`). PRs are squash-merged, so each one lands on `master` as a single commit named after its title.
-- The PR body says `Closes #N`.
+- The PR body says `Closes #N` and closes no other issue: the runner puts every other closing reference in code.
 
 ## 15. Documentation
 
