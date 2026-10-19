@@ -22,6 +22,7 @@ Only the owner's issues are work. The owner is the login that `gh api user --jq 
 - Every issue of the plan, lanes and cloud, is one the runner would take: `gh issue view <n> --json labels,state,author,body` shows it `OPEN`, opened by the owner, labeled `ready` and not `blocked`, and with a `### Risk` section whose first line starts with high or low. A cloud run can't check its issue, since the cloud's `gh` isn't signed in: for a `Cloud:` issue, this is the only check before its branch is pushed.
 - No issue is both in a lane and on the `Cloud:` line, since it would be worked twice: the runner doesn't read `Cloud:`.
 - `master` is clean and up to date: `git status --short` prints nothing, and after `git fetch origin master`, `git rev-parse master` equals `git rev-parse origin/master`.
+- Then `make check` passes on `master`: run `make setup`, then `make check`, in the project's main folder, before the runner starts or any cloud issue is sent. CI runs on one system, and the owner's computer may differ: a master that fails `make check` there fails every lane's check in code no branch touched, and its failures fill every review. If it fails, tell the owner which checks failed, with their output, and don't start.
 - If something fails, tell the owner what and stop. Don't fix the plan yourself.
 
 ## Start
@@ -46,10 +47,15 @@ When you dispatch them, tell the owner:
 ## Watch
 
 - The lanes: the runner's `.agent-batch/batch-<batch>/events.jsonl`, with the `Monitor` tool. They end at `batch_finished`, or when the runner exits without it: read its output, since it stopped on an error or at the tool's timeout, and say so when you notify the end. A resume starts it again for the lane issues it didn't finish (see Resume).
-- The cloud: the routines' runs, with `RemoteTrigger`'s `list_runs`, and a `Monitor` on `git ls-remote origin <branch>` for each cloud branch, which shows a branch as soon as it's pushed.
+- The cloud: the routines' runs, with `RemoteTrigger`'s `list_runs`, and a `Monitor` on `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15" git ls-remote origin <branch>` for each cloud branch, which shows a branch as soon as it's pushed.
 - A watch shows its own errors. Never hide a command's failure with `2>/dev/null` or `|| true`: print it, so that a broken watch is seen. A watch that swallowed `git ls-remote`'s failures stayed silent for 30 minutes while the branches were already pushed.
+- A watch never waits for a prompt, since a command that waits neither prints nor fails: a `git ls-remote` whose SSH waited for authentication looked like "not pushed yet" for 30 minutes. With `BatchMode=yes` and `ConnectTimeout=15` for an SSH remote, and `GIT_TERMINAL_PROMPT=0` for an HTTPS one, a remote that asks for authentication or doesn't answer fails at once, and the failure shows.
 - A `Monitor` watch lasts 30 minutes at most: re-arm it until the batch ends, lanes and cloud.
 - When the owner asks how the batch is going, run `agent-batch status` and show its rows, with the cloud runs beside them: its rows give each lane's and each `ship`'s issue, step, round, last action, minutes and cost, and `list_runs` gives each cloud run's state.
+
+## A branch holds only its issue
+
+A branch carries only its issue's work, so that its review and its merge judge that issue alone. A fix that master needs, such as for a check that fails in code no branch touched, goes in its own branch and merges first; you never commit it on another issue's branch, even when every lane needs it, since each review then flags it as work outside the issue. Tell the owner what master needs, and let them decide.
 
 ## Bring a cloud branch back
 
