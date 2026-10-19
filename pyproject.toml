@@ -80,6 +80,7 @@ layers = [
   "agent_batch.batch | agent_batch.ship",
   "agent_batch.lane | agent_batch.clean",
   "agent_batch.pipeline",
+  "agent_batch.follow_up",
   "agent_batch.context",
   "agent_batch.shell",
   "agent_batch.core",
