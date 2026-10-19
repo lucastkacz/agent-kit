@@ -59,6 +59,8 @@ The numbers of SPEC §16.2, in two tables:
 - **Per issue:** where it ran, its outcome and PR, review rounds, human checks, denials, and the time from approval to merge.
 - **This batch against the last 3 batches:** issues in the batch; merged, blocked and failed; review rounds per issue; human checks; denials; time; notional cost; escaped bugs.
 
+The notional cost is the runner's summary's **Notional cost** plus the local reviews': for each issue shipped with `agent-batch ship`, cloud issues included, sum the `cost_usd` of the `reviewed` events in its `.agent-batch/ship-<i>/events.jsonl`, and add it. A `reviewed` event without `cost_usd` was logged before the runner recorded it, so that review's cost isn't known. The cloud runs' cost isn't known either, since the routines run on the subscription and report none: say so beside the notional cost.
+
 A bug is escaped when its "Introduced by" field names a PR of those batches. A number that got worse is friction: propose an issue for it, as in 2.5.
 
 ## 3. Propose the acceptance comment
