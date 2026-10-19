@@ -173,7 +173,9 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
     number = len(earlier) + 1
     head = ctx.git.head(lane.worktree)
+    started = ctx.clock()
     run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number, earlier))
+    seconds = ctx.clock() - started
     answer = results.to_review(_checked(ctx, run, job.report, "review"))
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
@@ -183,6 +185,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     for finding in filed:
         _file(ctx, job, rounds.found_issue(finding, number))
     # Every finding, filed ones included, so that the next review can read what this one found.
+    # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
     ctx.events.emit(
         "reviewed",
         lane=lane.index,
@@ -192,6 +195,8 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
         round=number,
         approved=review.approved,
         findings=[asdict(finding) for finding in answer.findings],
+        cost_usd=run.cost_usd,
+        seconds=round(seconds, 1),
     )
     return review
 

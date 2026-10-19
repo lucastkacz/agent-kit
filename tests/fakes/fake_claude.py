@@ -3,7 +3,8 @@
 The scenario maps a kind of run (implement, review, fix, resolve) and an issue number to the steps
 that its calls take in order. A step can answer with an `output`, fail with an `error`, print `raw`
 text or `sleep`; when the steps run out, the run succeeds with a default answer. A step can also say
-the computer `slept` that many seconds: the test's wall clock moves on by them.
+the computer `slept` that many seconds: the test's wall clock moves on by them. Its `cost` is the
+run's cost in dollars, 0.01 by default.
 """
 
 from __future__ import annotations
@@ -134,7 +135,7 @@ def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any
         "is_error": False,
         "result": "",
         "session_id": f"session-{kind}-{number}-{count}",
-        "total_cost_usd": 0.01,
+        "total_cost_usd": step.get("cost", 0.01),
         "permission_denials": denials if isinstance(denials, list) else [DENIAL] * int(denials),
         "structured_output": step.get("output") or default_output(kind, number),
     }
