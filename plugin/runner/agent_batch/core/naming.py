@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterator, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from agent_batch.core import prompts
 from agent_batch.core.model import Finding, Issue
@@ -19,13 +19,25 @@ CONVENTIONAL_TITLE = re.compile(rf"^(?:{'|'.join(COMMIT_TYPES)})(?:\([a-z0-9-]+\
 FINDINGS_HEADING = "## Review findings"
 CLOSING_KEYWORD = r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)"
 # What GitHub closes on merge after a closing keyword: #N, owner/repo#N, or an issue's or PR's URL.
-REFERENCE = r"(?:[\w.-]+/[\w.-]+)?#\d+|https://github\.com/\S+?/(?:issues|pull)/\d+"
-CLOSING_REFERENCE = re.compile(rf"({CLOSING_KEYWORD}:?\s+)({REFERENCE})\b", re.IGNORECASE)
+# A `#` escaped with a backslash still renders as one.
+REFERENCE = r"(?:[\w.-]+/[\w.-]+)?\\?#\d+|https://github\.com/\S+?/(?:issues|pull)/\d+"
+# The space between a keyword and its reference: a line break in a block quote takes the next line's
+# `>` markers with it, since the rendered text has none.
+SPACE = r"(?:[^\S\n]|\n(?:[ \t]*>)*)+"
+CLOSING_REFERENCE = re.compile(rf"({CLOSING_KEYWORD}:?{SPACE})({REFERENCE})\b", re.IGNORECASE)
 # The markers of the block quotes and list items a line is in (CommonMark §5).
 WITHIN = r"(?:[ \t]*(?:>|[-+*][ \t]|\d{1,9}[.)][ \t]))*[ \t]*"
 # A fence's opening line (CommonMark §4.5): three or more backticks or tildes, after the markers of
 # the block quotes and list items it's in. A backtick fence's info string has no backtick.
 FENCE = re.compile(rf"(?P<within>{WITHIN})(?P<fence>`{{3,}}(?!.*`)|~{{3,}})")
+# What precedes a top-level fence: at most 3 spaces, since 4 make an indented code block.
+TOP_LEVEL = re.compile(r" {0,3}")
+# A list item's marker, up to where its text starts (CommonMark §5.2).
+ITEM = re.compile(r" *(?:[-+*]|\d{1,9}[.)])(?:[ \t]+|$)")
+# An ordered item numbered other than 1, which doesn't interrupt a paragraph.
+ORDERED_NOT_ONE = re.compile(r" *(?!0*1[.)])\d")
+# A line that opens a block quote.
+QUOTE = re.compile(r" {0,3}>")
 # The block quotes' markers at the start of a line (CommonMark §5.1).
 QUOTES = re.compile(r"(?:[ \t]*>[ ]?)*")
 # A line that is a block of its own, so that no code span crosses its end: a heading, a thematic
@@ -103,10 +115,13 @@ def pr_body(body: str, number: int, findings: Sequence[Finding] = ()) -> str:
     Only the issue closes on merge: every other closing reference goes in code.
     """
     own = f"#{number}"
-    body = _quote(body, [found for found in _read_by_github(body) if found[2] != own])
-    # Read once quoted: a stray backtick can pair with an added one, and put `#N` in code. The
-    # findings' references are quoted below.
-    closes = any(found[2] == own for found in _read_by_github(body))
+    body = _quote(body, [found for found in _read_by_github(body) if _rendered(found) != own])
+    if opening := _open_fence(body):
+        # Left open, the fence would run on over the findings and `Closes #N`.
+        body = f"{body.rstrip()}\n{opening['within']}{opening['fence']}\n"
+    # Read once quoted and closed: a stray backtick can pair with an added one, and put `#N` in
+    # code. The findings' references are quoted below.
+    closes = any(_rendered(found) == own for found in _read_by_github(body))
     if findings:
         listed = prompts.findings_list([_inert(finding) for finding in findings])
         body = f"{body.rstrip()}\n\n{FINDINGS_HEADING}\n\n{listed}\n".lstrip()
@@ -123,9 +138,14 @@ def _inert(finding: Finding) -> Finding:
     """
 
     def quote(text: str) -> str:
-        return CLOSING_REFERENCE.sub(r"\1`\2`", text)
+        return CLOSING_REFERENCE.sub(lambda found: f"{found[1]}`{_rendered(found)}`", text)
 
     return replace(finding, problem=quote(finding.problem), suggestion=quote(finding.suggestion))
+
+
+def _rendered(reference: re.Match[str]) -> str:
+    """The reference as it renders: an escaped `#` loses its backslash, which code would show."""
+    return reference[2].replace("\\#", "#")
 
 
 def _read_by_github(body: str) -> list[re.Match[str]]:
@@ -149,7 +169,7 @@ def _quote(body: str, references: Sequence[re.Match[str]]) -> str:
     for found in references:
         # A backtick right after would join the closing one, and move where the code spans end.
         space = " " if body.startswith("`", found.end()) else ""
-        quoted += f"{body[end : found.start(2)]}`{found[2]}`{space}"
+        quoted += f"{body[end : found.start(2)]}`{_rendered(found)}`{space}"
         end = found.end()
     return quoted + body[end:]
 
@@ -196,19 +216,109 @@ def _fence_end(lines: Sequence[re.Match[str]], index: int, opening: re.Match[str
     """The fence's last line: the one that closes it, or its opening line if it never closes.
 
     A fence that never closes may be one misread, so the lines after its opening one count as text.
-    A fence in a block quote or a list item ends with it.
+    """
+    column = len(QUOTES.sub("", opening["within"], count=1))
+    stop = _fence_stop(lines, index, opening, column)
+    return stop.index if stop is not None and stop.closes else index
+
+
+def _open_fence(body: str) -> re.Match[str] | None:
+    """The opening line of the top-level fence the body ends inside, or None.
+
+    Only a top-level fence runs to the end of the PR body: one in a block quote or a list item ends
+    with it at the blank line before the findings. No line leaves a top-level fence.
+    """
+    lines = list(re.finditer(r".*\n?", body))
+    index = 0
+    while index < len(lines):
+        opening = FENCE.match(lines[index][0])
+        if opening is None:
+            index += 1
+            continue
+        top_level = _top_level(lines, index, opening)
+        column = 0 if top_level else len(QUOTES.sub("", opening["within"], count=1))
+        stop = _fence_stop(lines, index, opening, column)
+        if stop is None:
+            return opening if top_level else None
+        # The line that leaves a fence's block quote or list item may open a fence of its own.
+        index = stop.index + 1 if stop.closes else stop.index
+    return None
+
+
+def _top_level(lines: Sequence[re.Match[str]], index: int, opening: re.Match[str]) -> bool:
+    """Whether the fence opened on this line is in no block quote or list item.
+
+    An opening line without their markers is in a list item when it's indented as far as the text
+    of an item above, and no line between is indented less, but for the lazy lines that continue a
+    paragraph: a line indented less ends the item after a blank line, or when it starts a block.
+    """
+    if not TOP_LEVEL.fullmatch(opening["within"]):
+        return False
+    indent = len(opening["within"])
+    for earlier in range(index - 1, -1, -1):
+        text = lines[earlier][0]
+        item = _starts_item(lines, earlier)
+        # An item that starts with a blank line ends at the next blank line (CommonMark §5.2).
+        empty = item is not None and not text[item.end() :].strip()
+        ends_at_once = empty and not lines[earlier + 1][0].strip()
+        if item is not None and len(item[0]) <= indent and not ends_at_once:
+            return False
+        if text.strip() and len(text) - len(text.lstrip(" ")) < indent:
+            lazy = _paragraph(text) or (item is None and ITEM.match(text))
+            if not lazy or earlier == 0 or not lines[earlier - 1][0].strip():
+                return True
+    return True
+
+
+def _starts_item(lines: Sequence[re.Match[str]], index: int) -> re.Match[str] | None:
+    """The marker of the list item this line starts, or None if it starts none.
+
+    An empty item, or one numbered other than 1, doesn't interrupt a paragraph (CommonMark §5.2).
+    """
+    text = lines[index][0]
+    item = ITEM.match(text)
+    if item is None:
+        return None
+    empty = not text[item.end() :].strip()
+    if (empty or ORDERED_NOT_ONE.match(text)) and index > 0 and _paragraph(lines[index - 1][0]):
+        return None
+    return item
+
+
+def _paragraph(line: str) -> bool:
+    """Whether this line may be a top-level paragraph's, which a line starting no block continues.
+
+    A paragraph in a block quote doesn't keep an item from starting after it.
+    """
+    blocks = (ITEM, ALONE, FENCE, QUOTE)
+    return bool(line.strip()) and not any(block.match(line) for block in blocks)
+
+
+@dataclass(frozen=True)
+class FenceStop:
+    """Where a fence stops: the line that closes it, or the one that leaves its container."""
+
+    index: int
+    closes: bool
+
+
+def _fence_stop(
+    lines: Sequence[re.Match[str]], index: int, opening: re.Match[str], column: int
+) -> FenceStop | None:
+    """Where the fence opened on this line stops, or None if it runs to the end.
+
+    A fence in a block quote or a list item, whose text starts at `column`, ends with it.
     """
     fence, within = opening["fence"], opening["within"]
     in_quotes = re.compile(rf"(?:[ \t]*>[ ]?){{{within.count('>')}}}")
-    column = len(QUOTES.sub("", within, count=1))
     closing = re.compile(rf" {{0,3}}{fence}{fence[0]}*\s*")
     for later in range(index + 1, len(lines)):
         text = _within(lines[later][0], in_quotes, column)
         if text is None:
-            return index
+            return FenceStop(later, closes=False)
         if closing.fullmatch(text):
-            return later
-    return index
+            return FenceStop(later, closes=True)
+    return None
 
 
 def _within(line: str, in_quotes: re.Pattern[str], column: int) -> str | None:
