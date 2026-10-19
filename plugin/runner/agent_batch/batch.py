@@ -7,12 +7,14 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 
+from agent_batch.clean import clean_branches
 from agent_batch.context import Context
 from agent_batch.core import budget, plan, report
 from agent_batch.core.config import BATCH
 from agent_batch.core.model import Issue
 from agent_batch.core.plan import BatchPlan, PlanError
 from agent_batch.lane import Gate, run_lane
+from agent_batch.shell.proc import CommandError
 
 ON_BATTERY = (
     "The Mac is on battery power, so it may sleep during the batch unless it's plugged in "
@@ -44,6 +46,7 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
     if on_battery:
         ctx.events.emit("on_battery", warning=ON_BATTERY)
+    _clean_up(ctx)
     ctx.gh.comment(number, _started(batch_plan, at_once, described))
     started = ctx.clock()
     with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:
@@ -56,6 +59,14 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
     outcomes = Counter(issue_report.outcome.value for issue_report in reports)
     ctx.events.emit("batch_finished", batch=number, outcomes=dict(outcomes))
     return 0
+
+
+def _clean_up(ctx: Context) -> None:
+    """Deletes the branches whose PR merged after their lane; a failure only goes to the log."""
+    try:
+        clean_branches(ctx)
+    except CommandError as error:
+        ctx.events.emit("cleanup_failed", detail=str(error))
 
 
 def _check(batch: Issue, owner: str) -> None:
