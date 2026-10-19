@@ -1,15 +1,15 @@
 {
-  "headRefOid": "7958be07c72e938e165fccc320cc290fcc072d31",
+  "headRefOid": "c6788194d14e11819b817ef64a6ecc6beb8c6bbe",
   "mergeable": "MERGEABLE",
   "state": "OPEN",
   "statusCheckRollup": [
     {
       "__typename": "CheckRun",
-      "completedAt": "2026-10-18T03:18:34Z",
+      "completedAt": "2026-10-19T14:20:38Z",
       "conclusion": "FAILURE",
-      "detailsUrl": "https://github.com/lucastkacz/agent-kit/actions/runs/39093145658/job/117573943565",
+      "detailsUrl": "https://github.com/lucastkacz/agent-kit/actions/runs/39268030300/job/118112643738",
       "name": "check",
-      "startedAt": "2026-10-18T03:18:24Z",
+      "startedAt": "2026-10-19T14:20:18Z",
       "status": "COMPLETED",
       "workflowName": "check"
     }
