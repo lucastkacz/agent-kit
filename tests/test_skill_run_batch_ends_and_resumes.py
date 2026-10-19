@@ -24,11 +24,18 @@ def test_a_resume_checks_only_the_cloud_issues_still_to_do_and_watches_the_runs_
     assert "don't send its issue again" in resume, resume
 
 
-def test_a_resume_sends_the_unfinished_lane_issues_to_the_next_batch() -> None:
+def test_a_resume_starts_the_runner_again_when_none_is_still_running() -> None:
     resume = section("Resume")
-    assert "don't start the runner again" in resume, resume
-    assert "go to the next batch" in resume, resume
-    assert "`plan-batch`" in resume, resume
+    assert "is still running, watch it, as in Watch" in resume, resume
+    assert "Otherwise, start `agent-batch run <batch>` again, as in Start" in resume, resume
+    assert "don't start the runner again" not in resume, resume
+    assert "go to the next batch" not in resume, resume
+
+
+def test_the_watch_leaves_the_unfinished_lane_issues_to_a_resume() -> None:
+    watch = section("Watch")
+    assert "A resume starts it again for the lane issues it didn't finish" in watch, watch
+    assert "go to the next batch" not in watch, watch
 
 
 def test_a_resume_skips_the_cloud_issues_labeled_blocked() -> None:

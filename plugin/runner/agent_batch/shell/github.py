@@ -56,8 +56,12 @@ class GitHub:
     def closure(self, number: int) -> Closure:
         return closure_of(self._json("issue", "view", str(number), "--json", CLOSURE_FIELDS))
 
-    def find_pr(self, branch: str) -> int | None:
-        raw = self._json("pr", "list", "--head", branch, "--state", "open", "--json", "number")
+    def find_pr(self, branch: str, label: str | None = None) -> int | None:
+        """The branch's open PR, if it has one; with `label`, only a PR that has that label."""
+        labeled = ("--label", label) if label is not None else ()
+        raw = self._json(
+            "pr", "list", "--head", branch, "--state", "open", *labeled, "--json", "number"
+        )
         return int(raw[0]["number"]) if raw else None
 
     def create_pr(self, branch: str, base: str, title: str, body: str) -> int:
