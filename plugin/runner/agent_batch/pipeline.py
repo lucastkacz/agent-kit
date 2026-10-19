@@ -78,6 +78,8 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
         raise Stopped(Outcome.SKIPPED, refusal)
     report.human_checks = risk.count_human_checks(issue.body)
     job = Job(issue=issue, branch=naming.branch_name(issue), report=report)
+    if _waiting_before(ctx, job):
+        return Outcome.WAITING_OWNER
     ctx.git.start_branch(lane.worktree, job.branch)
     ctx.events.emit("issue_started", lane=lane.index, issue=number, branch=job.branch)
     _start_work(ctx, lane, job)
@@ -98,6 +100,15 @@ def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
         return False
     report.pr, report.detail = merged[0], "it merged in an earlier run"
     report.human_checks = risk.count_human_checks(issue.body)
+    return True
+
+
+def _waiting_before(ctx: Context, job: Job) -> bool:
+    """Whether an earlier run left the issue's PR to the owner, so a re-run doesn't redo it."""
+    pr = ctx.gh.find_pr(job.branch, HIGH_RISK)
+    if pr is None:
+        return False
+    job.report.pr, job.report.detail = pr, "its PR has waited for the owner since an earlier run"
     return True
 
 
