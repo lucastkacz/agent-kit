@@ -25,7 +25,7 @@ Do only that job: never notify the owner's phone (`PushNotification`), publish a
 
 ## The rules
 
-<!-- For the kit's maintainers: these rules quote agent-kit's SPEC §5, §7 and §8. Keep them in step with it. -->
+<!-- For the kit's maintainers: these rules quote agent-kit's SPEC §5, §7 and §8. Keep them in step with it: tests/test_cloud_prompt_quotes_spec.py pairs each rule with its source and fails when one changes alone. -->
 
 The process's rules, on top of the implement skill and the project's `CLAUDE.md` and `.claude/rules/`. A separate review checks the branch against the issue and these rules.
 
