@@ -79,9 +79,9 @@ def test_the_cloud_answer_gives_its_status_and_the_work_it_found() -> None:
     assert "**Found:**" in answer, answer
 
 
-def test_it_ships_the_branch_it_dispatched_at_the_head_the_run_reported() -> None:
+def test_it_ships_the_branch_it_dispatched_once_its_head_holds_the_pr() -> None:
     back = section(skill_text(), "Bring a cloud branch back")
     assert "the `{branch}` you dispatched" in back, back
-    assert "`git rev-parse origin/<branch>` equals the head SHA" in back, back
+    assert "`git diff --quiet origin/<branch>~1 origin/<branch>` exits 0" in back, back
     assert "--title '<title>'" in back, back
     assert "git worktree remove .agent-batch/worktrees/ship-<n>" in back, back
