@@ -1,4 +1,7 @@
-"""Stands in for the `gh` CLI in tests, keeping GitHub's state in a JSON file."""
+"""Stands in for the `gh` CLI in tests, keeping GitHub's state in a JSON file.
+
+A scripted PR view with `snapshot` keeps a copy of the runner's status files as it reads it.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,8 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+import fake_claude
 
 State = dict[str, Any]
 Handler = Callable[[State, list[str], str], str]
@@ -132,6 +137,8 @@ def pr_view(state: State, argv: list[str], _stdin: str) -> str:
         push_conflict(view["push_conflict"])
     if view.get("remote_down"):
         remote_down()
+    if view.get("snapshot"):
+        fake_claude.keep_snapshot("pr view", pr["number"], fake_claude.statuses())
     pr["state"] = view["state"]
     return json.dumps(
         {

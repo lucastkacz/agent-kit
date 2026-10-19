@@ -280,6 +280,8 @@ def _pr(job: Job) -> int:
 
 
 def _merge(ctx: Context, lane: Lane, job: Job, *, resolve_conflicts: bool) -> Outcome:
+    # Again on the merge after a conflict, which went through a review and the PR in between.
+    ctx.status.step(lane.index, progress.RISK_AND_MERGE)
     pr = _pr(job)
     ctx.gh.arm_merge(pr, ctx.git.head(lane.worktree))
     ctx.events.emit("merge_armed", lane=lane.index, issue=job.issue.number, pr=pr)

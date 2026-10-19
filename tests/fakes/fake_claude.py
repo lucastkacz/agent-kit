@@ -7,7 +7,8 @@ the computer `slept` that many seconds: the test's wall clock moves on by them.
 
 Asked for `--output-format stream-json`, it prints one message per line, as the real one does: its
 start, an assistant message for each of the step's `tools`, then its answer. With `snapshot`, it
-waits after each tool use until the runner's status files change, and keeps a copy of them.
+waits after each tool use until the runner's status files change, and keeps a copy of them. A
+step's `stderr` goes to its standard error.
 """
 
 from __future__ import annotations
@@ -185,6 +186,10 @@ def snapshot(kind: str, number: int, before: dict[str, str]) -> None:
     while seen == before and time.monotonic() < deadline:
         time.sleep(0.01)
         seen = statuses()
+    keep_snapshot(kind, number, seen)
+
+
+def keep_snapshot(kind: str, number: int, seen: dict[str, str]) -> None:
     log = Path(os.environ["FAKE_CLAUDE_LOG"]).with_suffix(".status")
     with log.with_suffix(".lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
@@ -226,6 +231,8 @@ def main(argv: list[str]) -> int:
         sleep_computer(float(step["slept"]))
     if "sleep" in step:
         time.sleep(float(step["sleep"]))
+    if "stderr" in step:
+        sys.stderr.write(str(step["stderr"]))
     if "raw" in step:
         sys.stdout.write(str(step["raw"]))
         return int(step.get("code", 0))

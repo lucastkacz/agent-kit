@@ -152,7 +152,8 @@ def _cells(row: Row, now: float) -> tuple[str, ...]:
         if state.step in STEPS
         else state.step
     )
-    review_round = f"{state.round}/{state.rounds}" if state.round else "-"
+    # A conflict's re-review comes after the last round, as one more (SPEC §5): 3/3, not 3/2.
+    review_round = f"{state.round}/{max(state.round, state.rounds)}" if state.round else "-"
     action = "-"
     if state.action and state.action_time is not None:
         action = f"{state.action}, {_ago(now - state.action_time)}"
