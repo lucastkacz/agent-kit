@@ -111,6 +111,8 @@ class ClaudeRun:
     denials: tuple[Denial, ...] = ()
     cost_usd: float = 0.0
     limit_reached: bool = False
+    # Its messages' tokens, counted from its stream as the running estimate counts them (#156).
+    tokens: int = 0
 
 
 @dataclass(frozen=True)

@@ -24,6 +24,13 @@ class EventLog:
             sys.stdout.write(f"{record['time']} {event} {details}".rstrip() + "\n")
             sys.stdout.flush()
 
+    def records(self, event: str) -> list[dict[str, object]]:
+        """The events of this kind in this log alone, oldest first; none before it exists."""
+        if not self.path.exists():
+            return []
+        with self._lock:
+            return _read(self.path, event)
+
     def project_records(self, event: str) -> list[dict[str, object]]:
         """The events of this kind in every log of the project, this one's included, oldest first.
 

@@ -23,15 +23,15 @@ STATUS = "status.json"
 class StatusBoard:
     """The lanes of one batch, or the lane 0 of one `agent-batch ship`, and their runner's id."""
 
-    def __init__(self, path: Path, pid: int) -> None:
+    def __init__(self, path: Path, pid: int, spent: tuple[float, int] = (0.0, 0)) -> None:
         self.path = path
         self._pid = pid
         self._lanes: dict[int, LaneState] = {}
         self._lock = threading.Lock()
         self._failed = False
         # What the ended runs cost, and their tokens: the rate that prices a running run's (#144).
-        self._spent_usd = 0.0
-        self._spent_tokens = 0
+        # A resumed batch starts with its earlier runs', from its event log (#156).
+        self._spent_usd, self._spent_tokens = spent
 
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""

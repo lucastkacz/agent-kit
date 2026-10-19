@@ -160,12 +160,15 @@ def _status() -> int:
 def _status_line() -> int:
     """The same in one line, for the plugin's status line (#108): it reads files, and runs nothing.
 
-    The session's folder comes in Claude Code's JSON on stdin; typed by hand, it's this one.
+    The session's folder comes in Claude Code's JSON on stdin; typed by hand, it's this one. In a
+    project that doesn't enable agent-kit, it prints nothing, so the mod shows no line (#171).
     """
     given = None if sys.stdin.isatty() else progress.session_cwd(sys.stdin.read())
     found = checkout.find(Path(given) if given else Path.cwd())
     if found is None:
         sys.stdout.write(progress.line([], time.time(), ""))
+        return 0
+    if not checkout.enabled_here(found.root):
         return 0
     rows = status.running(found.root / Config().state_dir)
     sys.stdout.write(progress.line(rows, time.time(), found.branch))
@@ -202,6 +205,10 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
     env = clean_env(os.environ)
     if config.screen:
         env[SCREEN_ENV] = "1"
+    folder = repo / config.state_dir / log_name
+    events = EventLog(folder / "events.jsonl")
+    # Only this batch's own log: its earlier runs, as when it's resumed (#156).
+    spent = progress.earlier_rate(events.records("reviewed"))
     return Context(
         repo=repo,
         owner=gh.login(),
@@ -209,8 +216,8 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         git=git,
         gh=gh,
         claude=Claude(env, config, denials=repo / config.state_dir / denial_log.LOG),
-        events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
-        status=StatusBoard(repo / config.state_dir / log_name / status.STATUS, os.getpid()),
+        events=events,
+        status=StatusBoard(folder / status.STATUS, os.getpid(), spent),
         # The wall clock: a monotonic clock can stop while the computer sleeps, as
         # `time.monotonic` does on macOS and Linux (#28).
         clock=time.time,

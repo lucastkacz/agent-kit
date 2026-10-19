@@ -109,7 +109,10 @@ class Claude:
             # denials and cost still happened, so the fresh run's result carries them too.
             fresh = self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
             return replace(
-                fresh, denials=run.denials + fresh.denials, cost_usd=run.cost_usd + fresh.cost_usd
+                fresh,
+                denials=run.denials + fresh.denials,
+                cost_usd=run.cost_usd + fresh.cost_usd,
+                tokens=run.tokens + fresh.tokens,
             )
         return run
 
@@ -139,6 +142,7 @@ class Claude:
             run = ClaudeRun(None, None, error, limit_reached=bool(results.LIMIT.search(error)))
         else:
             run = results.parse_run(done.out)
+        run = replace(run, tokens=progress.stream_tokens(done.out))
         return self._with_logged(run, run.session_id or results.stream_session(done.out), start)
 
     def _with_logged(self, run: ClaudeRun, session: str | None, start: int) -> ClaudeRun:

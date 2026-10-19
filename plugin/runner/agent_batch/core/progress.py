@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePath
 
@@ -113,6 +113,31 @@ def usage(line: str) -> tuple[str, int] | None:
         return None
     numbers = [_whole(counts.get(field)) for field in TOKEN_FIELDS]
     return identity, sum(number for number in numbers if number is not None)
+
+
+def stream_tokens(stdout: str) -> int:
+    """A run's tokens, from all its stream printed: each message counts once, as `usage` reads."""
+    counted: dict[str, int] = {}
+    for text in stdout.splitlines():
+        message = usage(text)
+        if message is not None:
+            counted.setdefault(*message)
+    return sum(counted.values())
+
+
+def earlier_rate(records: Sequence[Mapping[str, object]]) -> tuple[float, int]:
+    """What the logged runs cost, and their tokens: the rate a resumed batch starts with (#156).
+
+    A run logged without tokens, as before #156, or without a cost leaves it out: either would
+    skew it, as in `StatusBoard.spent`.
+    """
+    spent_usd, spent_tokens = 0.0, 0
+    for record in records:
+        cost, tokens = _number(record.get("cost_usd")), _whole(record.get("tokens"))
+        if cost is not None and cost > 0 and tokens is not None and tokens > 0:
+            spent_usd += cost
+            spent_tokens += tokens
+    return spent_usd, spent_tokens
 
 
 def estimate(tokens: int, spent_usd: float, spent_tokens: int) -> float | None:
