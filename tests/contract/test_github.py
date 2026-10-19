@@ -14,7 +14,7 @@ import pytest
 from support import KIT, record, unique
 
 from agent_batch.core import merge
-from agent_batch.core.config import Config
+from agent_batch.core.config import HIGH_RISK, Config
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import Closure
 from agent_batch.shell import proc
@@ -25,6 +25,8 @@ pytestmark = pytest.mark.contract
 
 CHECKS_TIMEOUT = 300
 POLL_SECONDS = 10
+LABEL_TIMEOUT = 60
+LABEL_POLL_SECONDS = 5
 
 
 @pytest.fixture
@@ -69,7 +71,10 @@ def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(cl
         _edit_and_check(gh, clone, number)
         sha = git.head(clone)
         gh.arm_merge(number, sha)
-        gh.pr_add_label(number, "risk:high")
+        # `find_pr(branch, label)` finds the PR only once it has the label (#120).
+        assert gh.find_pr(branch, HIGH_RISK) is None
+        gh.pr_add_label(number, HIGH_RISK)
+        assert _wait_for_a_labeled_pr(gh, branch) == number
         gh.pr_comment(number, "A contract test's comment.")
 
         assert _wait_for_a_decision(gh, number) is MergeStatus.CHECKS_FAILED
@@ -98,6 +103,14 @@ def _commit_breaking_change(clone: Path, branch: str) -> None:
     (clone / "tools" / f"{branch.replace('-', '_')}.py").write_text("broken = (\n")
     proc.must(["git", "add", "-A"], clone)
     proc.must(["git", "commit", "--quiet", "-m", "test: a contract PR that must not merge"], clone)
+
+
+def _wait_for_a_labeled_pr(gh: GitHub, branch: str) -> int | None:
+    """GitHub may take a few seconds to list a PR by a label it was just given."""
+    deadline = time.monotonic() + LABEL_TIMEOUT
+    while (found := gh.find_pr(branch, HIGH_RISK)) is None and time.monotonic() < deadline:
+        time.sleep(LABEL_POLL_SECONDS)
+    return found
 
 
 def _wait_for_a_decision(gh: GitHub, number: int) -> MergeStatus:
