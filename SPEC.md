@@ -338,6 +338,7 @@ Everything else is low risk. The list is narrow on purpose (principle 9).
 ### 9.2 Who merges
 
 - **A batch's runs never merge.** Their settings deny `gh pr` and `gh api` (`plugin/runner/agent_batch/data/batch-settings.json`).
+  - The reviewer, which runs on the owner's admin token, reads pull requests and the API through `agent-batch gh-read` instead. It runs only `pr view`, `pr list`, `pr diff`, `pr checks` and GET `api` calls, and refuses methods, bodies, fields and GraphQL before `gh` runs, so it can't merge or write (`plugin/runner/agent_batch/core/gh_read.py`).
 - **In a session with the owner,** an agent merges a PR only when the owner, live in that session's chat, names it by number and asks for the merge. A message sent to the session from the phone, through Remote Control, counts.
   - One message may name several PRs, each by its number ("merge #63, #64 and #65"). "All of them", "the rest" or "the next ones" name none.
   - The authorization covers that PR at its head commit when it was given. A later push to it voids the authorization.
