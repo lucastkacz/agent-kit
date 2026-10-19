@@ -1,18 +1,41 @@
-"""Keeping the computer awake while a batch runs, and knowing when it can't."""
+"""Keeping the computer awake while a batch runs, and knowing when it's on battery.
+
+One adapter per platform: `caffeinate` and `pmset` on macOS, `systemd-inhibit` and the kernel's
+power supplies on Linux. Elsewhere, or without the tool, the batch can't keep the computer awake.
+"""
 
 from __future__ import annotations
 
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 PMSET_TIMEOUT = 10
+POWER_SUPPLIES = Path("/sys/class/power_supply")
 
 
-def keep_awake() -> subprocess.Popen[bytes] | None:
-    """Holds off idle and system sleep until this process ends, where `caffeinate` exists (macOS).
+def keep_awake(platform: str) -> subprocess.Popen[bytes] | None:
+    """Holds off idle and system sleep until this process ends, or None where it can't."""
+    if platform == "darwin":
+        return _caffeinate()
+    return None
 
-    macOS holds off system sleep only on AC power, and closing the lid sleeps the Mac anyway.
+
+def on_battery(platform: str) -> bool:
+    """Whether the computer draws from its battery, where the platform can tell.
+
+    The answer only decides a warning, so a check that fails counts as not on battery.
+    """
+    if platform == "darwin":
+        return _pmset_on_battery()
+    return False
+
+
+def _caffeinate() -> subprocess.Popen[bytes] | None:
+    """`caffeinate` on macOS, which exits with this process.
+
+    macOS holds off system sleep only on AC power, and closing the lid sleeps it anyway.
     """
     caffeinate = shutil.which("caffeinate")
     if caffeinate is None:
@@ -20,11 +43,8 @@ def keep_awake() -> subprocess.Popen[bytes] | None:
     return subprocess.Popen([caffeinate, "-i", "-s", "-w", str(os.getpid())])
 
 
-def on_battery() -> bool:
-    """Whether the Mac draws from its battery, where `pmset` exists (macOS).
-
-    The answer only decides a warning, so a `pmset` that fails or hangs counts as not on battery.
-    """
+def _pmset_on_battery() -> bool:
+    """`pmset -g batt` on macOS; one that fails or hangs counts as not on battery."""
     pmset = shutil.which("pmset")
     if pmset is None:
         return False

@@ -1,4 +1,4 @@
-"""A batch keeps the Mac awake, or says at the start that it can't (#29)."""
+"""A batch keeps the computer awake with `caffeinate` on macOS (#29)."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def test_a_batch_holds_off_both_idle_and_system_sleep_while_it_runs(world: World
     assert flags[flags.index("-w") + 1] == str(os.getpid())
 
 
-def test_a_batch_on_battery_says_the_mac_may_sleep_unless_plugged_in_and_still_runs(
+def test_a_batch_on_battery_says_the_computer_may_sleep_unless_plugged_in_and_still_runs(
     world: World, capsys: pytest.CaptureFixture[str]
 ) -> None:
     world.on_battery()

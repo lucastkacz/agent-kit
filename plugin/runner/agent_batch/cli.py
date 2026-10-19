@@ -107,10 +107,10 @@ def _number_above_zero(text: str) -> float | None:
 
 def _run(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
-    awake = keep_awake()
+    awake = keep_awake(sys.platform)
     try:
         limits = Limits(args.max_issues, args.max_hours, args.lanes, args.model, args.effort)
-        return run_batch(ctx, args.batch, limits, on_battery=on_battery())
+        return run_batch(ctx, args.batch, limits, on_battery=on_battery(sys.platform))
     finally:
         if awake is not None:
             awake.terminate()

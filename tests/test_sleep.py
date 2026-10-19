@@ -15,7 +15,7 @@ TWO_HOURS = 7200
 
 @pytest.fixture(autouse=True)
 def wall_clock(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The computer's clock, which goes on while it sleeps, as a Mac's does."""
+    """The computer's wall clock, which goes on while it sleeps."""
     awake = time.time
     monkeypatch.setattr(time, "time", lambda: awake() + world.slept())
 
