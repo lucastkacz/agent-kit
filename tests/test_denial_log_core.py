@@ -12,7 +12,7 @@ from agent_batch.core.model import Denial
 from agent_hooks import log_denials
 
 NOW = datetime(2026, 10, 19, tzinfo=UTC)
-CHECK = {"command": "make check", "description": "Run the checks"}
+CHECK: dict[str, object] = {"command": "make check", "description": "Run the checks"}
 
 
 def line(session: str, tool: str, tool_input: dict[str, object]) -> str:
