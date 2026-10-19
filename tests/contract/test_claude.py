@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 import pytest
-from support import record
+from support import make_project, record
 
 from agent_batch.core import results
 from agent_batch.core.env import clean_env
@@ -29,19 +29,17 @@ DONE = (
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    proc.must(["git", "init", "--quiet", "-b", "master"], tmp_path)
-    (tmp_path / "README.md").write_text("A contract test's project.\n")
-    proc.must(["git", "add", "-A"], tmp_path)
-    proc.must(["git", "commit", "--quiet", "-m", "chore: start"], tmp_path)
-    return tmp_path
+    return make_project(tmp_path)
 
 
 def ask(
     project: Path, prompt: str, schema: dict[str, object], options: tuple[str, ...]
 ) -> tuple[str, ClaudeRun]:
+    """The run's result message, which ends its stream, and what the runner reads from it."""
     command = claude.command(prompt, schema, [*options, *SMALL_MODEL])
     done = proc.run(command, project, env=clean_env(os.environ), timeout=TIMEOUT)
-    return done.out, results.parse_run(done.out)
+    lines = done.out.strip().splitlines()
+    return (lines[-1] if lines else ""), results.parse_run(done.out)
 
 
 def test_a_run_answers_with_structured_output_a_session_and_its_cost(project: Path) -> None:
