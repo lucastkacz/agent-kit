@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import copy
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from agent_batch.core import denial_log, progress, results
@@ -16,6 +15,17 @@ from agent_batch.shell import proc
 SETTINGS = Path(__file__).resolve().parent.parent / "data" / "batch-settings.json"
 # Called with each tool use of a run, in short form, as the run goes (#107).
 Watch = Callable[[str], None]
+# Called with the tokens of each new message of a run, as the run goes (#144).
+Count = Callable[[int], None]
+
+
+@dataclass(frozen=True)
+class Watcher:
+    """Who follows a run as it goes: its tool uses, and its tokens."""
+
+    act: Watch
+    count: Count
+
 
 # The reviewer reads and runs the checks; it never edits, commits, pushes or writes to GitHub.
 # `gh pr` and `gh api` can write, so it reads pull requests and the API through `gh-read` (#72).
@@ -65,26 +75,31 @@ def command(
 
 
 class Claude:
-    def __init__(self, env: Mapping[str, str], config: Config, denials: Path | None = None) -> None:
+    def __init__(
+        self,
+        env: Mapping[str, str],
+        config: Config,
+        model: str | None = None,
+        effort: str | None = None,
+        watcher: Watcher | None = None,
+        denials: Path | None = None,
+    ) -> None:
         self._env = env
         self._config = config
+        self._model = model
+        self._effort = effort
+        self._watcher = watcher
         # The PermissionDenied hook's log, whose entries of a run's session are its denials too.
         self._denials = denials
-        self._model: str | None = None
-        self._effort: str | None = None
-        self._watch: Watch | None = None
 
     def with_model(self, model: str | None, effort: str | None) -> Claude:
         """The same runs, on this model and effort (SPEC §11.1)."""
-        other = copy.copy(self)
-        other._model, other._effort = model, effort
-        return other
+        return Claude(self._env, self._config, model, effort, self._watcher, self._denials)
 
-    def watching(self, watch: Watch) -> Claude:
-        """The same runs, handing `watch` each of their tool uses as they go."""
-        other = copy.copy(self)
-        other._watch = watch
-        return other
+    def watching(self, watch: Watch, count: Count) -> Claude:
+        """The same runs, handing `watch` each of their tool uses and `count` their tokens."""
+        watcher = Watcher(watch, count)
+        return Claude(self._env, self._config, self._model, self._effort, watcher, self._denials)
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
@@ -139,16 +154,25 @@ class Claude:
         return replace(run, denials=denial_log.combined(run.denials, entries, session))
 
     def _follower(self, cwd: Path) -> Callable[[str], None]:
-        """Reads each line of the run's stream for its tool uses, with paths from its folder."""
-        watch = self._watch
-        if watch is None:
+        """Reads each line of the run's stream for its tool uses, with paths from its folder.
+
+        And for its tokens: a message the stream repeats, once per block, counts once.
+        """
+        watcher = self._watcher
+        if watcher is None:
             return _ignore
         # The tools name files by their real path, so a folder behind a link is resolved too.
         root = str(cwd.resolve())
+        counted: set[str] = set()
 
         def follow(line: str) -> None:
+            message = progress.usage(line)
+            if message is not None and message[0] not in counted:
+                counted.add(message[0])
+                if message[1]:
+                    watcher.count(message[1])
             for action in progress.actions(line, root):
-                watch(action)
+                watcher.act(action)
 
         return follow
 

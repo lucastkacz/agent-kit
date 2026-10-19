@@ -8,7 +8,9 @@ run's cost in dollars, 0.01 by default. Its `logged` denials go through the real
 hook, with the run's session id, as auto mode's denials of a lane do.
 
 Asked for `--output-format stream-json`, it prints one message per line, as the real one does: its
-start, an assistant message for each of the step's `tools`, then its answer. With `snapshot`, it
+start, an assistant message for each of the step's `tools`, then its answer. A tool's `tokens` are
+its message's usage, and tools with the same `message` share one, as the real stream repeats a
+message with several blocks once per block. With `snapshot`, it
 waits after each tool use until the runner's status files change, and keeps a copy of them. A
 step's `stderr` goes to its standard error.
 """
@@ -150,7 +152,7 @@ def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any
     }
 
 
-def tool_message(tool: Step) -> dict[str, Any]:
+def tool_message(tool: Step, index: int = 0) -> dict[str, Any]:
     """An assistant message with one tool use, in the shape `claude-stream.json` recorded.
 
     A relative `file_path` is taken from the run's folder, since the real tools take absolute ones.
@@ -160,9 +162,20 @@ def tool_message(tool: Step) -> dict[str, Any]:
     if isinstance(path, str) and not Path(path).is_absolute():
         tool_input["file_path"] = str(Path.cwd() / path)
     block = {"type": "tool_use", "id": "toolu_fake", "name": tool["name"], "input": tool_input}
+    usage = {
+        "input_tokens": tool.get("tokens", 0),
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+    }
     return {
         "type": "assistant",
-        "message": {"role": "assistant", "content": [block]},
+        "message": {
+            "id": tool.get("message", f"msg_fake_{index}"),
+            "role": "assistant",
+            "content": [block],
+            "usage": usage,
+        },
         "parent_tool_use_id": None,
         "session_id": "session-fake",
     }
@@ -223,9 +236,9 @@ def keep_snapshot(kind: str, number: int, seen: dict[str, str]) -> None:
 
 def stream_tools(kind: str, number: int, step: Step, count: int) -> None:
     emit({"type": "system", "subtype": "init", "session_id": f"session-{kind}-{number}-{count}"})
-    for tool in step.get("tools", []):
+    for index, tool in enumerate(step.get("tools", [])):
         before = statuses()
-        emit(tool_message(tool))
+        emit(tool_message(tool, index))
         if step.get("snapshot"):
             snapshot(kind, number, before)
 
