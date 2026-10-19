@@ -1,15 +1,15 @@
 {
-  "duration_api_ms": 1947,
+  "duration_api_ms": 1987,
   "stop_reason": "tool_use",
-  "session_id": "55b4de79-3f69-4bab-b351-7cb609d7528c",
-  "total_cost_usd": 0.0053848,
+  "session_id": "2da4f883-e498-4d37-9e23-02d0b307be4e",
+  "total_cost_usd": 0.0053854,
   "usage": {
     "input_tokens": 2,
-    "cache_creation_input_tokens": 26343,
+    "cache_creation_input_tokens": 26341,
     "cache_read_input_tokens": 0,
-    "output_tokens": 232,
+    "output_tokens": 234,
     "output_tokens_details": {
-      "thinking_tokens": 84
+      "thinking_tokens": 86
     },
     "server_tool_use": {
       "web_search_requests": 0,
@@ -17,19 +17,19 @@
     },
     "service_tier": "standard",
     "cache_creation": {
-      "ephemeral_1h_input_tokens": 26343,
+      "ephemeral_1h_input_tokens": 26341,
       "ephemeral_5m_input_tokens": 0
     },
     "inference_geo": "global",
     "iterations": [
       {
         "input_tokens": 2,
-        "output_tokens": 232,
+        "output_tokens": 234,
         "cache_read_input_tokens": 0,
-        "cache_creation_input_tokens": 26343,
+        "cache_creation_input_tokens": 26341,
         "cache_creation": {
           "ephemeral_5m_input_tokens": 0,
-          "ephemeral_1h_input_tokens": 26343
+          "ephemeral_1h_input_tokens": 26341
         },
         "type": "message"
       }
@@ -40,14 +40,14 @@
   "modelUsage": {
     "claude-haiku-5-5": {
       "inputTokens": 2,
-      "outputTokens": 232,
+      "outputTokens": 234,
       "cacheReadInputTokens": 0,
-      "cacheCreationInputTokens": 26343,
+      "cacheCreationInputTokens": 26341,
       "webSearchRequests": 0,
-      "costUSD": 0.0053848,
+      "costUSD": 0.0053854,
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
-      "thinkingTokens": 84,
+      "thinkingTokens": 86,
       "canonicalModel": "claude-haiku-5-5",
       "provider": "firstParty",
       "costBasis": "list"
@@ -94,13 +94,13 @@
     "message": "",
     "found": []
   },
-  "ttft_ms": 1687,
+  "ttft_ms": 1720,
   "type": "result",
-  "duration_ms": 2031,
-  "uuid": "ddbe075f-762f-4b9e-baf9-2e7c164a4400",
-  "ttft_stream_ms": 1231,
-  "time_to_request_ms": 80,
-  "first_content_frame_ms": 1233,
+  "duration_ms": 2062,
+  "uuid": "ce4f18e7-c540-4267-9668-7937e16a4ea6",
+  "ttft_stream_ms": 1226,
+  "time_to_request_ms": 72,
+  "first_content_frame_ms": 1228,
   "queued_turn_count": 0,
   "result_index": 0
 }

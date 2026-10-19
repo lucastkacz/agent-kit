@@ -1,0 +1,362 @@
+[
+  {
+    "headRefName": "108-show-the-batch-s-progress-in-claude-code",
+    "headRefOid": "faf9d33ced04ce7a441915e5f719c532a1b86380",
+    "number": 170
+  },
+  {
+    "headRefName": "136-the-runner-files-a-pr-s-found-work-as",
+    "headRefOid": "bb33099d090508a3edc87a930902a881851b24b6",
+    "number": 169
+  },
+  {
+    "headRefName": "151-a-cloud-branch-comes-back-through-git",
+    "headRefOid": "7aba076062ca19be576e9937d0c695ea657f3b51",
+    "number": 168
+  },
+  {
+    "headRefName": "147-a-lane-s-auto-mode-denials-reach-only",
+    "headRefOid": "9d48b8b022400ba47e65fd90eb1bdc0b22a0f877",
+    "number": 167
+  },
+  {
+    "headRefName": "121-plan-batch-orders-a-batch-by-github-s",
+    "headRefOid": "a561d228630c2b99248a408f3f0b648a45e8d1f5",
+    "number": 166
+  },
+  {
+    "headRefName": "152-make-test-back-under-30-seconds",
+    "headRefOid": "d0199e96012fea82a9d3bf7fd2df424e2dedab00",
+    "number": 163
+  },
+  {
+    "headRefName": "138-a-pr-body-that-ends-inside-an-unclosed",
+    "headRefOid": "59e844263b0abde090711af3190febb3248c20d5",
+    "number": 162
+  },
+  {
+    "headRefName": "135-plan-batch-sizes-issues-it-merges-small",
+    "headRefOid": "7682b4d6d32d265c21d3b9138009e597eb8f1dad",
+    "number": 161
+  },
+  {
+    "headRefName": "150-run-batch-trial-merges-the-waiting-prs",
+    "headRefOid": "831b39e80ee61b567b721731a474235503aa4d10",
+    "number": 160
+  },
+  {
+    "headRefName": "127-a-lane-whose-worktree-fails-marks-its",
+    "headRefOid": "453ee5e0e3714503f39e9f87e8a6f4f1f4564eb1",
+    "number": 158
+  },
+  {
+    "headRefName": "148-the-implementer-reads-github-through-gh",
+    "headRefOid": "a0a3930d80192868e30267dc49dc37c1a379e767",
+    "number": 157
+  },
+  {
+    "headRefName": "144-a-running-cost-estimate-for-the-live",
+    "headRefOid": "69250d4f3d2548981bdddacda3df31920979a4df",
+    "number": 154
+  },
+  {
+    "headRefName": "52-the-kit-keeps-any-computer-awake-and",
+    "headRefOid": "aa702e0ef2b96184c03c5f7d98e427c46b9b16b9",
+    "number": 146
+  },
+  {
+    "headRefName": "112-run-batch-creates-the-cloud-routines",
+    "headRefOid": "7964b2979999b2236a71429dd89cc768443d7888",
+    "number": 145
+  },
+  {
+    "headRefName": "107-show-each-lane-s-live-progress-its-step",
+    "headRefOid": "74a4ee4da888b8c3b402679f6099a695c536d25d",
+    "number": 141
+  },
+  {
+    "headRefName": "95-the-implementer-s-pr-body-can-close",
+    "headRefOid": "ec263141f44215661bdffc30d0bdc323251e299f",
+    "number": 137
+  },
+  {
+    "headRefName": "111-a-batch-deletes-a-local-branch-once-its",
+    "headRefOid": "6ccb769d0fd87ab7cfd0893d6ae24606fb99b70a",
+    "number": 132
+  },
+  {
+    "headRefName": "94-the-fallback-pr-title-built-from-the",
+    "headRefOid": "a38f20cbae134639f91dd5a919ba270f83371178",
+    "number": 131
+  },
+  {
+    "headRefName": "103-tell-the-implementer-how-to-answer-a",
+    "headRefOid": "80296ad2bf7b38fd0eb3e86c8195aed061c9204f",
+    "number": 130
+  },
+  {
+    "headRefName": "97-gh-read-refuses-web-which-would-open-the",
+    "headRefOid": "c546d8b28b8bd00d71d582a9522d4b5587d4baf9",
+    "number": 129
+  },
+  {
+    "headRefName": "54-the-summary-s-needs-the-owner-line-drops",
+    "headRefOid": "6dde7eefb43e76dc1f6d746b41a2664b45c18ee3",
+    "number": 126
+  },
+  {
+    "headRefName": "76-ship-records-each-review-s-cost-and-time",
+    "headRefOid": "b8db5c959b67b5582287a9ed054c64360c1b2147",
+    "number": 125
+  },
+  {
+    "headRefName": "105-keep-the-reviewed-event-s-plain-line",
+    "headRefOid": "03809b06a397451a7af6d13928d9c4366efe1d95",
+    "number": 124
+  },
+  {
+    "headRefName": "86-protect-master-lets-git-pull-without-ff",
+    "headRefOid": "2b962e159e68eb8df2050bf07edf112f8b43c608",
+    "number": 123
+  },
+  {
+    "headRefName": "87-spec-10-1-and-accept-batch-say-that",
+    "headRefOid": "f9a9ccf178b14d3bcf161a87138b301171907061",
+    "number": 122
+  },
+  {
+    "headRefName": "100-a-re-run-implements-again-a-lane-issue",
+    "headRefOid": "56e42790acd3875bcc9bba3c642ba15ef6ba3cdf",
+    "number": 119
+  },
+  {
+    "headRefName": "113-spec-5-says-where-a-branch-s-third",
+    "headRefOid": "a8d35af2117ab9f24e7f6e194b73ee4118ab4f65",
+    "number": 118
+  },
+  {
+    "headRefName": "98-spec-9-2-says-how-the-reviewer-reads",
+    "headRefOid": "6ad01cd16f7ee15903675e4bacac808e79440bac",
+    "number": 117
+  },
+  {
+    "headRefName": "110-an-acceptance-commit-waits-for-a-clean",
+    "headRefOid": "46aba9caf64b855ba22fc8f66d4d68b42a86c2e1",
+    "number": 116
+  },
+  {
+    "headRefName": "109-the-reviewer-asks-for-a-test-instead-of",
+    "headRefOid": "bd19e81dc3e5998ca672f9814242a02699febfd9",
+    "number": 115
+  },
+  {
+    "headRefName": "79-a-test-keeps-the-cloud-prompt-s-quoted",
+    "headRefOid": "d1f733519f99eab0023577ab48ac8c4aa8eb7322",
+    "number": 106
+  },
+  {
+    "headRefName": "74-a-pull-request-s-review-rounds-converge",
+    "headRefOid": "7bff93438a55220ff2a0d51e45741841ac026b2e",
+    "number": 102
+  },
+  {
+    "headRefName": "66-re-running-a-batch-skips-a-merged-issue",
+    "headRefOid": "89b4cd7444379262916d0fbc589657b7c649984b",
+    "number": 99
+  },
+  {
+    "headRefName": "72-the-reviewer-reads-issues-pull-requests",
+    "headRefOid": "f532a8ac8551e3ac97299415c1333380eef69965",
+    "number": 96
+  },
+  {
+    "headRefName": "75-ship-keeps-the-pull-request-in-step-with",
+    "headRefOid": "483d5f7a25f5f5b3ad239bb6d176ec447808a5c0",
+    "number": 93
+  },
+  {
+    "headRefName": "73-a-cloud-run-notifies-the-owner-s-phone",
+    "headRefOid": "32ef02ee73361968a0e84876473a8a6f9ddb773c",
+    "number": 92
+  },
+  {
+    "headRefName": "77-spec-12-1-and-11-5-cover-a-cloud-issue-s",
+    "headRefOid": "f5dd60294edf56fb428443ed17162e3ae275c62f",
+    "number": 91
+  },
+  {
+    "headRefName": "81-the-readme-shows-that-a-batch-runs-its",
+    "headRefOid": "6ee0f7a35e174a6b74b281558323b1d44de43687",
+    "number": 90
+  },
+  {
+    "headRefName": "80-accept-batch-reads-long-cloud-logs-with",
+    "headRefOid": "b16d895355fa773c439a21b644fb218f74fe170d",
+    "number": 89
+  },
+  {
+    "headRefName": "78-protect-master-lets-a-fast-forward",
+    "headRefOid": "8e9f9fa6bed959a1597d5c1236acaf89b34b0662",
+    "number": 85
+  },
+  {
+    "headRefName": "70-plan-batch-trusts-any-comment-as-a",
+    "headRefOid": "9dca022df6183179aad300d0009f146d9d125d73",
+    "number": 84
+  },
+  {
+    "headRefName": "51-a-resumed-run-that-s-replaced-loses-its",
+    "headRefOid": "15bf7220831fe2b5ee3c76c29d28034c46472459",
+    "number": 83
+  },
+  {
+    "headRefName": "57-plan-batch-skill",
+    "headRefOid": "4c019a54574bf84c717d5d7ab9fa2d6ec69b9b32",
+    "number": 69
+  },
+  {
+    "headRefName": "62-merge-when-owner-asks",
+    "headRefOid": "5548ae998cf6b2c7c10804657645876a07d12a4b",
+    "number": 68
+  },
+  {
+    "headRefName": "58-run-batch-skill",
+    "headRefOid": "337c123929c05ffdc6a8aa24892f34808a5fa123",
+    "number": 67
+  },
+  {
+    "headRefName": "59-accept-batch-skill",
+    "headRefOid": "090ed5a6c61837f6ee9f1d6d2ffdc507858bec3c",
+    "number": 65
+  },
+  {
+    "headRefName": "46-readme-visual",
+    "headRefOid": "a0baaa5182ea4bb2cd97ad37a8d98acde2b5b497",
+    "number": 64
+  },
+  {
+    "headRefName": "55-spec-cloud-merge-gate",
+    "headRefOid": "4ac982420b2c94a556ca43b971dc1cdb4dc29e8d",
+    "number": 63
+  },
+  {
+    "headRefName": "56-model-line",
+    "headRefOid": "959805d622a219b812fcc7457c855fb32f69422d",
+    "number": 61
+  },
+  {
+    "headRefName": "30-record-each-denial",
+    "headRefOid": "c92beec971b6b7f94aa256e5547310c752c7bee3",
+    "number": 53
+  },
+  {
+    "headRefName": "26-poll-seconds-checked",
+    "headRefOid": "c38cda98d6577bb14c619bda22e9ae2d6fe2d6e6",
+    "number": 50
+  },
+  {
+    "headRefName": "41-budget-decimal-count",
+    "headRefOid": "b5764c6714e0ce66c68694d1d8584ca32e4e80a7",
+    "number": 49
+  },
+  {
+    "headRefName": "40-acceptance-commit-stays",
+    "headRefOid": "be5a86702185d317115576b7673b91b16baecfbb",
+    "number": 48
+  },
+  {
+    "headRefName": "34-cleanup-deletes-branch-first",
+    "headRefOid": "0ecacbd57f6ee530bf148d18a206c7d0c3761021",
+    "number": 47
+  },
+  {
+    "headRefName": "39-ship-fetches-before-review",
+    "headRefOid": "1655f12895370e82f6ec54b0e7d6269be6034a1a",
+    "number": 45
+  },
+  {
+    "headRefName": "23-readme-says-what-exists",
+    "headRefOid": "c59699aebca721746cda221ef7b3dbb55231852c",
+    "number": 44
+  },
+  {
+    "headRefName": "36-runs-drop-virtual-env",
+    "headRefOid": "dc754cd731c07a9e5a037382025cd3e8326e1d15",
+    "number": 43
+  },
+  {
+    "headRefName": "29-a-batch-keeps-the-mac-awake-or-says-it",
+    "headRefOid": "4b5ce336526aafd52ed18cfebc4435e9ff59a4ec",
+    "number": 42
+  },
+  {
+    "headRefName": "25-budget-line-refuses-zero",
+    "headRefOid": "614cf6cb2e54304a744ccba9a5593c758f56971e",
+    "number": 38
+  },
+  {
+    "headRefName": "31-skills-avoid-batch-21-denials",
+    "headRefOid": "bad0d6ef3b1245831042921a95ea00a73659019d",
+    "number": 37
+  },
+  {
+    "headRefName": "28-the-batch-s-times-stop-while-the-mac",
+    "headRefOid": "87062a238e11eac0391cd4e51380ddd375f48a34",
+    "number": 35
+  },
+  {
+    "headRefName": "27-a-merged-issue-is-reported-as-failed",
+    "headRefOid": "2b8724c911f561f883c0a9467c8884626d9fd27a",
+    "number": 33
+  },
+  {
+    "headRefName": "20-agent-batch-run-rejects-a-budget-that",
+    "headRefOid": "21468c1712697481afc53495af6c532857a370c1",
+    "number": 24
+  },
+  {
+    "headRefName": "19-the-readme-says-where-the-plugin-s",
+    "headRefOid": "ff21ebbd54ee6ce28b6e1327658977ae4a8a5e0e",
+    "number": 22
+  },
+  {
+    "headRefName": "17-enable-plugin",
+    "headRefOid": "ea417e6da0cc4ac1b0cae8199897cd7734a2e05e",
+    "number": 18
+  },
+  {
+    "headRefName": "13-implement-and-review-skills",
+    "headRefOid": "d7b81bc9a1baccae38cf8c98ba396a92a9bd373d",
+    "number": 16
+  },
+  {
+    "headRefName": "14-project-scope",
+    "headRefOid": "e5028c13538b9359d5e0b6a0c9f9a44bee0f8326",
+    "number": 15
+  },
+  {
+    "headRefName": "11-plugin-and-hooks",
+    "headRefOid": "2ead6c9bf51c297d78fed721b503cb236c693a82",
+    "number": 12
+  },
+  {
+    "headRefName": "7-contract-tests",
+    "headRefOid": "9d2b4d20fa8bf5d3116eb21ecd9d5f8f03b220e8",
+    "number": 10
+  },
+  {
+    "headRefName": "5-readme",
+    "headRefOid": "126644cfb6d17998a0d400d00c5f85a15417e21f",
+    "number": 6
+  },
+  {
+    "headRefName": "3-lanes-line",
+    "headRefOid": "38dd9cbe5a0c04644decd04b7f21e28bbeab1128",
+    "number": 4
+  },
+  {
+    "headRefName": "1-git-lock-between-lanes",
+    "headRefOid": "0b7aeff3470147add453ba59e6f1104e4228166b",
+    "number": 2
+  }
+]
