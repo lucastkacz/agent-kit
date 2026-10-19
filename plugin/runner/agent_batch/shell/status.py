@@ -29,6 +29,9 @@ class StatusBoard:
         self._lanes: dict[int, LaneState] = {}
         self._lock = threading.Lock()
         self._failed = False
+        # What the ended runs cost, and their tokens: the rate that prices a running run's (#144).
+        self._spent_usd = 0.0
+        self._spent_tokens = 0
 
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""
@@ -47,8 +50,27 @@ class StatusBoard:
     def act(self, lane: int, action: str, when: float) -> None:
         self._change(lane, lambda state: replace(state, action=action, action_time=when))
 
+    def used(self, lane: int, tokens: int) -> None:
+        """The lane's running run used `tokens` more, which add to its estimate."""
+        self._change(lane, lambda state: self._priced(replace(state, tokens=state.tokens + tokens)))
+
     def spent(self, lane: int, cost_usd: float) -> None:
-        self._change(lane, lambda state: replace(state, cost_usd=cost_usd))
+        """A run ended: the lane's measured cost is `cost_usd`, and its run's tokens set the rate.
+
+        A run that ended without a cost, as one that died, or without tokens, leaves the rate as
+        it was: either would skew it.
+        """
+        with self._lock:
+            state = self._lanes.get(lane)
+            if state is None:
+                return
+            run_usd = cost_usd - state.cost_usd
+            if run_usd > 0 and state.tokens > 0:
+                self._spent_usd += run_usd
+                self._spent_tokens += state.tokens
+            self._lanes[lane] = replace(state, cost_usd=cost_usd, tokens=0, estimate_usd=None)
+            self._lanes = {key: self._priced(other) for key, other in self._lanes.items()}
+            self._write()
 
     def drop(self, lane: int) -> None:
         """The lane ended: no more row for it."""
@@ -62,6 +84,12 @@ class StatusBoard:
             if state is not None:
                 self._lanes[lane] = change(state)
                 self._write()
+
+    def _priced(self, state: LaneState) -> LaneState:
+        if not state.tokens:
+            return state
+        priced = progress.estimate(state.tokens, self._spent_usd, self._spent_tokens)
+        return replace(state, estimate_usd=priced)
 
     def _write(self) -> None:
         """Rewrites the file; one that can't be written is said once, and never ends a run.

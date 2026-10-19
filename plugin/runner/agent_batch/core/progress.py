@@ -17,6 +17,13 @@ STEPS = (IMPLEMENTATION, REVIEW, PULL_REQUEST, RISK_AND_MERGE)
 INPUT_LENGTH = 50
 PATH_TOOLS = frozenset({"Read", "Edit", "Write"})
 MINUTE = 60
+# A message's tokens, each kind at the same weight: the rate comes from tokens counted this way.
+TOKEN_FIELDS = (
+    "input_tokens",
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+    "output_tokens",
+)
 HEADER = ("RUN", "ISSUE", "STEP", "ROUND", "LAST ACTION", "TIME", "COST")
 NOTHING = "Nothing is running: no batch lane and no `agent-batch ship`.\n"
 # The steps' names in the status line, which has little room (#108).
@@ -31,7 +38,11 @@ SEPARATOR = " · "
 
 @dataclass(frozen=True)
 class LaneState:
-    """A lane's issue, its step, its review round out of `rounds`, and its runs' last tool use."""
+    """A lane's issue, its step, its review round out of `rounds`, and its runs' last tool use.
+
+    `cost_usd` is what its ended runs cost; `tokens` are the running run's so far, and
+    `estimate_usd` their price at the batch's rate, None until one of its runs has ended (#144).
+    """
 
     issue: int
     step: str
@@ -41,6 +52,8 @@ class LaneState:
     action: str = ""
     action_time: float | None = None
     cost_usd: float = 0.0
+    tokens: int = 0
+    estimate_usd: float | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +92,34 @@ def session_cwd(text: str) -> str | None:
         return None
     cwd = session.get("cwd") if isinstance(session, dict) else None
     return cwd if isinstance(cwd, str) and cwd else None
+
+
+def usage(line: str) -> tuple[str, int] | None:
+    """An assistant message's id and its tokens, in one line of the stream; None if it has none.
+
+    The stream repeats a message once per block of its content, with the same id and usage.
+    """
+    try:
+        message = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(message, dict) or message.get("type") != "assistant":
+        return None
+    body = message.get("message")
+    if not isinstance(body, dict):
+        return None
+    identity, counts = body.get("id"), body.get("usage")
+    if not isinstance(identity, str) or not isinstance(counts, dict):
+        return None
+    numbers = [_whole(counts.get(field)) for field in TOKEN_FIELDS]
+    return identity, sum(number for number in numbers if number is not None)
+
+
+def estimate(tokens: int, spent_usd: float, spent_tokens: int) -> float | None:
+    """The price of `tokens` at what the ended runs' tokens cost; None before any has ended."""
+    if spent_tokens <= 0:
+        return None
+    return tokens * spent_usd / spent_tokens
 
 
 def short_action(tool: str, tool_input: object, root: str) -> str:
@@ -137,7 +178,11 @@ def _state(raw: object) -> LaneState | None:
     if not isinstance(step, str) or not isinstance(action, str):
         return None
     action_time = _number(raw.get("action_time"))
-    return LaneState(issue, step, started, rounds, review_round, action, action_time, cost)
+    tokens = _whole(raw.get("tokens")) or 0
+    priced = _number(raw.get("estimate_usd"))
+    return LaneState(
+        issue, step, started, rounds, review_round, action, action_time, cost, tokens, priced
+    )
 
 
 def _whole(value: object) -> int | None:
@@ -207,7 +252,17 @@ def _cells(row: Row, now: float) -> tuple[str, ...]:
     if state.action and state.action_time is not None:
         action = f"{state.action}, {_ago(now - state.action_time)}"
     minutes = f"{_whole_minutes(now - state.started)} min"
-    return (run, f"#{state.issue}", step, review_round, action, minutes, f"${state.cost_usd:.2f}")
+    return (run, f"#{state.issue}", step, review_round, action, minutes, _cost(state))
+
+
+def _cost(state: LaneState) -> str:
+    """The measured cost, then the running run's estimate, or its tokens before there's a rate."""
+    measured = f"${state.cost_usd:.2f}"
+    if not state.tokens:
+        return measured
+    if state.estimate_usd is None:
+        return f"{measured} + {state.tokens:,} tokens"
+    return f"{measured} + ~${state.estimate_usd:.2f} (estimate)"
 
 
 def _ago(seconds: float) -> str:
