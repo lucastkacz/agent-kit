@@ -18,6 +18,7 @@ DENIAL_LINES = 100
 SHOWN_INPUTS = ("command", "file_path", "url")
 BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
+EVENT_LOG = "the batch's event log (`events.jsonl`)"
 
 
 def model_lines(model: str | None, effort: str | None) -> list[str]:
@@ -49,7 +50,7 @@ def render(reports: Sequence[IssueReport], seconds: float, model_text: Sequence[
         lines += ["", "### Permission denials", "", *denied[:DENIAL_LINES]]
     if len(denied) > DENIAL_LINES:
         more = len(denied) - DENIAL_LINES
-        lines.append(f"- … and {more} more in the batch's event log (`events.jsonl`)")
+        lines.append(f"- … and {more} more in {EVENT_LOG}")
     waiting = [r for r in ordered if r.outcome in NEEDS_OWNER]
     if waiting:
         lines += ["", "### Needs the owner", "", *(_needs(report) for report in waiting)]
@@ -84,6 +85,13 @@ def _code(text: str) -> str:
 
 
 def _needs(report: IssueReport) -> str:
+    """One sentence per issue; the rest of its detail, a review's findings say, is elsewhere."""
     target = f"#{report.pr}" if report.outcome is Outcome.WAITING_OWNER else f"#{report.number}"
-    detail = report.detail.splitlines()[0] if report.detail else ""
-    return f"- {target}: {report.outcome.value}. {detail}".rstrip(". ") + "."
+    lines = report.detail.splitlines()
+    # The first line with words in it; a detail without any reads as it did before #54.
+    first, *rest = [line for line in lines if line.strip()] or lines[:1] or [""]
+    line = f"- {target}: {report.outcome.value}. {first}".rstrip(":. ")
+    if rest:
+        line += " See " if line.endswith(("?", "!")) else "; see "
+        line += EVENT_LOG if report.unannounced else f"{target}'s comment"
+    return line + "."

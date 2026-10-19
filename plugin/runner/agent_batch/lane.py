@@ -76,4 +76,7 @@ def _set_aside(
 ) -> list[IssueReport]:
     for number in numbers:
         ctx.events.emit("issue_set_aside", issue=number, outcome=outcome.value, detail=detail)
-    return [IssueReport(number=number, outcome=outcome, detail=detail) for number in numbers]
+    return [
+        IssueReport(number=number, outcome=outcome, detail=detail, unannounced=True)
+        for number in numbers
+    ]

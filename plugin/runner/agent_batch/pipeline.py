@@ -345,4 +345,5 @@ def _announce(ctx: Context, report: IssueReport) -> None:
         ctx.gh.add_label(report.number, BLOCKED)
         ctx.gh.comment(report.number, body)
     except CommandError as error:
+        report.unannounced = True
         ctx.events.emit("announce_failed", issue=report.number, detail=str(error))
