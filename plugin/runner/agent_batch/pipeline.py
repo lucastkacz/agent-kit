@@ -127,8 +127,14 @@ def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
 
 
 def _watched(ctx: Context, lane: Lane) -> Claude:
-    """The runs, each of whose tool uses becomes the lane's last action as it goes (#107)."""
-    return ctx.claude.watching(lambda action: ctx.status.act(lane.index, action, ctx.clock()))
+    """The runs, each of whose tool uses becomes the lane's last action as it goes (#107).
+
+    Their tokens add to the lane's estimated cost as they go, too (#144).
+    """
+    return ctx.claude.watching(
+        lambda action: ctx.status.act(lane.index, action, ctx.clock()),
+        lambda tokens: ctx.status.used(lane.index, tokens),
+    )
 
 
 def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
