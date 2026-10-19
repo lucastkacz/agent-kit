@@ -34,5 +34,8 @@
         ]
       }
     ]
-  }
+  },
+  "modules": [
+    "./status-line.ts"
+  ]
 }
