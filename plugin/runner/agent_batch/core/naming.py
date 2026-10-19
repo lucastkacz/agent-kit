@@ -256,18 +256,35 @@ def _top_level(lines: Sequence[re.Match[str]], index: int, opening: re.Match[str
         return False
     indent = len(opening["within"])
     for earlier in range(index - 1, -1, -1):
-        text = lines[earlier][0]
         item = _starts_item(lines, earlier)
-        # An item that starts with a blank line ends at the next blank line (CommonMark §5.2).
-        empty = item is not None and not text[item.end() :].strip()
-        ends_at_once = empty and not lines[earlier + 1][0].strip()
-        if item is not None and len(item[0]) <= indent and not ends_at_once:
+        if item is not None and _holds(lines, earlier, item, indent):
             return False
-        if text.strip() and len(text) - len(text.lstrip(" ")) < indent:
-            lazy = _paragraph(text) or (item is None and ITEM.match(text))
-            if not lazy or earlier == 0 or not lines[earlier - 1][0].strip():
-                return True
+        if _ends_items(lines, earlier, item, indent):
+            return True
     return True
+
+
+def _holds(lines: Sequence[re.Match[str]], index: int, item: re.Match[str], indent: int) -> bool:
+    """Whether the item this line starts holds the lines after it indented this far.
+
+    An item that starts with a blank line ends at the next blank line (CommonMark §5.2).
+    """
+    empty = not lines[index][0][item.end() :].strip()
+    return len(item[0]) <= indent and not (empty and not lines[index + 1][0].strip())
+
+
+def _ends_items(
+    lines: Sequence[re.Match[str]], index: int, item: re.Match[str] | None, indent: int
+) -> bool:
+    """Whether this line ends every list item that would hold a line indented this far.
+
+    A line indented less does, unless it's a lazy one that continues an item's paragraph.
+    """
+    text = lines[index][0]
+    if not text.strip() or len(text) - len(text.lstrip(" ")) >= indent:
+        return False
+    lazy = _paragraph(text) or (item is None and ITEM.match(text))
+    return not lazy or index == 0 or not lines[index - 1][0].strip()
 
 
 def _starts_item(lines: Sequence[re.Match[str]], index: int) -> re.Match[str] | None:
