@@ -97,6 +97,7 @@ def test_without_a_model_line_or_flags_the_command_line_is_as_before() -> None:
         "--permission-prompts", "none",
         "--settings", str(claude.SETTINGS),
         "--permission-mode", "auto",
+        "--allowedTools", "Bash(agent-batch gh-read *)",
     ]  # fmt: skip
     assert claude.command("x", {}, claude.IMPLEMENTER) == argv
 
