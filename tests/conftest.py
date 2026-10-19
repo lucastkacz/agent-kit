@@ -28,6 +28,9 @@ BATTERY_POWER = (
     " -InternalBattery-0 (id=21823587)\t77%; discharging; 9:48 remaining present: true\n"
 )
 # Shell fakes: `caffeinate` writes down its arguments, `pmset -g batt` prints the power source.
+# A test that waits on a fake executable allows at least 2 s for it to start, and checks how it
+# ended, not a file it writes when it starts: macOS checks a new executable on its first run,
+# which takes about 0.25 s, and over 1 s on a loaded computer (#155).
 CAFFEINATE = """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_CAFFEINATE_LOG"
 """
@@ -41,6 +44,13 @@ SYSTEMD_INHIBIT = """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_SYSTEMD_INHIBIT_LOG"
 while [ "${1#--}" != "$1" ]; do shift; done
 exec "$@"
+"""
+# `tail --pid=<pid> -f /dev/null` on any computer: it lasts the pid. macOS's own `tail` has no
+# `--pid`, so the command the fake `systemd-inhibit` runs would end at once with an error.
+TAIL = """#!/bin/sh
+pid="${1#--pid=}"
+[ "$pid" != "$1" ] || exit 64
+while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
 """
 
 
@@ -180,7 +190,12 @@ def _shared_fakes(shared: Path) -> None:
         name: f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n'
         for name, script in (("gh", "fake_gh.py"), ("claude", "fake_claude.py"))
     }
-    fakes |= {"caffeinate": CAFFEINATE, "pmset": PMSET, "systemd-inhibit": SYSTEMD_INHIBIT}
+    fakes |= {
+        "caffeinate": CAFFEINATE,
+        "pmset": PMSET,
+        "systemd-inhibit": SYSTEMD_INHIBIT,
+        "tail": TAIL,
+    }
     for name, script in fakes.items():
         _write_executable(shared / name, script)
         (shared / name).chmod(0o555)
