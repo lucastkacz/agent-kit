@@ -399,7 +399,7 @@ No `--no-verify`, no disabled hooks, no admin merges. If a guardrail is wrong, t
 - launches a fresh `claude -p` for each stage, in auto mode with prompts turned off, so nothing ever waits for a person;
 - runs the implementer, the reviewer and the conflict resolver on the same model and effort: `--model` and `--effort` when given, else the batch issue's `Model:` line, else the owner's own settings. The start comment and the summary say them when they're set, so batches can be compared (§16.2). `agent-batch ship` takes the same two flags;
 - removes API keys from its environment, so runs use the owner's subscription instead of paid API usage;
-- keeps the machine awake while it runs on AC power, warns at the start when it's on battery, and caps each run's turns and wall-clock time;
+- keeps the computer awake while it runs, plugged in and, on a laptop, with the lid open; warns at the start when it's on battery or when it can't keep the computer awake, and still runs; and caps each run's turns and wall-clock time;
 - runs several lanes in parallel: as many as `--lanes` says, else the batch issue's `Lanes:` line, else 2. Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
 - defers the rest of a lane to the next batch when one of its issues doesn't merge (it waits for the owner, is blocked or failed), because they build on the same files. Planning puts high-risk issues last in their lane, or in a lane of their own;
 - makes one attempt to resolve a merge conflict; if that fails, the issue is blocked;
