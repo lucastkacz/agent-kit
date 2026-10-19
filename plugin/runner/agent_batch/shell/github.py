@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,10 @@ class GitHub:
 
     def add_label(self, number: int, label: str) -> None:
         self._gh("issue", "edit", str(number), "--add-label", label)
+
+    def relabel(self, number: int, add: str, remove: Iterable[str]) -> None:
+        removed = [arg for label in remove for arg in ("--remove-label", label)]
+        self._gh("issue", "edit", str(number), "--add-label", add, *removed)
 
     def comment(self, number: int, body: str) -> None:
         self._gh("issue", "comment", str(number), "--body-file", "-", stdin=body)

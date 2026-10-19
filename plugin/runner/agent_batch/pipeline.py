@@ -3,10 +3,21 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, merge, naming, progress, prompts, results, risk, rounds
+from agent_batch.core import (
+    eligibility,
+    followup,
+    merge,
+    naming,
+    progress,
+    prompts,
+    results,
+    risk,
+    rounds,
+)
 from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
@@ -206,10 +217,9 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
     review, filed = rounds.settle(answer, number)
-    # The issues go before the event: if filing fails, this round isn't logged and runs again.
-    # That can file an issue twice, but the next round never reads as filed a finding that wasn't.
-    for finding in filed:
-        _file(ctx, job, rounds.found_issue(finding, number))
+    # The issue goes before the event: if filing fails, this round isn't logged and runs again.
+    # That can file a finding twice, but the next round never reads as filed one that wasn't.
+    _file(ctx, job, [rounds.found_issue(finding, number) for finding in filed])
     # Every finding, filed ones included, so that the next review can read what this one found.
     # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
     ctx.events.emit(
@@ -241,16 +251,28 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         ctx.gh.edit_pr(pr, title, body)
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
-    for found in work.found:
-        _file(ctx, job, found)
+    _file(ctx, job, work.found)
     return pr
 
 
-def _file(ctx: Context, job: Job, found: FoundIssue) -> None:
-    """Files work found along the way as an issue of its own (SPEC §4.5)."""
-    body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
-    number = ctx.gh.create_issue(found.title, body, found.kind)
-    ctx.events.emit("issue_found", issue=job.issue.number, found=number)
+def _file(ctx: Context, job: Job, items: Sequence[FoundIssue]) -> None:
+    """Files work found along the way in the PR's one follow-up issue (SPEC §4.5).
+
+    The first items open it; later ones, from a later review, join it as a comment.
+    """
+    if not items:
+        return
+    number = job.issue.number
+    known = followup.existing(ctx.events.project_records("issue_found"), job.branch)
+    if known is None:
+        found = followup.issue(items, number)
+        filed = ctx.gh.create_issue(found.title, found.body, found.kind)
+        ctx.events.emit("issue_found", issue=number, branch=job.branch, found=filed)
+        return
+    ctx.gh.comment(known, followup.comment(items, number))
+    change = followup.relabel(ctx.gh.issue(known).labels, items)
+    if change is not None:
+        ctx.gh.relabel(known, *change)
 
 
 def _work(job: Job) -> ImplementResult:

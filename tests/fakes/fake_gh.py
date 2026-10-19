@@ -64,8 +64,10 @@ def closing_prs(state: State, number: int) -> list[dict[str, Any]]:
 
 
 def issue_edit(state: State, argv: list[str], _stdin: str) -> str:
-    labels = state["issues"][argv[2]]["labels"]
-    labels.extend(label for label in options(argv, "--add-label") if label not in labels)
+    issue = state["issues"][argv[2]]
+    kept = [label for label in issue["labels"] if label not in options(argv, "--remove-label")]
+    kept.extend(label for label in options(argv, "--add-label") if label not in kept)
+    issue["labels"] = kept
     return ""
 
 
