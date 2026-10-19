@@ -17,7 +17,7 @@ from agent_batch.core import gh_read, progress
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
 from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
-from agent_batch.shell import proc, status
+from agent_batch.shell import checkout, proc, status
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "gh-read":
             return _gh_read(args.args)
         if args.command == "status":
-            return _status()
+            return _status_line() if args.line else _status()
         if args.command == "clean":
             return _clean()
         return _ship(args)
@@ -67,7 +67,14 @@ def _parser() -> argparse.ArgumentParser:
     direct.add_argument("--title", required=True, help="the PR title, in Conventional Commits")
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
     _model_flags(direct, "claude's own")
-    commands.add_parser("status", help="show what each lane of a batch, and each ship, is doing")
+    shown = commands.add_parser(
+        "status", help="show what each lane of a batch, and each ship, is doing"
+    )
+    shown.add_argument(
+        "--line",
+        action="store_true",
+        help="in one short line, for Claude Code's status line; reads its JSON on stdin",
+    )
     commands.add_parser("clean", help="delete the local branches whose PR merged at their head")
     read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
     read.add_argument(
@@ -144,6 +151,21 @@ def _status() -> int:
     repo = Git(config).main_root(Path.cwd())
     rows = status.running(repo / config.state_dir)
     sys.stdout.write(progress.render(rows, time.time()))
+    return 0
+
+
+def _status_line() -> int:
+    """The same in one line, for the plugin's status line (#108): it reads files, and runs nothing.
+
+    The session's folder comes in Claude Code's JSON on stdin; typed by hand, it's this one.
+    """
+    given = None if sys.stdin.isatty() else progress.session_cwd(sys.stdin.read())
+    found = checkout.find(Path(given) if given else Path.cwd())
+    if found is None:
+        sys.stdout.write(progress.line([], time.time(), ""))
+        return 0
+    rows = status.running(found.root / Config().state_dir)
+    sys.stdout.write(progress.line(rows, time.time(), found.branch))
     return 0
 
 
