@@ -18,7 +18,7 @@ test('the status line shows what agent-batch status --line prints', async ($, on
     return { value: undefined }
   })
 
-  await $.session.start({ cwd: '/work/project', surface: 'terminal' })
+  await $.session.start({ cwd: '/work/project', surface: 'terminal', isInteractive: true })
   await clock.advance(6000)
 
   expect(shown.at(-1)).toBe(LINE)
@@ -40,9 +40,31 @@ test('a run that fails clears the status line', async ($, on) => {
     return { value: undefined }
   })
 
-  await $.session.start({ cwd: '/work/project', surface: 'terminal' })
+  await $.session.start({ cwd: '/work/project', surface: 'terminal', isInteractive: true })
   await clock.advance(6000)
 
   expect(shown.length).toBeGreaterThan(0)
   expect(shown.every(text => text === undefined)).toBe(true)
+})
+
+test('a session that draws nowhere, as claude -p, runs nothing', async ($, on) => {
+  const clock = mock.clock(on)
+  let runs = 0
+  let shown = 0
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.cwd', () => ({ value: '/work/project' }))
+  on('process.run', () => {
+    runs += 1
+    return { value: { exitCode: 0, stdout: 'L1 #75 review 2/2\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('ui.status', () => {
+    shown += 1
+    return { value: undefined }
+  })
+
+  await $.session.start({ cwd: '/work/project', surface: null, isInteractive: false })
+  await clock.advance(20000)
+
+  expect(runs).toBe(0)
+  expect(shown).toBe(0)
 })

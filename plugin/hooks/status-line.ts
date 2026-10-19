@@ -9,6 +9,8 @@ const PERIOD_MS = 5000
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
+    // A `claude -p` run, as each lane's, draws no line: its timers would start Python for nothing.
+    if (!e.isInteractive || e.surface === null) return started
     let isShowing = false
     const show = async () => {
       // A slow computer could take longer than a period: one run at a time.
