@@ -27,3 +27,11 @@ def test_the_trial_runs_again_only_after_a_pr_was_brought_up_to_date_and_ends() 
     trial = section(TRIAL)
     has(trial, "Run it again only when step 6 brought a PR up to date")
     has(trial, "bring each PR up to date at most once", "the trial ends")
+
+
+def test_a_pr_is_brought_up_to_date_in_a_ship_worktree_made_as_for_a_cloud_branch() -> None:
+    trial = section(TRIAL)
+    has(trial, "a lane's PR too", "the runner removes a lane's worktree when the lane ends")
+    has(trial, "git fetch origin <branch>", 'as in "Bring a cloud branch back" step 3')
+    assert "the lane's worktree for a lane's" not in trial, trial
+    assert "-b <branch>" not in trial, trial
