@@ -138,3 +138,5 @@ class IssueReport:
     cost_usd: float = 0.0
     seconds: float = 0.0
     human_checks: int = 0
+    # The runner couldn't post its detail on GitHub, so only the batch's event log holds it.
+    unannounced: bool = False
