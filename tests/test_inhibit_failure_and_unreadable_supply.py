@@ -21,8 +21,8 @@ def _failing_inhibit(world: World) -> None:
     fake = world.root / "bin" / "systemd-inhibit"
     fake.write_text(FAILING_INHIBIT)
     fake.chmod(0o755)
-    # macOS can take over a second to first run a new executable, longer than `INHIBIT_GRACE`.
-    subprocess.run([fake], capture_output=True, check=False)
+    # macOS checks a new executable on its first run, which can take longer than INHIBIT_GRACE.
+    subprocess.run([str(fake)], capture_output=True, check=False)
 
 
 def test_a_systemd_inhibit_that_fails_doesnt_count_as_keeping_the_computer_awake(
