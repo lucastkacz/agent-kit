@@ -339,7 +339,7 @@ Everything else is low risk. The list is narrow on purpose (principle 9).
 
 ### 9.2 Who merges
 
-- **A batch's runs never merge.** Their settings deny `gh pr` and `gh api` (`plugin/runner/agent_batch/data/batch-settings.json`).
+- **A batch's runs never merge.** The lanes' and the reviews' settings deny `gh pr` and `gh api` (`plugin/runner/agent_batch/data/batch-settings.json`). A cloud run has none of GitHub's tools, and its `gh` isn't signed in (§12.1).
   - The reviewer, which runs on the owner's admin token, and the implementer read pull requests and the API through `agent-batch gh-read` instead. It runs only `pr view`, `pr list`, `pr diff`, `pr checks` and GET `api` calls, and refuses methods, bodies, fields and GraphQL before `gh` runs, so it can't merge or write (`plugin/runner/agent_batch/core/gh_read.py`).
 - **In a session with the owner,** an agent merges a PR only when the owner, live in that session's chat, names it by number and asks for the merge. A message sent to the session from the phone, through Remote Control, counts.
   - One message may name several PRs, each by its number ("merge #63, #64 and #65"). "All of them", "the rest" or "the next ones" name none.
@@ -458,7 +458,7 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3.4):
 
-1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached. The cloud's `gh` isn't signed in, so the prompt carries the issue's body. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
+1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached and GitHub's own tools disallowed (`mcp__github__*`). A cloud session has those tools from the start, and they act as the owner, so they could open and merge a PR; disallowed, the run has none of them. The cloud's `gh` isn't signed in, so the prompt carries the issue's body, and `master`'s ruleset (§9.3) refuses a push that doesn't come through a PR. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
 2. **The gate.** Locally, the assistant checks the branch out in a worktree. When the issue has a criterion verified by `e2e` (§7.1), it runs `make e2e` in the worktree before `agent-batch ship`, and keeps its evidence (§5, step 4). Then `agent-batch ship <issue>` reviews the branch with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
 
 The local review is not a formality: it catches what the cloud run missed, such as wrong acceptance tests.
