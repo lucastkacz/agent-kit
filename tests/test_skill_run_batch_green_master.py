@@ -40,7 +40,7 @@ def test_a_branch_carries_only_its_issues_work() -> None:
 
 def test_the_watch_runs_git_ls_remote_so_it_never_waits_for_a_prompt() -> None:
     watch = section(skill_text(), "Watch")
-    command = 'GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15"'
+    command = 'GIT_SSH_COMMAND="$ssh_command -o BatchMode=yes -o ConnectTimeout=15"'
     assert command in watch, watch
     line = next(row for row in watch.splitlines() if command in row)
     assert "git ls-remote origin <branch>" in line, line
