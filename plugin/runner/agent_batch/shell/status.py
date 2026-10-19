@@ -7,6 +7,7 @@ would flood it, so the live state goes to `status.json`, rewritten whole on each
 from __future__ import annotations
 
 import json
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -27,6 +28,7 @@ class StatusBoard:
         self._pid = pid
         self._lanes: dict[int, LaneState] = {}
         self._lock = threading.Lock()
+        self._failed = False
 
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""
@@ -62,12 +64,25 @@ class StatusBoard:
                 self._write()
 
     def _write(self) -> None:
+        """Rewrites the file; one that can't be written is said once, and never ends a run.
+
+        Tool uses come from the thread that reads a run's output: an error there would end it.
+        """
         lanes = {str(lane): asdict(state) for lane, state in self._lanes.items()}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        staged = self.path.with_suffix(".tmp")
-        staged.write_text(json.dumps({"pid": self._pid, "lanes": lanes}), encoding="utf-8")
-        # A reader never sees the file half written.
-        staged.replace(self.path)
+        # Named after this runner, so that another one writing here never takes it away.
+        staged = self.path.with_name(f"{self.path.stem}.{self._pid}.tmp")
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            staged.write_text(json.dumps({"pid": self._pid, "lanes": lanes}), encoding="utf-8")
+            # A reader never sees the file half written.
+            staged.replace(self.path)
+        except OSError as error:
+            if not self._failed:
+                self._failed = True
+                sys.stderr.write(
+                    f"agent-batch: couldn't write the lanes' live state to {self.path}, so "
+                    f"`agent-batch status` won't show it: {error}\n"
+                )
 
 
 def running(state_dir: Path) -> list[Row]:
