@@ -119,18 +119,24 @@ class Claude:
         start = _size(self._denials)
         done = proc.stream(argv, cwd, self._env, limit, self._follower(cwd))
         if done.timed_out:
-            return ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
-        if not results.ends_in_result(done.out):
+            run = ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
+        elif not results.ends_in_result(done.out):
             error = done.err.strip() or f"claude exited with code {done.code}"
-            return ClaudeRun(None, None, error, limit_reached=bool(results.LIMIT.search(error)))
-        return self._with_logged(results.parse_run(done.out), start)
+            run = ClaudeRun(None, None, error, limit_reached=bool(results.LIMIT.search(error)))
+        else:
+            run = results.parse_run(done.out)
+        return self._with_logged(run, run.session_id or results.stream_session(done.out), start)
 
-    def _with_logged(self, run: ClaudeRun, start: int) -> ClaudeRun:
-        """The run, with the denials the hook logged for its session since it started (#147)."""
-        if self._denials is None or run.session_id is None:
+    def _with_logged(self, run: ClaudeRun, session: str | None, start: int) -> ClaudeRun:
+        """The run, with the denials the hook logged for its session since it started (#147).
+
+        A run that ends without its result, as one that times out, still names its session in
+        the stream's first message, and its denials count as well.
+        """
+        if self._denials is None or session is None:
             return run
-        entries = denial_log.logged(_read_from(self._denials, start), run.session_id)
-        return replace(run, denials=denial_log.combined(run.denials, entries, run.session_id))
+        entries = denial_log.logged(_read_from(self._denials, start), session)
+        return replace(run, denials=denial_log.combined(run.denials, entries, session))
 
     def _follower(self, cwd: Path) -> Callable[[str], None]:
         """Reads each line of the run's stream for its tool uses, with paths from its folder."""

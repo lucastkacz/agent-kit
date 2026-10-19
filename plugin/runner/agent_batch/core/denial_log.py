@@ -61,7 +61,9 @@ def combined(
     unmatched = Counter((denial.tool, summary(denial.tool_input)) for denial in answer)
     extra: list[Denial] = []
     for entry in entries:
-        key = (entry.tool, str(entry.tool_input.get(LOGGED_INPUT, "")))
+        # The hook logs "" for an input that isn't an object, which the answer reads as {}.
+        shown = str(entry.tool_input.get(LOGGED_INPUT, "")) or summary({})
+        key = (entry.tool, shown)
         if unmatched[key] > 0:
             unmatched[key] -= 1
         else:
