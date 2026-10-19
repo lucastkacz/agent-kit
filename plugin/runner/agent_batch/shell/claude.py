@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -75,31 +76,26 @@ def command(
 
 
 class Claude:
-    def __init__(
-        self,
-        env: Mapping[str, str],
-        config: Config,
-        model: str | None = None,
-        effort: str | None = None,
-        watcher: Watcher | None = None,
-        denials: Path | None = None,
-    ) -> None:
+    def __init__(self, env: Mapping[str, str], config: Config, denials: Path | None = None) -> None:
         self._env = env
         self._config = config
-        self._model = model
-        self._effort = effort
-        self._watcher = watcher
         # The PermissionDenied hook's log, whose entries of a run's session are its denials too.
         self._denials = denials
+        self._model: str | None = None
+        self._effort: str | None = None
+        self._watcher: Watcher | None = None
 
     def with_model(self, model: str | None, effort: str | None) -> Claude:
         """The same runs, on this model and effort (SPEC §11.1)."""
-        return Claude(self._env, self._config, model, effort, self._watcher, self._denials)
+        other = copy.copy(self)
+        other._model, other._effort = model, effort
+        return other
 
     def watching(self, watch: Watch, count: Count) -> Claude:
         """The same runs, handing `watch` each of their tool uses and `count` their tokens."""
-        watcher = Watcher(watch, count)
-        return Claude(self._env, self._config, self._model, self._effort, watcher, self._denials)
+        other = copy.copy(self)
+        other._watcher = Watcher(watch, count)
+        return other
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
