@@ -49,8 +49,7 @@ A bug, an idea or an improvement outside the issue goes in `found`, with its kin
 ## 5. When to stop
 
 - **`blocked`:** a decision is the owner's, or the issue's "Stop and ask if" happened, or the issue contradicts the code or itself. The owner's decisions are product behavior, money, credentials, real data, new dependencies and anything irreversible. Write the question so the owner can answer it in one line: give the options and your recommendation.
-- **`failed`:** a technical problem you can't solve, such as a broken tool or a check you can't make pass. Say what you tried.
-- When a check fails in code your branch didn't touch, don't check master yourself, in another worktree or otherwise, and don't fix it on this branch: answer `failed`, naming the failing tests and why they aren't the branch's.
+- **`failed`:** a technical problem you can't solve, such as a broken tool or a check you can't make pass. Say what you tried. When a check fails in code your branch didn't touch, don't check master yourself, in another worktree or otherwise, and don't fix it on this branch: answer `failed`, naming the failing tests and why they aren't the branch's.
 - **Never:** push, merge, switch branches, rewrite history, read secrets or touch `.env` files. The runner pushes and opens the pull request.
 
 ## 6. Answer
