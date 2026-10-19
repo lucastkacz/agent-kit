@@ -59,7 +59,7 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
     except CommandError as error:
         report.outcome, report.detail = Outcome.FAILED, str(error)
     report.seconds = ctx.clock() - started
-    _announce(ctx, report)
+    announce(ctx, report)
     ctx.events.emit(
         "issue_finished",
         lane=lane.index,
@@ -365,7 +365,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     ctx.gh.edit_pr(_pr(job), title, body)
 
 
-def _announce(ctx: Context, report: IssueReport) -> None:
+def announce(ctx: Context, report: IssueReport) -> None:
     """Writes a blocked or failed issue's question on GitHub, where the owner will see it."""
     if report.outcome not in (Outcome.BLOCKED, Outcome.FAILED):
         return
@@ -380,6 +380,8 @@ def _announce(ctx: Context, report: IssueReport) -> None:
     try:
         ctx.gh.add_label(report.number, BLOCKED)
         ctx.gh.comment(report.number, body)
+        # A lane's set-aside reports start out unannounced; this one now has its comment.
+        report.unannounced = False
     except CommandError as error:
         report.unannounced = True
         ctx.events.emit("announce_failed", issue=report.number, detail=str(error))
