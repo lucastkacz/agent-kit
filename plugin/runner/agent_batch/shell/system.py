@@ -1,4 +1,4 @@
-"""Keeping the computer awake while a batch runs, and knowing when it can't."""
+"""Keeping the computer awake during a batch, knowing when it can't, and if a runner still runs."""
 
 from __future__ import annotations
 
@@ -40,3 +40,16 @@ def on_battery() -> bool:
     except (OSError, subprocess.TimeoutExpired):
         return False
     return done.returncode == 0 and "'Battery Power'" in done.stdout
+
+
+def is_running(pid: int) -> bool:
+    """Whether a process with this id still runs, so that a killed runner's state is left out."""
+    if os.name != "posix":
+        return True  # Elsewhere, `os.kill` with signal 0 would end the process instead.
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # It runs, as another user.
+    return True

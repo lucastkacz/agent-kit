@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, naming, prompts
+from agent_batch.core import eligibility, naming, progress, prompts
 from agent_batch.core.model import ImplementResult, Issue, IssueReport, Outcome
 from agent_batch.pipeline import (
     Job,
@@ -35,11 +35,16 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
     if not branch.startswith(f"{number}-"):
         raise ShipError(f"ship #{number} from a branch named {number}-<short-name>, not {branch!r}")
     work = ImplementResult("done", title, body, "", ())
-    job = Job(issue, branch, IssueReport(number, Outcome.FAILED), work)
+    # `ship` runs one review round, and starts at the pipeline's review (SPEC §5).
+    report = IssueReport(number, Outcome.FAILED, review_rounds=1)
+    job = Job(issue, branch, report, work)
+    ctx.status.start(lane.index, progress.LaneState(number, progress.REVIEW, ctx.clock(), 1))
     try:
         return _ship(ctx, lane, job, title)
     except Stopped as stop:
         raise ShipError(stop.detail) from stop
+    finally:
+        ctx.status.drop(lane.index)
 
 
 def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
@@ -54,6 +59,7 @@ def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
     job.findings = review.findings
     pr = publish(ctx, lane, job)
     _explain_title(title, job.issue)
+    ctx.status.step(lane.index, progress.RISK_AND_MERGE)
     level = classify(ctx, lane, job)
     if level.high:
         hold(ctx, pr, level)

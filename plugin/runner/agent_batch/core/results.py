@@ -74,10 +74,31 @@ _STATUSES: dict[str, ImplementStatus] = {"done": "done", "blocked": "blocked", "
 _KINDS: dict[str, IssueKind] = {"bug": "bug", "idea": "idea", "task": "task"}
 
 
-def parse_run(stdout: str) -> ClaudeRun:
-    """Reads what `claude -p --output-format json` printed."""
+def ends_in_result(stdout: str) -> bool:
+    """Whether what `claude -p --output-format stream-json` printed ends in its result message.
+
+    A run that ends without it, as one that dies, says why on its standard error.
+    """
     try:
-        raw = json.loads(stdout)
+        raw = json.loads(_last_line(stdout))
+    except json.JSONDecodeError:
+        return False
+    return isinstance(raw, dict) and raw.get("type") == "result"
+
+
+def _last_line(stdout: str) -> str:
+    lines = stdout.strip().splitlines()
+    return lines[-1] if lines else ""
+
+
+def parse_run(stdout: str) -> ClaudeRun:
+    """Reads the result message that ends what `claude -p --output-format stream-json` printed.
+
+    The result carries the run's answer, its denials, its cost and its session, as the single
+    answer of `--output-format json` did.
+    """
+    try:
+        raw = json.loads(_last_line(stdout))
     except json.JSONDecodeError:
         return ClaudeRun(None, None, "the run printed something that isn't JSON")
     if not isinstance(raw, dict):

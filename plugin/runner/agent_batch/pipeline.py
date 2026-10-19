@@ -6,7 +6,7 @@ import time
 from dataclasses import asdict, dataclass
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, merge, naming, prompts, results, risk, rounds
+from agent_batch.core import eligibility, merge, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
@@ -22,6 +22,7 @@ from agent_batch.core.model import (
     RunDenial,
     RunKind,
 )
+from agent_batch.shell.claude import Claude
 from agent_batch.shell.proc import CommandError
 
 RISK_PATHS = ".claude/risk-paths"
@@ -80,6 +81,10 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
     job = Job(issue=issue, branch=naming.branch_name(issue), report=report)
     ctx.git.start_branch(lane.worktree, job.branch)
     ctx.events.emit("issue_started", lane=lane.index, issue=number, branch=job.branch)
+    state = progress.LaneState(
+        number, progress.IMPLEMENTATION, ctx.clock(), ctx.config.review_rounds
+    )
+    ctx.status.start(lane.index, state)
     _start_work(ctx, lane, job)
     review_until_approved(ctx, lane, job)
     publish(ctx, lane, job)
@@ -104,14 +109,19 @@ def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
     reuse = lane.session_id is not None and lane.session_issues < ctx.config.issues_per_session
     prompt = prompts.implement(job.issue.number)
-    run = ctx.claude.implement(lane.worktree, prompt, lane.session_id if reuse else None)
+    run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
     lane.session_issues = lane.session_issues + 1 if reuse else 1
     lane.session_id = run.session_id
     _accept_work(ctx, lane, job, run)
 
 
+def watched(ctx: Context, lane: Lane) -> Claude:
+    """The runs, each of whose tool uses becomes the lane's last action as it goes (#107)."""
+    return ctx.claude.watching(lambda action: ctx.status.act(lane.index, action, ctx.clock()))
+
+
 def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
-    work = results.to_implement(_checked(ctx, run, job.report, "implementation"))
+    work = results.to_implement(_checked(ctx, lane, run, job.report, "implementation"))
     if work is None:
         raise Stopped(Outcome.FAILED, "the implementer's answer doesn't match its schema")
     if work.status == "blocked":
@@ -122,7 +132,9 @@ def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
     job.work = work
 
 
-def _checked(ctx: Context, run: ClaudeRun, report: IssueReport, what: RunKind) -> dict[str, object]:
+def _checked(
+    ctx: Context, lane: Lane, run: ClaudeRun, report: IssueReport, what: RunKind
+) -> dict[str, object]:
     for denial in run.denials:
         report.denials.append(RunDenial(what, denial))
         ctx.events.emit(
@@ -133,6 +145,7 @@ def _checked(ctx: Context, run: ClaudeRun, report: IssueReport, what: RunKind) -
             input=denial.tool_input,
         )
     report.cost_usd += run.cost_usd
+    ctx.status.spent(lane.index, report.cost_usd)
     if run.limit_reached:
         raise Stopped(Outcome.INTERRUPTED, "the subscription's usage limit was reached")
     if run.error is not None or run.data is None:
@@ -163,7 +176,8 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
                 f"The review still asks for changes after {most} rounds:\n\n{findings}",
             )
         prompt = prompts.fix(job.issue.number, review.findings)
-        run = ctx.claude.implement(lane.worktree, prompt, lane.session_id)
+        ctx.status.step(lane.index, progress.IMPLEMENTATION)
+        run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
         lane.session_id = run.session_id or lane.session_id
         _accept_work(ctx, lane, job, run)
 
@@ -173,8 +187,9 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
     number = len(earlier) + 1
     head = ctx.git.head(lane.worktree)
-    run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number, earlier))
-    answer = results.to_review(_checked(ctx, run, job.report, "review"))
+    ctx.status.step(lane.index, progress.REVIEW, job.report.review_rounds)
+    run = watched(ctx, lane).review(lane.worktree, prompts.review(job.issue.number, earlier))
+    answer = results.to_review(_checked(ctx, lane, run, job.report, "review"))
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
     review, filed = rounds.settle(answer, number)
@@ -199,6 +214,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
 def publish(ctx: Context, lane: Lane, job: Job) -> int:
     """Pushes the branch, opens or updates its PR and files the work found along the way."""
     work = _work(job)
+    ctx.status.step(lane.index, progress.PULL_REQUEST)
     ctx.git.push(lane.worktree, job.branch)
     title, body = _pr_text(job)
     pr = ctx.gh.find_pr(job.branch)
@@ -248,6 +264,7 @@ def hold(ctx: Context, pr: int, level: Risk) -> None:
 
 
 def _route(ctx: Context, lane: Lane, job: Job) -> Outcome:
+    ctx.status.step(lane.index, progress.RISK_AND_MERGE)
     level = classify(ctx, lane, job)
     if level.high:
         hold(ctx, _pr(job), level)
@@ -304,8 +321,8 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     conflicts = ctx.git.merge_upstream(lane.worktree)
     if conflicts:
         prompt = prompts.resolve(job.issue.number, upstream, conflicts)
-        run = ctx.claude.resolve(lane.worktree, prompt)
-        answer = results.to_resolve(_checked(ctx, run, job.report, "conflict resolution"))
+        run = watched(ctx, lane).resolve(lane.worktree, prompt)
+        answer = results.to_resolve(_checked(ctx, lane, run, job.report, "conflict resolution"))
         if answer is None or not answer.resolved:
             reason = answer.message if answer is not None else "its answer doesn't match its schema"
             raise Stopped(

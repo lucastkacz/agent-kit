@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from agent_batch.core import results
+from agent_batch.core import progress, results
 from agent_batch.core.config import Config
 from agent_batch.core.model import ClaudeRun
 from agent_batch.shell import proc
 
 SETTINGS = Path(__file__).resolve().parent.parent / "data" / "batch-settings.json"
+# Called with each tool use of a run, in short form, as the run goes (#107).
+Watch = Callable[[str], None]
 
 # The reviewer reads and runs the checks; it never edits, commits, pushes or writes to GitHub.
 # `gh pr` and `gh api` can write, so it reads pull requests and the API through `gh-read` (#72).
@@ -46,11 +48,12 @@ def command(
     """Every run's command line: one prompt, a JSON answer checked against a schema, no prompts.
 
     The prompt goes right after `-p`, and the model and effort before `options`, because the tool
-    lists in `options` take every word after them.
+    lists in `options` take every word after them. The run prints each of its messages as it goes,
+    which `-p` does only with `--verbose`, and ends with its result.
     """
     return [
         "claude", "-p", prompt,
-        "--output-format", "json",
+        "--output-format", "stream-json", "--verbose",
         "--json-schema", json.dumps(schema),
         "--permission-prompts", "none",
         "--settings", str(SETTINGS),
@@ -67,15 +70,21 @@ class Claude:
         config: Config,
         model: str | None = None,
         effort: str | None = None,
+        watch: Watch | None = None,
     ) -> None:
         self._env = env
         self._config = config
         self._model = model
         self._effort = effort
+        self._watch = watch
 
     def with_model(self, model: str | None, effort: str | None) -> Claude:
         """The same runs, on this model and effort (SPEC §11.1)."""
-        return Claude(self._env, self._config, model, effort)
+        return Claude(self._env, self._config, model, effort, self._watch)
+
+    def watching(self, watch: Watch) -> Claude:
+        """The same runs, handing `watch` each of their tool uses as they go."""
+        return Claude(self._env, self._config, self._model, self._effort, watch)
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
@@ -107,13 +116,31 @@ class Claude:
     ) -> ClaudeRun:
         limit = timeout if timeout is not None else self._config.implement_timeout
         argv = command(prompt, schema, options, model=self._model, effort=self._effort)
-        done = proc.run(argv, cwd, env=self._env, timeout=limit)
+        done = proc.stream(argv, cwd, self._env, limit, self._follower(cwd))
         if done.timed_out:
             return ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
-        if not done.out.strip():
+        if not results.ends_in_result(done.out):
             error = done.err.strip() or f"claude exited with code {done.code}"
             return ClaudeRun(None, None, error, limit_reached=bool(results.LIMIT.search(error)))
         return results.parse_run(done.out)
+
+    def _follower(self, cwd: Path) -> Callable[[str], None]:
+        """Reads each line of the run's stream for its tool uses, with paths from its folder."""
+        watch = self._watch
+        if watch is None:
+            return _ignore
+        # The tools name files by their real path, so a folder behind a link is resolved too.
+        root = str(cwd.resolve())
+
+        def follow(line: str) -> None:
+            for action in progress.actions(line, root):
+                watch(action)
+
+        return follow
+
+
+def _ignore(_line: str) -> None:
+    """Follows a run that no one watches."""
 
 
 def _resume(session: str | None) -> list[str]:
