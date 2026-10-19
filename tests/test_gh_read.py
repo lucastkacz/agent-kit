@@ -64,14 +64,19 @@ class FakeGh:
         return self.args_file.read_text(encoding="utf-8").splitlines()
 
 
-@pytest.fixture
-def gh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeGh:
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
+@pytest.fixture(scope="session")
+def gh_bin(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Written once: macOS checks a new executable on its first run, which takes seconds."""
+    bin_dir = tmp_path_factory.mktemp("gh-read-bin")
     fake = bin_dir / "gh"
     fake.write_text(FAKE_GH)
-    fake.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}:/usr/bin:/bin")
+    fake.chmod(0o555)
+    return bin_dir
+
+
+@pytest.fixture
+def gh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gh_bin: Path) -> FakeGh:
+    monkeypatch.setenv("PATH", f"{gh_bin}:/usr/bin:/bin")
     monkeypatch.setenv("FAKE_GH_ARGS", str(tmp_path / "gh-args"))
     monkeypatch.setenv("FAKE_GH_CODE", "0")
     monkeypatch.chdir(tmp_path)

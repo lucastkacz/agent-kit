@@ -18,9 +18,8 @@ exit 1
 
 
 def _failing_inhibit(world: World) -> None:
+    world.replace_fake("systemd-inhibit", FAILING_INHIBIT)
     fake = world.root / "bin" / "systemd-inhibit"
-    fake.write_text(FAILING_INHIBIT)
-    fake.chmod(0o755)
     # macOS checks a new executable on its first run, which can take longer than INHIBIT_GRACE.
     subprocess.run([str(fake)], capture_output=True, check=False)
 
