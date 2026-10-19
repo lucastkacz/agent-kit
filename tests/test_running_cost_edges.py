@@ -50,11 +50,14 @@ def test_a_messages_tokens_add_every_kind_and_skip_what_isnt_a_count() -> None:
 
 def test_the_recorded_streams_messages_each_carry_their_id_and_tokens() -> None:
     messages = json.loads(RECORDED.read_text(encoding="utf-8"))
-    counted = [progress.usage(json.dumps(message)) for message in messages]
+    assistants = [message for message in messages if message.get("type") == "assistant"]
 
-    found = {entry for entry in counted if entry is not None}
-    assert len(found) == 3
-    assert all(tokens > 0 for _, tokens in found)
+    # Each `make contract` records a different number of messages, so only what each carries counts.
+    assert assistants, "the recording has no assistant message"
+    for message in assistants:
+        entry = progress.usage(json.dumps(message))
+        assert entry is not None, f"an assistant message has no id or no usage: {message}"
+        assert entry[1] > 0, f"message {entry[0]} has no tokens"
 
 
 def test_a_run_that_ended_without_a_cost_leaves_the_rate_unset(tmp_path: Path) -> None:
