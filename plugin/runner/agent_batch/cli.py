@@ -110,7 +110,13 @@ def _run(args: argparse.Namespace) -> int:
     awake = keep_awake(sys.platform)
     try:
         limits = Limits(args.max_issues, args.max_hours, args.lanes, args.model, args.effort)
-        return run_batch(ctx, args.batch, limits, on_battery=on_battery(sys.platform))
+        return run_batch(
+            ctx,
+            args.batch,
+            limits,
+            kept_awake=awake is not None,
+            on_battery=on_battery(sys.platform),
+        )
     finally:
         if awake is not None:
             awake.terminate()
@@ -157,6 +163,7 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         gh=gh,
         claude=Claude(env, config),
         events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
-        # The wall clock: on macOS, `time.monotonic` stops while the computer sleeps (#28).
+        # The wall clock: a monotonic clock can stop while the computer sleeps, as
+        # `time.monotonic` does on macOS and Linux (#28).
         clock=time.time,
     )
