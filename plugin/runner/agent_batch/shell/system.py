@@ -7,15 +7,19 @@ power supplies on Linux. Elsewhere, or without the tool, the batch can't keep th
 from __future__ import annotations
 
 import os
+import select
 import shutil
 import subprocess
 from pathlib import Path
+from typing import IO
 
 PMSET_TIMEOUT = 10
 POWER_SUPPLIES = Path("/sys/class/power_supply")
 INHIBIT_WHY = "agent-batch is running a batch"
-# `systemd-inhibit` that can't take its lock (no system bus, or polkit says no) exits at once.
-INHIBIT_GRACE = 0.5
+# `systemd-inhibit` runs its command only once it holds the lock, and the command says so first.
+INHIBIT_HELD = "held"
+# How long the batch's start waits for a `systemd-inhibit` that neither takes its lock nor exits.
+INHIBIT_WAIT = 10.0
 
 
 def keep_awake(platform: str) -> subprocess.Popen[bytes] | None:
@@ -73,10 +77,12 @@ def _systemd_inhibit() -> subprocess.Popen[bytes] | None:
     """`systemd-inhibit` on Linux, around a `tail` that exits with this process.
 
     Terminating `systemd-inhibit` ends the hold; its `tail` follows when this process ends.
-    One that fails within `INHIBIT_GRACE` seconds holds nothing, so it counts as None.
+    Its command says it holds the lock and then becomes the `tail`, so one that exits without
+    saying so (no system bus, or polkit says no), or says nothing within `INHIBIT_WAIT` seconds,
+    holds nothing: it is ended, and counts as None.
     """
-    inhibit, tail = shutil.which("systemd-inhibit"), shutil.which("tail")
-    if inhibit is None or tail is None:
+    inhibit, sh, tail = shutil.which("systemd-inhibit"), shutil.which("sh"), shutil.which("tail")
+    if inhibit is None or sh is None or tail is None:
         return None
     awake = subprocess.Popen(
         [
@@ -84,17 +90,33 @@ def _systemd_inhibit() -> subprocess.Popen[bytes] | None:
             "--what=idle:sleep",
             f"--why={INHIBIT_WHY}",
             "--mode=block",
+            sh,
+            "-c",
+            f'echo {INHIBIT_HELD} && exec "$0" "$@"',
             tail,
             f"--pid={os.getpid()}",
             "-f",
             "/dev/null",
-        ]
+        ],
+        stdout=subprocess.PIPE,
     )
-    try:
-        failed = awake.wait(timeout=INHIBIT_GRACE) != 0
-    except subprocess.TimeoutExpired:
+    if awake.stdout is not None and _says_held(awake.stdout):
         return awake
-    return None if failed else awake
+    awake.kill()
+    awake.wait()
+    return None
+
+
+def _says_held(said: IO[bytes]) -> bool:
+    """Whether the command says it holds the lock before its output ends or `INHIBIT_WAIT` passes.
+
+    Reading the pipe needs no clock: a `systemd-inhibit` that fails ends it however slowly it
+    starts. The pipe is closed after, as the `tail` writes nothing to it.
+    """
+    with said:
+        ready, _, _ = select.select([said], [], [], INHIBIT_WAIT)
+        line = os.read(said.fileno(), len(INHIBIT_HELD) + 1) if ready else b""
+        return line == f"{INHIBIT_HELD}\n".encode()
 
 
 def _power_supplies_on_battery(supplies: Path) -> bool:

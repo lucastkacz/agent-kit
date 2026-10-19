@@ -35,9 +35,12 @@ PMSET = """#!/bin/sh
 [ "$*" = "-g batt" ] || exit 64
 cat "$FAKE_PMSET_OUTPUT"
 """
-# `systemd-inhibit` writes down its arguments, like `caffeinate`.
+# `systemd-inhibit` writes down its arguments, like `caffeinate`, and holds the lock at once: it
+# runs its command, what follows its flags.
 SYSTEMD_INHIBIT = """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_SYSTEMD_INHIBIT_LOG"
+while [ "${1#--}" != "$1" ]; do shift; done
+exec "$@"
 """
 
 
