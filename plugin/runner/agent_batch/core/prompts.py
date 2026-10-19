@@ -42,9 +42,16 @@ def _earlier(finding: Finding, number: int) -> str:
 
 
 def fix(number: int, findings: Sequence[Finding]) -> str:
+    # The next review reads only `git log --oneline`, so an answer's subject names the location.
     return (
-        f"The reviewer asked for changes on #{number}. Address each finding, keep `make check` "
-        "passing, commit, and answer with the same JSON as before.\n\n" + findings_list(findings)
+        f"The reviewer asked for changes on #{number}. Fix or answer each finding, keep "
+        "`make check` passing, commit, and answer with the same JSON as before.\n\n"
+        "Fix every finding you agree with. Answer one only when you're sure it's wrong, or when "
+        "it asks for work outside the issue. An answer is a commit whose subject names the "
+        "finding's location and whose body says why it stays as it is (`git commit "
+        "--allow-empty` when nothing else changes), or a code comment where the finding points.\n"
+        "Always fix a finding about `make check` failing, missing or changed acceptance tests, "
+        "or an unmet criterion.\n\n" + findings_list(findings)
     )
 
 
