@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass
 
-from agent_batch import follow_up
+from agent_batch import filing
 from agent_batch.context import Context, Lane
 from agent_batch.core import eligibility, merge, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
@@ -215,7 +215,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     # The issue goes before the event: if filing fails, this round isn't logged and runs again.
     # That can file a finding twice, but the next round never reads as filed one that wasn't.
     found = [rounds.found_issue(finding, number) for finding in filed]
-    follow_up.file(ctx, job.issue.number, job.branch, found)
+    filing.file(ctx, job.issue.number, job.branch, found)
     # Every finding, filed ones included, so that the next review can read what this one found.
     # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
     ctx.events.emit(
@@ -247,7 +247,7 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         ctx.gh.edit_pr(pr, title, body)
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
-    follow_up.file(ctx, job.issue.number, job.branch, work.found)
+    filing.file(ctx, job.issue.number, job.branch, work.found)
     return pr
 
 

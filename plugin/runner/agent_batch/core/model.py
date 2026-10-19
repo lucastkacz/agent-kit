@@ -45,7 +45,7 @@ class Closure:
 
 @dataclass(frozen=True)
 class FoundIssue:
-    """Work an implementer found along the way, to become an issue of its own."""
+    """Work found along the way, one item of its PR's follow-up issue (SPEC §4.5)."""
 
     kind: IssueKind
     title: str
