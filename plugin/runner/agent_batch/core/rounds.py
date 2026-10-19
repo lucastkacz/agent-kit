@@ -17,11 +17,13 @@ TITLE_WIDTH = 72
 
 @dataclass(frozen=True)
 class Round:
-    """One review of a branch: its place in the order, the commit it read and what it found."""
+    """One review of a branch: its place in the order, the commit it read, what it found and
+    whether it approved the branch."""
 
     number: int
     head: str
     findings: tuple[Finding, ...]
+    approved: bool = False
 
 
 def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round, ...]:
@@ -33,8 +35,21 @@ def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round
         # Reviews logged before #74 kept only how many findings they had, and no branch.
         if record.get("branch") != branch or not isinstance(head, str) or findings is None:
             continue
-        rounds.append(Round(len(rounds) + 1, head, findings))
+        approved = record.get("approved") is True
+        rounds.append(Round(len(rounds) + 1, head, findings, approved))
     return tuple(rounds)
+
+
+def approved_findings(earlier: Iterable[Round], head: str) -> tuple[Finding, ...] | None:
+    """The findings the PR's body keeps from an approved review of `head`, if one read it.
+
+    They leave out what that review filed in the follow-up, as they did when it ran.
+    """
+    for review in earlier:
+        if review.approved and review.head == head:
+            kept, _ = settle(ReviewResult(approved=True, findings=review.findings), review.number)
+            return kept.findings
+    return None
 
 
 def filed(finding: Finding, number: int) -> bool:
