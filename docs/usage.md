@@ -38,7 +38,7 @@ That writes the marketplace and `"enabledPlugins": {"agent-kit@agent-kit": true}
 
 Then start a new session in the project. `agent-batch` joins the PATH, and the hooks start working: they keep commits and pushes off `master`, show what waits for you when a session starts, and log permission denials. `language` is the language Claude talks to you in.
 
-The plugin also shows the batch's progress under the prompt, on one line that starts with `⚠ agent-kit:`: each running lane's and `ship`'s issue, step, and review round or minutes, such as `L1 #75 review 2/2 · L2 #66 implement 12m · ship #79 review 1/1`, or the branch when nothing runs. It's `agent-batch status --line`, run every few seconds, which reads only the runner's state files. It needs Claude Code 2.1.287 or later; an older one leaves the line out.
+The plugin also shows the batch's progress under the prompt, on one line that starts with `⚠ agent-kit:`: each running lane's and `ship`'s issue, step, and review round or minutes, such as `L1 #75 review 2/2 · L2 #66 implement 12m · ship #79 review 1/1`, or the branch when nothing runs. It shows only in a project whose settings enable agent-kit. It's `agent-batch status --line`, run every few seconds, which reads only the runner's state files. It needs Claude Code 2.1.287 or later; an older one leaves the line out.
 
 ## The batch runner
 

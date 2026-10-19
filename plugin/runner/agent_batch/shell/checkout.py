@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from agent_batch.core import project
+
 GITDIR = "gitdir:"
 BRANCH_REF = "ref: refs/heads/"
 SHORT_SHA = 7
@@ -58,3 +60,15 @@ def _branch(git_dir: Path) -> str:
     if head.startswith(BRANCH_REF):
         return head.removeprefix(BRANCH_REF)
     return head[:SHORT_SHA]
+
+
+def enabled_here(root: Path) -> bool:
+    """Whether the project at `root` enables agent-kit in its own settings (SPEC §13)."""
+    for name in project.SETTINGS:
+        try:
+            text = (root / name).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if project.enables_agent_kit(text):
+            return True
+    return False

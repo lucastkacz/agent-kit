@@ -232,6 +232,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     filing.file(ctx, job.issue.number, job.branch, found)
     # Every finding, filed ones included, so that the next review can read what this one found.
     # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
+    # Its tokens price a resumed batch's runs before any of its own has ended (#156).
     ctx.events.emit(
         "reviewed",
         lane=lane.index,
@@ -242,6 +243,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
         approved=review.approved,
         findings=[asdict(finding) for finding in answer.findings],
         cost_usd=run.cost_usd,
+        tokens=run.tokens,
         seconds=round(seconds, 1),
     )
     return review
