@@ -5,7 +5,9 @@ Each test checks the few words that carry the behavior, so rewording the skill d
 
 from __future__ import annotations
 
-from test_skill_run_batch_trial_merge import TRIAL, section
+from test_skill_run_batch_trial_merge import SKILL, TRIAL, section
+
+ACCEPT = SKILL.parents[1] / "accept-batch" / "SKILL.md"
 
 
 def has(text: str, *tokens: str) -> None:
@@ -35,3 +37,20 @@ def test_a_pr_is_brought_up_to_date_in_a_ship_worktree_made_as_for_a_cloud_branc
     has(trial, "git fetch origin <branch>", 'as in "Bring a cloud branch back" step 3')
     assert "the lane's worktree for a lane's" not in trial, trial
     assert "-b <branch>" not in trial, trial
+
+
+def test_the_trial_comments_its_result_on_the_tracking_issue() -> None:
+    trial = section(TRIAL)
+    has(trial, "Comment the trial's result on the tracking issue", "`## Trial merge`")
+    has(trial, "the PRs that merged cleanly, in the trial's order", "each PR left out, with why")
+    assert trial.index("8. Comment the trial's result") > trial.index("7. "), trial
+
+
+def test_accept_batch_builds_its_merge_command_from_the_trials_comment() -> None:
+    text = ACCEPT.read_text(encoding="utf-8")
+    start = text.index("### 2.2 ")
+    step = text[start : text.index("\n### ", start + 1)]
+    has(step, "starts with `## Trial merge`", "only the PRs it merged cleanly, in its order")
+    has(step, "List each PR it left out apart", "`|| break` stops at the first PR")
+    gather = text[text.index("## 1. Gather everything") : start]
+    has(gather, "the latest comment that starts with `## Trial merge`")
