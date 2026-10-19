@@ -39,8 +39,6 @@ max-args = 5
 "tests/**" = ["S101", "PLR2004", "S603", "S607"]
 # The fakes stand in for command-line tools, and the tools are command-line tools.
 "tests/fakes/**" = ["T201"]
-# #70's acceptance tests are frozen after their commit, and their docstring's line is too long.
-"tests/test_skill_plan_batch_trusted_inputs.py" = ["E501"]
 "tools/**" = ["T201"]
 
 [tool.mypy]
