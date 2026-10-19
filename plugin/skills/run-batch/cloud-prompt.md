@@ -40,7 +40,7 @@ The process's rules, on top of the implement skill and the project's `CLAUDE.md`
 The run ends with this report as its final answer, after the push:
 
 1. **Status:** `done`; `blocked`, with the question for the owner in one line, its options and your recommendation; or `failed`, with what you tried.
-2. **Branch:** the exact branch name you pushed, and its head commit SHA, or why you couldn't push.
+2. **Branch:** the exact branch name you pushed, or why you couldn't push.
 3. **Found:** the work from the implement skill's step 4, each with its kind (`bug`, `idea` or `task`), a title and a body, else "None".
 4. **The environment:** anything that didn't work, and any command or tool call that was denied.
 
