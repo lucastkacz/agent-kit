@@ -86,10 +86,11 @@ class ResolveResult:
 
 @dataclass(frozen=True)
 class Denial:
-    """A tool call that the run's permissions refused."""
+    """A tool call that the run's permissions refused, and the session it was refused in."""
 
     tool: str
     tool_input: dict[str, object]
+    session: str | None = None
 
 
 @dataclass(frozen=True)

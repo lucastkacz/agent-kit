@@ -7,6 +7,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 
+from agent_batch.core.denial_log import LOGGED_INPUT
 from agent_batch.core.model import IssueReport, Outcome, RunDenial
 
 SECONDS_PER_MINUTE = 60
@@ -14,8 +15,9 @@ SECONDS_PER_MINUTE = 60
 COMMAND_CHARS = 200
 # GitHub refuses a comment over 65,536 characters; the event log keeps every denial anyway.
 DENIAL_LINES = 100
-# A denial is recognized by what it ran or touched; a file's content never goes to GitHub.
-SHOWN_INPUTS = ("command", "file_path", "url")
+# A denial is recognized by what it ran or touched; a file's content never goes to GitHub. The
+# hook's log keeps only that text, as `input`.
+SHOWN_INPUTS = ("command", "file_path", "url", LOGGED_INPUT)
 BACKTICKS = re.compile(r"`+")
 NEEDS_OWNER = (Outcome.WAITING_OWNER, Outcome.BLOCKED, Outcome.FAILED)
 EVENT_LOG = "the batch's event log (`events.jsonl`)"
