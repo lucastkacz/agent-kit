@@ -94,4 +94,6 @@ def _needs(report: IssueReport) -> str:
     if rest:
         line += " See " if line.endswith(("?", "!")) else "; see "
         line += EVENT_LOG if report.unannounced else f"{target}'s comment"
+    elif line.endswith(("?", "!")):
+        return line
     return line + "."
