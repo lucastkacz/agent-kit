@@ -223,7 +223,7 @@ For web apps (a headless browser) and command-line tools, this comes naturally.
 An agent runs the tests dozens of times per issue, so the speed of the tests is the speed of development.
 
 - **Test sizes.** Small tests touch no files, network or other processes, and take milliseconds. Medium tests use local resources, such as a temporary folder or a local database. Large tests drive the running app. `make test` runs the small and medium ones; `make e2e` runs the large ones.
-- **Time budgets.** `make test` finishes in under 30 seconds, and `make check` in under 5 minutes. A project that goes over gets a task to bring it back.
+- **Time budgets.** `make test` finishes in under 30 seconds, and `make check` in under 5 minutes, measured with no batch running: a batch's lanes run their tests at once on the same computer, and make each other's take several times as long. Evidence of a time gives the computer's load average beside it. A project that goes over gets a task to bring it back.
 - **Proportionate.** Checks fit the change. No mutation testing, no fan-out of parallel test processes that saturate the machine, and every check has a time limit. Review goes deep on high-risk changes and stays light on trivial ones.
 
 ### 7.4 Testability by design
