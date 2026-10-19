@@ -53,6 +53,8 @@ def test_each_tool_use_of_a_message_is_an_action() -> None:
         ("Bash", {"command": "\nmake check\nmore"}, "Bash(make check)"),
         ("Bash", "not an object", "Bash"),
         ("Glob", {"pattern": "**/*.py"}, "Glob"),
+        ("Bash", {"command": "printf '\x1b]0;title\x07'"}, "Bash(printf '?]0;title?')"),
+        ("Read", {"file_path": f"{ROOT}/a\x1b[2Jb.py"}, "Read(a?[2Jb.py)"),
     ],
 )
 def test_the_short_form_of_a_tool_use(tool: str, tool_input: object, shown: str) -> None:

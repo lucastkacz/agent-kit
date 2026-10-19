@@ -78,6 +78,8 @@ def short_action(tool: str, tool_input: object, root: str) -> str:
         detail = lines[0] if lines else ""
     if not detail:
         return tool
+    # The table goes to the owner's terminal, where an escape sequence could rewrite or garble it.
+    detail = "".join(char if char.isprintable() else "?" for char in detail)
     if len(detail) > INPUT_LENGTH:
         detail = detail[: INPUT_LENGTH - 1] + "…"
     return f"{tool}({detail})"
