@@ -63,7 +63,11 @@ Before answering, everything is committed, the working tree is clean, and `make 
 - **`message`:** the question when `blocked`, the reason when `failed`, and empty when `done`.
 - **`found`:** the work from step 4.
 
-When the reviewer's findings come back in this same session, address each one, keep `make check` green, commit, and answer again with the same fields.
+When the reviewer's findings come back in this same session, fix or answer each finding, keep `make check` green, commit, and answer again with the same fields:
+
+- Fix every finding you agree with. Answer one only when you're sure it's wrong, or when it asks for work outside the issue.
+- An answer is a commit whose subject names the finding's location and whose body says why it stays as it is (`git commit --allow-empty` when nothing else changes), or a code comment where the finding points. The next review reads only the commits' subjects, and treats an answered finding as settled.
+- Always fix a finding about `make check` failing, missing or changed acceptance tests, or an unmet criterion.
 
 ## Direct mode
 
@@ -73,4 +77,4 @@ When the owner is in the session and no answer format was given, talk to them in
 agent-batch ship $ARGUMENTS --title "<title>" --body-file <file>
 ```
 
-`agent-batch ship` runs a fresh review, opens the pull request and arms its merge. If the review asks for changes, address them and ship again.
+`agent-batch ship` runs a fresh review, opens the pull request and arms its merge. If the review asks for changes, fix or answer each finding by the rule in step 6, and ship again.
