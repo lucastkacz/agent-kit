@@ -71,7 +71,7 @@ One approval from the owner, for the whole batch. If they change something, upda
 
 Once the owner approves, in this order:
 
-1. Make each merge: write one issue that holds the merged ones, with the criteria of each, in the fields of step 3. Close each merged issue as a duplicate of it, with a comment that names it: `gh issue close <n> --reason "not planned" --comment "Merged into #<m>."`.
+1. Make each merge: write one issue that holds the merged ones, with the criteria of each, in the fields of step 3. Its `### Risk` is the highest of the merged issues': one high-risk issue makes the merge high risk, so it never merges without the owner (SPEC §9.2). Close each merged issue as a duplicate of it, with a comment that names it: `gh issue close <n> --reason "not planned" --comment "Merged into #<m>."`.
 2. Create a milestone named "Batch N", with N one more than the highest batch number so far, in the milestones' titles and in the `batch` issues' titles, closed ones included: `gh api --paginate 'repos/{owner}/{repo}/milestones?state=all' --jq '.[].title'` and `gh issue list --state all --label batch --limit 200 --json title`. Both list only open ones by default. Create it with `gh api repos/{owner}/{repo}/milestones -f title="Batch N"`.
 3. Open the tracking issue labeled `batch`, titled `Batch N: <goal>`, in the milestone, with these sections:
    - **Goal:** what the batch delivers, in one or two sentences.
