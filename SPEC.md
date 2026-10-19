@@ -357,7 +357,7 @@ Every repository protects `master` with a ruleset: changes go through a PR, the 
 
 ### 10.1 Zero prompts during a batch
 
-Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged: a batch's runs report theirs in their answers, the runner records each one as a `permission_denied` event and lists it in the batch's summary, and a hook logs those of an interactive session in `.agent-batch/denials.jsonl`. The protect-master hook also writes each command it blocks to `.agent-batch/denials.jsonl`, from any session: interactive sessions, a batch's lanes and the reviews; from a lane's worktree, to the main checkout's file. Acceptance reviews them, to fix the rule or the habit behind each one.
+Unattended runs never ask. Anything that would need a prompt is denied; the agent records it and moves on. Every denial is logged. A batch's runs report theirs in their answers, and a hook logs each auto-mode denial in `.agent-batch/denials.jsonl`, from any session of a project that enables the kit: an interactive session's, and a lane's, since the lanes run in auto mode. The runner records each denial of a run's answer, and each entry the hook logged for the run's session while it ran, as a `permission_denied` event with that session; a denial in both, as a protect-master block can be, counts once. The batch's summary lists and counts them. The protect-master hook also writes each command it blocks to `.agent-batch/denials.jsonl`, from any session: interactive sessions, a batch's lanes and the reviews; from a lane's worktree, to the main checkout's file. Acceptance reviews them, to fix the rule or the habit behind each one.
 
 ### 10.2 Rules
 
