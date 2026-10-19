@@ -122,6 +122,18 @@ class World:
     def on_battery(self) -> None:
         self.power.write_text(BATTERY_POWER)
 
+    def status_snapshots(self) -> list[dict[str, str]]:
+        """The runner's status files as the fake claude's `snapshot` steps found them, in order."""
+        log = self.claude_log.with_suffix(".status")
+        if not log.exists():
+            return []
+        return [json.loads(line)["status"] for line in log.read_text().splitlines()]
+
+    def restore_status(self, snapshot: dict[str, str]) -> None:
+        """Puts the status files back as a snapshot found them, as if those runs still went on."""
+        for name, text in snapshot.items():
+            (self.project / ".agent-batch" / name).write_text(text)
+
     def caffeinate_calls(self) -> list[list[str]]:
         if not self.caffeinate_log.exists():
             return []
@@ -229,6 +241,7 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setattr(system, "POWER_SUPPLIES", created.power_supplies)
     monkeypatch.setenv("FAKE_ORIGIN", str(origin))
     monkeypatch.setenv("FAKE_SLEPT", str(created.slept_file))
+    monkeypatch.setenv("FAKE_STATE_DIR", str(project / ".agent-batch"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("CLAUDECODE", "1")
     monkeypatch.setenv("AGENT_BATCH_POLL_SECONDS", "0.001")

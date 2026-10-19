@@ -3,7 +3,13 @@
 The scenario maps a kind of run (implement, review, fix, resolve) and an issue number to the steps
 that its calls take in order. A step can answer with an `output`, fail with an `error`, print `raw`
 text or `sleep`; when the steps run out, the run succeeds with a default answer. A step can also say
-the computer `slept` that many seconds: the test's wall clock moves on by them.
+the computer `slept` that many seconds: the test's wall clock moves on by them. Its `cost` is the
+run's cost in dollars, 0.01 by default.
+
+Asked for `--output-format stream-json`, it prints one message per line, as the real one does: its
+start, an assistant message for each of the step's `tools`, then its answer. With `snapshot`, it
+waits after each tool use until the runner's status files change, and keeps a copy of them. A
+step's `stderr` goes to its standard error.
 """
 
 from __future__ import annotations
@@ -32,6 +38,8 @@ DENIAL = {
     "tool_use_id": "toolu_fake",
     "tool_input": {"command": "git push origin HEAD"},
 }
+# How long a `snapshot` waits for the runner to show a tool use before it keeps what it finds.
+SNAPSHOT_WAIT = 5.0
 
 
 def default_output(kind: str, number: int) -> dict[str, Any]:
@@ -134,10 +142,69 @@ def result_json(kind: str, number: int, step: Step, count: int) -> dict[str, Any
         "is_error": False,
         "result": "",
         "session_id": f"session-{kind}-{number}-{count}",
-        "total_cost_usd": 0.01,
+        "total_cost_usd": step.get("cost", 0.01),
         "permission_denials": denials if isinstance(denials, list) else [DENIAL] * int(denials),
         "structured_output": step.get("output") or default_output(kind, number),
     }
+
+
+def tool_message(tool: Step) -> dict[str, Any]:
+    """An assistant message with one tool use, in the shape `claude-stream.json` recorded.
+
+    A relative `file_path` is taken from the run's folder, since the real tools take absolute ones.
+    """
+    tool_input = dict(tool.get("input", {}))
+    path = tool_input.get("file_path")
+    if isinstance(path, str) and not Path(path).is_absolute():
+        tool_input["file_path"] = str(Path.cwd() / path)
+    block = {"type": "tool_use", "id": "toolu_fake", "name": tool["name"], "input": tool_input}
+    return {
+        "type": "assistant",
+        "message": {"role": "assistant", "content": [block]},
+        "parent_tool_use_id": None,
+        "session_id": "session-fake",
+    }
+
+
+def emit(message: dict[str, Any]) -> None:
+    sys.stdout.write(json.dumps(message) + "\n")
+    sys.stdout.flush()
+
+
+def statuses() -> dict[str, str]:
+    """The runner's status files, by their path in its state folder."""
+    state = Path(os.environ["FAKE_STATE_DIR"])
+    return {
+        str(path.relative_to(state)): path.read_text()
+        for path in sorted(state.glob("*/status.json"))
+    }
+
+
+def snapshot(kind: str, number: int, before: dict[str, str]) -> None:
+    """Keeps the status files once the runner changed them, as `World.status_snapshots` reads."""
+    deadline = time.monotonic() + SNAPSHOT_WAIT
+    seen = statuses()
+    while seen == before and time.monotonic() < deadline:
+        time.sleep(0.01)
+        seen = statuses()
+    keep_snapshot(kind, number, seen)
+
+
+def keep_snapshot(kind: str, number: int, seen: dict[str, str]) -> None:
+    log = Path(os.environ["FAKE_CLAUDE_LOG"]).with_suffix(".status")
+    with log.with_suffix(".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with log.open("a") as out:
+            out.write(json.dumps({"kind": kind, "number": number, "status": seen}) + "\n")
+
+
+def stream_tools(kind: str, number: int, step: Step, count: int) -> None:
+    emit({"type": "system", "subtype": "init", "session_id": f"session-{kind}-{number}-{count}"})
+    for tool in step.get("tools", []):
+        before = statuses()
+        emit(tool_message(tool))
+        if step.get("snapshot"):
+            snapshot(kind, number, before)
 
 
 def answer(kind: str, number: int, step: Step, count: int) -> int:
@@ -147,23 +214,32 @@ def answer(kind: str, number: int, step: Step, count: int) -> int:
         commit_work(number, step.get("files"))
     if kind == "resolve" and output.get("status") == "resolved":
         resolve_conflicts()
-    sys.stdout.write(json.dumps(result))
+    sys.stdout.write(json.dumps(result) + "\n")
     return 0
+
+
+def streaming(argv: list[str]) -> bool:
+    return "--output-format" in argv and argv[argv.index("--output-format") + 1] == "stream-json"
 
 
 def main(argv: list[str]) -> int:
     kind, number = classify(argv[argv.index("-p") + 1])
     step, count = next_step(kind, number)
     record(argv, kind, number)
+    if streaming(argv):
+        stream_tools(kind, number, step, count)
     if "slept" in step:
         sleep_computer(float(step["slept"]))
     if "sleep" in step:
         time.sleep(float(step["sleep"]))
+    if "stderr" in step:
+        sys.stderr.write(str(step["stderr"]))
     if "raw" in step:
         sys.stdout.write(str(step["raw"]))
         return int(step.get("code", 0))
     if "error" in step:
-        sys.stdout.write(json.dumps({"type": "result", "is_error": True, "result": step["error"]}))
+        error = {"type": "result", "is_error": True, "result": step["error"]}
+        sys.stdout.write(json.dumps(error) + "\n")
         return 1
     return answer(kind, number, step, count)
 

@@ -92,7 +92,7 @@ def test_without_a_model_line_or_flags_the_command_line_is_as_before() -> None:
 
     assert argv == [
         "claude", "-p", "x",
-        "--output-format", "json",
+        "--output-format", "stream-json", "--verbose",
         "--json-schema", "{}",
         "--permission-prompts", "none",
         "--settings", str(claude.SETTINGS),

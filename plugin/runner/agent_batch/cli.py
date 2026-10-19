@@ -1,4 +1,4 @@
-"""`agent-batch`: runs a batch, ships one issue in direct mode, or reads GitHub for a reviewer."""
+"""`agent-batch`: runs a batch or ships an issue, shows what runs, cleans branches, reads GitHub."""
 
 from __future__ import annotations
 
@@ -11,17 +11,19 @@ from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.batch import Limits, run_batch
+from agent_batch.clean import clean_branches
 from agent_batch.context import Context
-from agent_batch.core import gh_read
+from agent_batch.core import gh_read, progress
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
 from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
-from agent_batch.shell import proc
+from agent_batch.shell import proc, status
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
+from agent_batch.shell.status import StatusBoard
 from agent_batch.shell.system import keep_awake, on_battery
 from agent_batch.ship import ShipError, ship
 
@@ -36,6 +38,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run(args)
         if args.command == "gh-read":
             return _gh_read(args.args)
+        if args.command == "status":
+            return _status()
+        if args.command == "clean":
+            return _clean()
         return _ship(args)
     except (CommandError, PlanError, ShipError, gh_read.Refused, SettingError) as error:
         sys.stderr.write(f"agent-batch: {error}\n")
@@ -61,6 +67,8 @@ def _parser() -> argparse.ArgumentParser:
     direct.add_argument("--title", required=True, help="the PR title, in Conventional Commits")
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
     _model_flags(direct, "claude's own")
+    commands.add_parser("status", help="show what each lane of a batch, and each ship, is doing")
+    commands.add_parser("clean", help="delete the local branches whose PR merged at their head")
     read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
     read.add_argument(
         "args", nargs=argparse.REMAINDER, help="pr view|list|diff|checks ..., or api <endpoint> ..."
@@ -130,6 +138,20 @@ def _ship(args: argparse.Namespace) -> int:
     return ship(ctx, Path.cwd(), args.issue, args.title, body)
 
 
+def _status() -> int:
+    """Prints a row per lane of the running batches and `agent-batch ship` runs (#107)."""
+    config = Config()
+    repo = Git(config).main_root(Path.cwd())
+    rows = status.running(repo / config.state_dir)
+    sys.stdout.write(progress.render(rows, time.time()))
+    return 0
+
+
+def _clean() -> int:
+    clean_branches(_context(Path.cwd(), _config(), "clean"))
+    return 0
+
+
 def _gh_read(args: Sequence[str]) -> int:
     """Runs the read with the caller's own `gh`, and passes on what it printed and its exit code."""
     done = proc.run(gh_read.command(args), Path.cwd())
@@ -163,6 +185,7 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         gh=gh,
         claude=Claude(env, config),
         events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
+        status=StatusBoard(repo / config.state_dir / log_name / status.STATUS, os.getpid()),
         # The wall clock: a monotonic clock can stop while the computer sleeps, as
         # `time.monotonic` does on macOS and Linux (#28).
         clock=time.time,

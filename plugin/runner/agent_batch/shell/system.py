@@ -1,4 +1,4 @@
-"""Keeping the computer awake while a batch runs, and knowing when it's on battery.
+"""Keeping the computer awake during a batch, knowing when it can't, and if a runner still runs.
 
 One adapter per platform: `caffeinate` and `pmset` on macOS, `systemd-inhibit` and the kernel's
 power supplies on Linux. Elsewhere, or without the tool, the batch can't keep the computer awake.
@@ -119,3 +119,16 @@ def _kind(supply: Path) -> str | None:
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="ascii", errors="replace").strip()
+
+
+def is_running(pid: int) -> bool:
+    """Whether a process with this id still runs, so that a killed runner's state is left out."""
+    if os.name != "posix":
+        return True  # Elsewhere, `os.kill` with signal 0 would end the process instead.
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # It runs, as another user.
+    return True

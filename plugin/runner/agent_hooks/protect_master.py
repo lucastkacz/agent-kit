@@ -18,7 +18,8 @@ from agent_hooks.commands import GitCall, git_calls
 from agent_hooks.repo import current_branch, project_root
 
 PROTECTED = frozenset({"master", "main"})
-WRITES = frozenset({"commit", "merge", "rebase", "reset", "cherry-pick", "revert", "am"})
+WRITES = frozenset({"commit", "merge", "pull", "rebase", "reset", "cherry-pick", "revert", "am"})
+FAST_FORWARDS = frozenset({"merge", "pull"})
 FAST_FORWARD_MODES = frozenset({"--ff", "--no-ff", "--ff-only"})
 EVERY_BRANCH = frozenset({"--all", "--mirror"})
 PUSH_OPTIONS_WITH_VALUES = frozenset({"-o", "--push-option", "--repo", "--receive-pack", "--exec"})
@@ -31,9 +32,7 @@ def refusal(call: GitCall, branch_of: BranchOf) -> str | None:
     if call.subcommand in WRITES:
         branch = branch_of(call.directory)
         if branch in PROTECTED and not _fast_forward_only(call):
-            hint = f" To bring it up to date, `git merge --ff-only origin/{branch}` may run."
-            if call.subcommand != "merge":
-                hint = ""
+            hint = _fast_forward_hint(call.subcommand, branch)
             return (
                 f"`git {call.subcommand}` on {branch}: work on a branch named "
                 f"<issue>-<short-name>; changes reach {branch} only through a pull request.{hint}"
@@ -46,9 +45,20 @@ def refusal(call: GitCall, branch_of: BranchOf) -> str | None:
     return None
 
 
+def _fast_forward_hint(subcommand: str, branch: str) -> str:
+    if subcommand == "merge":
+        return f" To bring it up to date, `git merge --ff-only origin/{branch}` may run."
+    if subcommand == "pull":
+        return " To bring it up to date, use `git pull --ff-only`."
+    return ""
+
+
 def _fast_forward_only(call: GitCall) -> bool:
-    """A merge that may only fast-forward: it moves the branch and creates no commit."""
-    if call.subcommand != "merge":
+    """A merge or pull that may only fast-forward: it moves the branch and creates no commit.
+
+    A pull's `--rebase` needs no rule of its own: with `--ff-only`, git refuses a diverged branch.
+    """
+    if call.subcommand not in FAST_FORWARDS:
         return False
     modes = [arg for arg in call.args if arg in FAST_FORWARD_MODES]
     # git obeys the last of them, so a later `--no-ff` undoes `--ff-only`.

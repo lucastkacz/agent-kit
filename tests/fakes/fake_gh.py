@@ -1,4 +1,7 @@
-"""Stands in for the `gh` CLI in tests, keeping GitHub's state in a JSON file."""
+"""Stands in for the `gh` CLI in tests, keeping GitHub's state in a JSON file.
+
+A scripted PR view with `snapshot` keeps a copy of the runner's status files as it reads it.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,8 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+import fake_claude
 
 State = dict[str, Any]
 Handler = Callable[[State, list[str], str], str]
@@ -97,12 +102,25 @@ def issue_list(state: State, argv: list[str], _stdin: str) -> str:
 
 
 def pr_list(state: State, argv: list[str], _stdin: str) -> str:
-    wanted = [pr for pr in state["prs"].values() if pr["state"] == "OPEN"]
+    listed = option(argv, "--state").upper() if "--state" in argv else "OPEN"
+    wanted = [pr for pr in state["prs"].values() if pr["state"] == listed]
     if "--head" in argv:
         wanted = [pr for pr in wanted if pr["branch"] == option(argv, "--head")]
     if "--label" in argv:
         wanted = [pr for pr in wanted if option(argv, "--label") in pr["labels"]]
-    return json.dumps([{"number": pr["number"], "title": pr["title"]} for pr in wanted])
+    if "--limit" in argv:
+        wanted = wanted[: int(option(argv, "--limit"))]
+    return json.dumps([pr_fields(pr) for pr in wanted])
+
+
+def pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
+    """A PR as `gh pr list` lists it: its head is the one a test set, or the one it merged at."""
+    return {
+        "number": pr["number"],
+        "title": pr["title"],
+        "headRefName": pr["branch"],
+        "headRefOid": pr.get("head") or pr.get("armed") or "",
+    }
 
 
 def pr_create(state: State, argv: list[str], stdin: str) -> str:
@@ -132,6 +150,8 @@ def pr_view(state: State, argv: list[str], _stdin: str) -> str:
         push_conflict(view["push_conflict"])
     if view.get("remote_down"):
         remote_down()
+    if view.get("snapshot"):
+        fake_claude.keep_snapshot("pr view", pr["number"], fake_claude.statuses())
     pr["state"] = view["state"]
     return json.dumps(
         {
