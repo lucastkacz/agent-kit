@@ -217,9 +217,17 @@ def _fence_end(lines: Sequence[re.Match[str]], index: int, opening: re.Match[str
 
     A fence that never closes may be one misread, so the lines after its opening one count as text.
     """
-    column = len(QUOTES.sub("", opening["within"], count=1))
+    column = _column(opening, _top_level(lines, index, opening))
     stop = _fence_stop(lines, index, opening, column)
     return stop.index if stop is not None and stop.closes else index
+
+
+def _column(opening: re.Match[str], top_level: bool) -> int:
+    """Where the text of the fence's list item starts, past its block quotes' markers.
+
+    A top-level fence is in no list item, so a line indented less than its opening one stays in it.
+    """
+    return 0 if top_level else len(QUOTES.sub("", opening["within"], count=1))
 
 
 def _open_fence(body: str) -> re.Match[str] | None:
@@ -236,8 +244,7 @@ def _open_fence(body: str) -> re.Match[str] | None:
             index += 1
             continue
         top_level = _top_level(lines, index, opening)
-        column = 0 if top_level else len(QUOTES.sub("", opening["within"], count=1))
-        stop = _fence_stop(lines, index, opening, column)
+        stop = _fence_stop(lines, index, opening, _column(opening, top_level))
         if stop is None:
             return opening if top_level else None
         # The line that leaves a fence's block quote or list item may open a fence of its own.
