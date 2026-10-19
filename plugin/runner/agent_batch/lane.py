@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from agent_batch.context import Context, Lane
 from agent_batch.core import budget
 from agent_batch.core.budget import Budget
-from agent_batch.core.config import LANE, WORKTREES
+from agent_batch.core.config import LANE, LANE_FOLDERS
 from agent_batch.core.model import IssueReport, Outcome
 from agent_batch.pipeline import announce, run_issue
 from agent_batch.shell.proc import CommandError
@@ -39,8 +39,14 @@ class Gate:
 
 
 def run_lane(ctx: Context, gate: Gate, index: int, numbers: Sequence[int]) -> list[IssueReport]:
-    worktree = ctx.repo / ctx.config.state_dir / WORKTREES / f"{LANE}{index}"
+    state = ctx.repo / ctx.config.state_dir
+    worktree = state / ctx.config.worktrees / f"{LANE}{index}"
     try:
+        # A batch started before #198 left its lane in the other folder, holding the issue's
+        # branch, which this worktree couldn't switch to on a resume.
+        for folder in LANE_FOLDERS:
+            if folder != ctx.config.worktrees:
+                ctx.git.remove_worktree(ctx.repo, state / folder / f"{LANE}{index}")
         ctx.git.add_lane_worktree(ctx.repo, worktree)
     except CommandError as error:
         reports = _set_aside(ctx, numbers, Outcome.FAILED, f"the lane's worktree failed: {error}")

@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 
 from agent_batch.clean import clean_branches
 from agent_batch.context import Context
-from agent_batch.core import budget, plan, report
+from agent_batch.core import budget, plan, report, workers
 from agent_batch.core.config import BATCH
 from agent_batch.core.model import Issue
 from agent_batch.core.plan import BatchPlan, PlanError
@@ -36,27 +36,36 @@ class Limits:
     effort: str | None = None
 
 
-def run_batch(
-    ctx: Context, number: int, limits: Limits, *, kept_awake: bool, on_battery: bool
-) -> int:
+@dataclass(frozen=True)
+class Computer:
+    """What the batch knows of the computer it runs on: its power, and its cores, if it can tell."""
+
+    kept_awake: bool
+    on_battery: bool
+    cores: int | None
+
+
+def run_batch(ctx: Context, number: int, limits: Limits, computer: Computer) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)
     gate = Gate(budget.resolve(limits.issues, limits.hours, batch_plan), ctx.clock)
     at_once = plan.concurrency(limits.lanes, batch_plan, ctx.config.lanes)
     model, effort = plan.choose_model(limits.model, limits.effort, batch_plan)
-    ctx = replace(ctx, claude=ctx.claude.with_model(model, effort))
-    described = report.model_lines(model, effort)
     lanes = batch_plan.lanes
+    at_once = min(at_once, len(lanes))
+    claude = ctx.claude.with_model(model, effort)
+    ctx = replace(ctx, claude=claude.with_env(workers.pytest_env(at_once, computer.cores)))
+    described = report.model_lines(model, effort)
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
-    if not kept_awake:
+    if not computer.kept_awake:
         ctx.events.emit("cant_keep_awake", warning=CANT_KEEP_AWAKE)
-    if on_battery:
+    if computer.on_battery:
         ctx.events.emit("on_battery", warning=ON_BATTERY)
     _clean_up(ctx)
     ctx.gh.comment(number, _started(batch_plan, at_once, described))
     started = ctx.clock()
-    with ThreadPoolExecutor(max_workers=min(at_once, len(lanes))) as pool:
+    with ThreadPoolExecutor(max_workers=at_once) as pool:
         futures = [
             pool.submit(run_lane, ctx, gate, index, issues)
             for index, issues in enumerate(lanes, start=1)

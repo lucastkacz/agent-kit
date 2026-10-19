@@ -88,6 +88,7 @@ def record(argv: list[str], kind: str, number: int) -> None:
         "auth_token": "ANTHROPIC_AUTH_TOKEN" in os.environ,
         "claudecode": "CLAUDECODE" in os.environ,
         "screen": os.environ.get("AGENT_BATCH_SCREEN"),
+        "pytest_workers": os.environ.get("PYTEST_WORKERS"),
     }
     log = Path(os.environ["FAKE_CLAUDE_LOG"])
     with log.with_suffix(".lock").open("w") as lock:

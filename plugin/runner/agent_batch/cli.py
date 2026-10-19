@@ -10,11 +10,11 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from agent_batch.batch import Limits, run_batch
+from agent_batch.batch import Computer, Limits, run_batch
 from agent_batch.clean import clean_branches
 from agent_batch.context import Context
 from agent_batch.core import denial_log, gh_read, progress
-from agent_batch.core.config import Config
+from agent_batch.core.config import Config, worktrees_folder
 from agent_batch.core.env import clean_env
 from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
 from agent_batch.shell import checkout, proc, status
@@ -128,13 +128,14 @@ def _run(args: argparse.Namespace) -> int:
     awake = keep_awake(sys.platform)
     try:
         limits = Limits(args.max_issues, args.max_hours, args.lanes, args.model, args.effort)
-        return run_batch(
-            ctx,
-            args.batch,
-            limits,
+        computer = Computer(
             kept_awake=awake is not None,
             on_battery=on_battery(sys.platform),
+            # Not `os.process_cpu_count`: the owner's computer gives the runner all its cores, and
+            # the acceptance tests of #198 set the cores through `os.cpu_count`.
+            cores=os.cpu_count(),
         )
+        return run_batch(ctx, args.batch, limits, computer)
     finally:
         if awake is not None:
             awake.terminate()
@@ -186,13 +187,14 @@ def _gh_read(args: Sequence[str]) -> int:
 
 
 def _config(*, screen: bool = False) -> Config:
+    config = Config(screen=screen, worktrees=worktrees_folder(sys.platform))
     poll = os.environ.get(POLL_ENV)
     if not poll:
-        return Config(screen=screen)
+        return config
     seconds = _number_above_zero(poll)
     if seconds is None:
         raise SettingError(f"{POLL_ENV} needs a number above 0, not {poll!r}")
-    return Config(screen=screen, poll_seconds=seconds)
+    return replace(config, poll_seconds=seconds)
 
 
 def _context(cwd: Path, config: Config, log_name: str) -> Context:
