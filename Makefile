@@ -22,7 +22,7 @@ check:
 	uv run ruff check $(PYTHON_PATHS)
 	uv run mypy
 	PYTHONPATH=plugin/runner uv run lint-imports
-	uv run complexipy $(PYTHON_PATHS) --max-complexity-allowed 15 --failed --quiet
+	uv run complexipy $(PYTHON_PATHS) --max-complexity-allowed 15 --failed --plain
 	uv run python tools/check_limits.py $(PYTHON_PATHS)
 	uv run python tools/validate_plugin.py plugin .
 	claude plugin test plugin
