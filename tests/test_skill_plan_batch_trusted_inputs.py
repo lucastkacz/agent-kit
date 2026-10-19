@@ -1,4 +1,8 @@
-"""The plan-batch skill trusts only the owner's questions, skips cloud issues that wait for a fix, and writes a `Model:` line the runner takes (#70)."""
+"""The plan-batch skill's trusted inputs, the cloud issues it skips and its `Model:` line (#70).
+
+It trusts only the owner's questions, skips cloud issues that wait for a fix, and writes a
+`Model:` line the runner takes.
+"""
 
 from __future__ import annotations
 

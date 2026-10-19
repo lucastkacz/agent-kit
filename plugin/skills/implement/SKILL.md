@@ -18,7 +18,8 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 ## 2. Acceptance tests first
 
 - Write a test for each criterion verified by `unit`, `integration` or `e2e`. Name each test after the behavior it checks.
-- Run `make fmt`, then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
+- Run `make fmt`. `make fmt` must exit 0: read its output, and never hide it; fix by hand an error it can't fix before the acceptance commit. Never silence a rule to pass it.
+- Then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
 - Commit them on their own, as `test: acceptance tests for #$ARGUMENTS`.
 - After that commit, the acceptance tests' files don't change, not even to format them. Later tests go in files of their own, never in the acceptance tests' files.
 - If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why.
