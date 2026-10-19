@@ -11,6 +11,7 @@ from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
+from agent_batch.shell.status import StatusBoard
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class Context:
     gh: GitHub
     claude: Claude
     events: EventLog
+    status: StatusBoard
     clock: Callable[[], float]
 
 

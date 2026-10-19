@@ -47,6 +47,7 @@ def run_lane(ctx: Context, gate: Gate, index: int, numbers: Sequence[int]) -> li
     try:
         return _run_issues(ctx, gate, Lane(index=index, worktree=worktree), numbers)
     finally:
+        ctx.status.drop(index)
         try:
             ctx.git.remove_worktree(ctx.repo, worktree)
         except CommandError as error:
