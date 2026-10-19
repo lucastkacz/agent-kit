@@ -45,10 +45,11 @@ def test_a_code_span_crosses_the_lines_of_its_paragraph() -> None:
 
 
 def test_a_fence_that_never_closes_is_read_as_text() -> None:
-    # A misread fence would leave the rest of the body out of the quoting.
-    body = naming.pr_body("This fixes #13.\n```\nfixes #12", 7)
+    # A misread fence would leave the rest of the body out of the quoting. A top-level one is closed
+    # before the quoting (#138), so this one is in a list item, which `pr_body` leaves as it is.
+    body = naming.pr_body("This fixes #13.\n- ```\n  fixes #12", 7)
 
-    assert body.startswith("This fixes `#13`.\n```\nfixes `#12`")
+    assert body.startswith("This fixes `#13`.\n- ```\n  fixes `#12`")
 
 
 @pytest.mark.parametrize(
