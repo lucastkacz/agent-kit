@@ -51,6 +51,9 @@ BREAK = re.compile(rf"\s*$|{ALONE.pattern}| {{0,3}}(?:>|[-+*][ \t]|\d{{1,9}}[.)]
 # A code span (CommonMark §6.1): a run of backticks up to the next run as long, in one block.
 # A run after a backslash opens none: the backslash escapes it.
 CODE_SPAN = re.compile(r"(?<![`\\])(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)")
+# The blank lines a PR body starts with. Only they go: the first line keeps its indentation, since
+# four spaces make it code, and without them a line of backticks would open a fence.
+LEADING_BLANK_LINES = re.compile(r"\A(?:[ \t]*\n)+")
 
 
 def slugify(text: str) -> str:
@@ -125,10 +128,10 @@ def pr_body(body: str, number: int, findings: Sequence[Finding] = ()) -> str:
     closes = any(_rendered(found) == own for found in _read_by_github(body))
     if findings:
         listed = prompts.findings_list([_inert(finding) for finding in findings])
-        body = f"{body.rstrip()}\n\n{FINDINGS_HEADING}\n\n{listed}\n".lstrip()
+        body = LEADING_BLANK_LINES.sub("", f"{body.rstrip()}\n\n{FINDINGS_HEADING}\n\n{listed}\n")
     if closes:
         return body
-    return f"{body.rstrip()}\n\nCloses #{number}\n".lstrip()
+    return LEADING_BLANK_LINES.sub("", f"{body.rstrip()}\n\nCloses #{number}\n")
 
 
 def _inert(finding: Finding) -> Finding:
