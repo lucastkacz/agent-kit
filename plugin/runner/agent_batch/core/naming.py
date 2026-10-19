@@ -53,7 +53,7 @@ BREAK = re.compile(rf"\s*$|{ALONE.pattern}| {{0,3}}(?:>|[-+*][ \t]|\d{{1,9}}[.)]
 CODE_SPAN = re.compile(r"(?<![`\\])(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)")
 # The blank lines a PR body starts with. Only they go: the first line keeps its indentation, since
 # four spaces make it code, and without them a line of backticks would open a fence.
-LEADING_BLANK_LINES = re.compile(r"\A(?:[ \t]*\n)+")
+LEADING_BLANK_LINES = re.compile(r"\A(?:[^\S\n]*\n)+")
 
 
 def slugify(text: str) -> str:
