@@ -73,7 +73,10 @@ def _parser() -> argparse.ArgumentParser:
     shown.add_argument(
         "--line",
         action="store_true",
-        help="in one short line, for Claude Code's status line; reads its JSON on stdin",
+        help=(
+            "in one short line, for Claude Code's status line: reads the session's JSON "
+            "from stdin, to its end, unless stdin is a terminal"
+        ),
     )
     commands.add_parser("clean", help="delete the local branches whose PR merged at their head")
     read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
