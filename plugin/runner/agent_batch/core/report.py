@@ -84,6 +84,11 @@ def _code(text: str) -> str:
 
 
 def _needs(report: IssueReport) -> str:
+    """One sentence per issue; the rest of its detail, a review's findings say, is in a comment."""
     target = f"#{report.pr}" if report.outcome is Outcome.WAITING_OWNER else f"#{report.number}"
-    detail = report.detail.splitlines()[0] if report.detail else ""
-    return f"- {target}: {report.outcome.value}. {detail}".rstrip(". ") + "."
+    first, *rest = report.detail.splitlines() or [""]
+    line = f"- {target}: {report.outcome.value}. {first}".rstrip(":. ")
+    if any(more.strip() for more in rest):
+        line += " See" if line.endswith(("?", "!")) else "; see"
+        line += f" {target}'s comment"
+    return line + "."
