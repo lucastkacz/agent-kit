@@ -160,15 +160,13 @@ def _status() -> int:
 def _status_line() -> int:
     """The same in one line, for the plugin's status line (#108): it reads files, and runs nothing.
 
-    The session's folder comes in Claude Code's JSON on stdin; typed by hand, it's this one. In a
-    project that doesn't enable agent-kit, it prints nothing, so the mod shows no line (#171).
+    The session's folder comes in Claude Code's JSON on stdin; typed by hand, it's this one.
+    Outside a project that enables agent-kit, it prints nothing, so the mod shows no line (#171).
     """
     given = None if sys.stdin.isatty() else progress.session_cwd(sys.stdin.read())
     found = checkout.find(Path(given) if given else Path.cwd())
-    if found is None:
-        sys.stdout.write(progress.line([], time.time(), ""))
-        return 0
-    if not checkout.enabled_here(found.root):
+    # A folder outside any repository can't enable agent-kit either: the hooks don't act there.
+    if found is None or not checkout.enabled_here(found.root):
         return 0
     rows = status.running(found.root / Config().state_dir)
     sys.stdout.write(progress.line(rows, time.time(), found.branch))

@@ -33,13 +33,13 @@ def test_a_git_file_that_names_no_folder_is_no_checkout(tmp_path: Path) -> None:
     assert checkout.find(tmp_path) is None
 
 
-def test_outside_a_repository_the_status_line_says_nothing_runs(
+def test_outside_a_repository_the_status_line_prints_nothing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({"cwd": str(tmp_path)})))
 
     assert cli.main(["status", "--line"]) == 0
-    assert capsys.readouterr().out == "nothing running\n"
+    assert capsys.readouterr().out == ""
 
 
 def test_without_a_cwd_on_stdin_the_status_line_uses_its_own_folder(
