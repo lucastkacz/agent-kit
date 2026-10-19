@@ -12,8 +12,20 @@ from test_ship import branch_with_work
 
 HEADING = "## Review findings"
 FINDINGS = [
-    {"severity": "low", "location": "a.py:3", "problem": "Unclear name.", "suggestion": "Rename."},
-    {"severity": "medium", "location": "b.py:9", "problem": "No test.", "suggestion": "Add one."},
+    {
+        "severity": "low",
+        "origin": "new",
+        "location": "a.py:3",
+        "problem": "Unclear name.",
+        "suggestion": "Rename.",
+    },
+    {
+        "severity": "medium",
+        "origin": "new",
+        "location": "b.py:9",
+        "problem": "No test.",
+        "suggestion": "Add one.",
+    },
 ]
 APPROVED_WITH_FINDINGS = {"output": {"verdict": "approved", "findings": FINDINGS}}
 

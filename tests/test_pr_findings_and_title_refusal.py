@@ -7,9 +7,13 @@ import pytest
 from agent_batch.core import naming
 from agent_batch.core.model import Finding
 
-QUOTES_A_CLOSING = Finding("low", "a.py:1", "The comment says it fixes #7.", "Reword it.")
+QUOTES_A_CLOSING = Finding("low", "new", "a.py:1", "The comment says it fixes #7.", "Reword it.")
 CLOSES_OTHERS = Finding(
-    "low", "a.py:1", "This also fixes #12, out of scope.", "Fixes: #13; closes owner/repo#14."
+    "low",
+    "new",
+    "a.py:1",
+    "This also fixes #12, out of scope.",
+    "Fixes: #13; closes owner/repo#14.",
 )
 
 
@@ -60,6 +64,6 @@ def test_a_conventional_title_is_not_refused() -> None:
 
 def test_a_findings_closing_url_is_quoted_too() -> None:
     url = "https://github.com/owner/repo/issues/15"
-    finding = Finding("low", "a.py:1", f"It resolves {url}.", "Split it.")
+    finding = Finding("low", "new", "a.py:1", f"It resolves {url}.", "Split it.")
 
     assert f"It resolves `{url}`." in naming.pr_body("Adds it.", 7, (finding,))

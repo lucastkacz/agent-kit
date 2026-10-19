@@ -12,6 +12,7 @@ CHANGES = {
         "findings": [
             {
                 "severity": "low",
+                "origin": "new",
                 "location": "a.py:3",
                 "problem": "Unclear.",
                 "suggestion": "Rename.",

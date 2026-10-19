@@ -7,7 +7,13 @@ from test_batch import BATCH, done, pr_for
 
 
 def approved(problem: str) -> dict[str, object]:
-    finding = {"severity": "low", "location": "a.py:1", "problem": problem, "suggestion": "Tidy."}
+    finding = {
+        "severity": "low",
+        "origin": "new",
+        "location": "a.py:1",
+        "problem": problem,
+        "suggestion": "Tidy.",
+    }
     return {"output": {"verdict": "approved", "findings": [finding]}}
 
 

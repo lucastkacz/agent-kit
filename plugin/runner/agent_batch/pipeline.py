@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, merge, naming, prompts, results, risk
+from agent_batch.core import eligibility, merge, naming, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
     ClaudeRun,
     Finding,
+    FoundIssue,
     ImplementResult,
     Issue,
     IssueReport,
@@ -148,18 +149,18 @@ def require_committed(ctx: Context, lane: Lane) -> None:
 
 def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
     """Reviews, sends findings back to the implementer, and gives up after the last round."""
-    rounds = ctx.config.review_rounds
-    for attempt in range(1, rounds + 1):
+    most = ctx.config.review_rounds
+    for attempt in range(1, most + 1):
         job.report.review_rounds = attempt
         review = review_once(ctx, lane, job)
         if review.approved:
             job.findings = review.findings
             return
-        if attempt == rounds:
+        if attempt == most:
             findings = prompts.findings_list(review.findings)
             raise Stopped(
                 Outcome.BLOCKED,
-                f"The review still asks for changes after {rounds} rounds:\n\n{findings}",
+                f"The review still asks for changes after {most} rounds:\n\n{findings}",
             )
         prompt = prompts.fix(job.issue.number, review.findings)
         run = ctx.claude.implement(lane.worktree, prompt, lane.session_id)
@@ -168,16 +169,29 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
 
 
 def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
-    run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number))
-    review = results.to_review(_checked(ctx, run, job.report, "review"))
-    if review is None:
+    """One review of the branch, which gets what its earlier reviews found (SPEC §5)."""
+    earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
+    number = len(earlier) + 1
+    head = ctx.git.head(lane.worktree)
+    run = ctx.claude.review(lane.worktree, prompts.review(job.issue.number, earlier))
+    answer = results.to_review(_checked(ctx, run, job.report, "review"))
+    if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
+    review, filed = rounds.settle(answer, number)
+    # The issues go before the event: if filing fails, this round isn't logged and runs again.
+    # That can file an issue twice, but the next round never reads as filed a finding that wasn't.
+    for finding in filed:
+        _file(ctx, job, rounds.found_issue(finding, number))
+    # Every finding, filed ones included, so that the next review can read what this one found.
     ctx.events.emit(
         "reviewed",
         lane=lane.index,
         issue=job.issue.number,
+        branch=job.branch,
+        head=head,
+        round=number,
         approved=review.approved,
-        findings=len(review.findings),
+        findings=[asdict(finding) for finding in answer.findings],
     )
     return review
 
@@ -196,10 +210,15 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
     for found in work.found:
-        body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
-        number = ctx.gh.create_issue(found.title, body, found.kind)
-        ctx.events.emit("issue_found", issue=job.issue.number, found=number)
+        _file(ctx, job, found)
     return pr
+
+
+def _file(ctx: Context, job: Job, found: FoundIssue) -> None:
+    """Files work found along the way as an issue of its own (SPEC §4.5)."""
+    body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
+    number = ctx.gh.create_issue(found.title, body, found.kind)
+    ctx.events.emit("issue_found", issue=job.issue.number, found=number)
 
 
 def _work(job: Job) -> ImplementResult:

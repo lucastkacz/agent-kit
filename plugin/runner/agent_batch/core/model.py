@@ -62,7 +62,10 @@ class ImplementResult:
 
 @dataclass(frozen=True)
 class Finding:
+    """A reviewer's finding; on a re-review, `origin` says whether an earlier round saw it."""
+
     severity: str
+    origin: str
     location: str
     problem: str
     suggestion: str

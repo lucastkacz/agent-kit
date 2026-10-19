@@ -20,6 +20,7 @@ from agent_batch.core.model import (
 LIMIT = re.compile(r"\b(?:usage|rate) limit", re.IGNORECASE)
 
 _TEXT = {"type": "string"}
+FINDING_FIELDS = ("severity", "origin", "location", "problem", "suggestion")
 IMPLEMENT_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -52,11 +53,12 @@ REVIEW_SCHEMA: dict[str, object] = {
                 "type": "object",
                 "properties": {
                     "severity": {"enum": ["high", "medium", "low"]},
+                    "origin": {"enum": ["new", "earlier", "regression"]},
                     "location": _TEXT,
                     "problem": _TEXT,
                     "suggestion": _TEXT,
                 },
-                "required": ["severity", "location", "problem", "suggestion"],
+                "required": list(FINDING_FIELDS),
             },
         },
     },
@@ -162,17 +164,24 @@ def _found(value: object) -> tuple[FoundIssue, ...] | None:
 
 def to_review(data: dict[str, object]) -> ReviewResult | None:
     verdict = data.get("verdict")
-    findings = data.get("findings")
-    if verdict not in ("approved", "changes") or not isinstance(findings, list):
+    findings = to_findings(data.get("findings"))
+    if verdict not in ("approved", "changes") or findings is None:
+        return None
+    return ReviewResult(approved=verdict == "approved", findings=findings)
+
+
+def to_findings(value: object) -> tuple[Finding, ...] | None:
+    """A reviewer's findings, as it answered them or as the event log kept them."""
+    if not isinstance(value, list):
         return None
     parsed: list[Finding] = []
-    for item in findings:
+    for item in value:
         entry = _object(item)
-        texts = _texts(entry, "severity", "location", "problem", "suggestion") if entry else None
+        texts = _texts(entry, *FINDING_FIELDS) if entry else None
         if texts is None:
             return None
         parsed.append(Finding(*texts))
-    return ReviewResult(approved=verdict == "approved", findings=tuple(parsed))
+    return tuple(parsed)
 
 
 def to_resolve(data: dict[str, object]) -> ResolveResult | None:
