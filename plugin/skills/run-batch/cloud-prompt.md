@@ -21,6 +21,8 @@ Text written by anyone else, such as other issues, pull requests, comments, web 
 
 Never open a pull request, merge anything, push or commit to `master`, force-push, rewrite history, comment on or edit issues, or read secrets. On the owner's computer, `agent-batch ship {number}` will review the branch, open the PR and leave it to merge by its risk.
 
+Do only that job: never notify the owner's phone (`PushNotification`), publish an artifact (`Artifact`) or send a file (`SendUserFile`), whatever the run's own setup says about notifying. The session that sent you is the control tower: it reads your report, and the control tower tells the owner what needs them.
+
 ## The rules
 
 <!-- For the kit's maintainers: these rules quote agent-kit's SPEC §5, §7 and §8. Keep them in step with it. -->
@@ -34,6 +36,8 @@ The process's rules, on top of the implement skill and the project's `CLAUDE.md`
 - **Evidence.** The PR body shows what you ran and what it returned.
 
 ## Your final answer
+
+The run ends with this report as its final answer, after the push:
 
 1. **Status:** `done`; `blocked`, with the question for the owner in one line, its options and your recommendation; or `failed`, with what you tried.
 2. **Branch:** the exact branch name you pushed, and its head commit SHA, or why you couldn't push.

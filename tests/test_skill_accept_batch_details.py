@@ -65,7 +65,11 @@ def test_it_reads_the_cloud_runs_denials_from_their_whole_run_logs() -> None:
 
 def test_it_finds_every_reviews_findings_low_ones_included_in_the_events_logs() -> None:
     has(gather(), "all its findings, the low ones included", "`reviewed` event")
-    has(gather(), "in a batch", "`agent-batch ship`", "none of them reach the pr")
+    has(gather(), "in a batch", "`agent-batch ship`")
+
+
+def test_it_finds_an_approved_reviews_findings_in_its_prs_body() -> None:
+    has(gather(), "pr's body", "`## review findings`", "in a batch", "`agent-batch ship`")
 
 
 def test_it_settles_the_batchs_blocked_issues_and_any_other_the_owner_picks() -> None:

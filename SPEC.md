@@ -174,7 +174,7 @@ The same steps run in a batch and in direct mode.
 3. **Implementation,** until `make check` passes, quality gates included (§8).
 4. **Visible behavior.** `make e2e` for UI criteria, keeping its evidence.
 5. **Review.** A separate, read-only run (§6) checks the branch against the issue, §7 and §8. `changes` sends the findings back to the implementer. A re-review gets the earlier rounds' findings and checks that each was fixed or answered. From the third review of a branch on, a new medium finding that isn't a regression doesn't block: it's filed as an issue, as work found along the way is (§4.5). A high finding, or a regression, still blocks. In a batch, after two rounds without approval, the issue is blocked.
-6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body.
+6. **Pull request.** The runner pushes the branch and opens the PR from the template, with `Closes #N`. The implementer writes the body. The runner adds the approved review's findings under `## Review findings`, and when the branch is published again it updates the open PR's title and body.
 7. **Risk and merge.** The runner classifies the risk (§9). Low: auto-merge armed, squash, pinned to the reviewed commit. High: label `risk:high`, and the owner merges.
 8. **Cleanup.** The merged branch is deleted, and the lane's worktree is removed when the lane ends.
 
@@ -423,7 +423,7 @@ By default nothing takes the screen (§7.2). `--screen` allows the checks that n
 
 ### 11.5 Nothing starts by itself
 
-The owner starts every batch. There are no scheduled or recurring runs.
+The owner starts every batch. There are no scheduled or recurring runs. A batch's cloud issues (§12) go out as one-time routines, created when the owner starts the batch: they are part of that batch, not a scheduled run.
 
 ### 11.6 Engines
 
@@ -452,10 +452,10 @@ Claude Code can also run in a virtual machine in Anthropic's cloud instead of th
 
 ### 12.1 Back to the merge gate
 
-A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3):
+A cloud run's work reaches the merge gate through the owner's computer, the same way as in direct mode (§3.4):
 
 1. **The run.** The assistant starts a one-time cloud run for one ready issue, with no connectors attached. The cloud's `gh` isn't signed in, so the prompt carries the issue's body. The run follows the pipeline's steps 1 to 3 (§5), acceptance tests first, and pushes its branch `<issue>-<short-name>`. It opens no PR.
-2. **The gate.** Locally, the assistant checks the branch out in a worktree, and `agent-batch ship <issue>` reviews it with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
+2. **The gate.** Locally, the assistant checks the branch out in a worktree. When the issue has a criterion verified by `e2e` (§7.1), it runs `make e2e` in the worktree before `agent-batch ship`, and keeps its evidence (§5, step 4). Then `agent-batch ship <issue>` reviews the branch with a fresh reviewer (§6), opens the PR and classifies its risk (§9).
 
 The local review is not a formality: it catches what the cloud run missed, such as wrong acceptance tests.
 

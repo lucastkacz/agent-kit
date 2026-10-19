@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.core import results
@@ -14,9 +15,11 @@ from agent_batch.shell import proc
 SETTINGS = Path(__file__).resolve().parent.parent / "data" / "batch-settings.json"
 
 # The reviewer reads and runs the checks; it never edits, commits, pushes or writes to GitHub.
+# `gh pr` and `gh api` can write, so it reads pull requests and the API through `gh-read` (#72).
 REVIEW_ALLOWED = (
     "Read", "Grep", "Glob", "Bash(git diff *)", "Bash(git log *)", "Bash(git show *)",
-    "Bash(git status *)", "Bash(gh issue view *)", "Bash(make test)", "Bash(make check)",
+    "Bash(git status *)", "Bash(git ls-tree *)", "Bash(gh issue view *)",
+    "Bash(gh issue list *)", "Bash(agent-batch gh-read *)", "Bash(make test)", "Bash(make check)",
 )  # fmt: skip
 REVIEW_DENIED = (
     "Edit", "Write", "NotebookEdit", "Bash(git commit *)", "Bash(git push *)", "Bash(gh pr *)",
@@ -79,8 +82,12 @@ class Claude:
         options = [*IMPLEMENTER, *_resume(resume)]
         run = self._run(cwd, prompt, options, results.IMPLEMENT_SCHEMA)
         if resume is not None and run.data is None and not run.limit_reached:
-            # A session that can't be resumed shouldn't cost the issue: start a fresh one.
-            return self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
+            # A session that can't be resumed shouldn't cost the issue: start a fresh one. Its
+            # denials and cost still happened, so the fresh run's result carries them too.
+            fresh = self._run(cwd, prompt, IMPLEMENTER, results.IMPLEMENT_SCHEMA)
+            return replace(
+                fresh, denials=run.denials + fresh.denials, cost_usd=run.cost_usd + fresh.cost_usd
+            )
         return run
 
     def review(self, cwd: Path, prompt: str) -> ClaudeRun:

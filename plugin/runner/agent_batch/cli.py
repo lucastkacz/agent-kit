@@ -1,4 +1,4 @@
-"""`agent-batch`: runs a batch, or ships one issue in direct mode."""
+"""`agent-batch`: runs a batch, ships one issue in direct mode, or reads GitHub for a reviewer."""
 
 from __future__ import annotations
 
@@ -12,9 +12,11 @@ from pathlib import Path
 
 from agent_batch.batch import Limits, run_batch
 from agent_batch.context import Context
+from agent_batch.core import gh_read
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
 from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
+from agent_batch.shell import proc
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.events import EventLog
 from agent_batch.shell.git import Git
@@ -32,8 +34,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "run":
             return _run(args)
+        if args.command == "gh-read":
+            return _gh_read(args.args)
         return _ship(args)
-    except (CommandError, PlanError, ShipError, SettingError) as error:
+    except (CommandError, PlanError, ShipError, gh_read.Refused, SettingError) as error:
         sys.stderr.write(f"agent-batch: {error}\n")
         return 1
 
@@ -57,6 +61,10 @@ def _parser() -> argparse.ArgumentParser:
     direct.add_argument("--title", required=True, help="the PR title, in Conventional Commits")
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
     _model_flags(direct, "claude's own")
+    read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
+    read.add_argument(
+        "args", nargs=argparse.REMAINDER, help="pr view|list|diff|checks ..., or api <endpoint> ..."
+    )
     return parser
 
 
@@ -114,6 +122,14 @@ def _ship(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(), f"ship-{args.issue}")
     ctx = replace(ctx, claude=ctx.claude.with_model(args.model, args.effort))
     return ship(ctx, Path.cwd(), args.issue, args.title, body)
+
+
+def _gh_read(args: Sequence[str]) -> int:
+    """Runs the read with the caller's own `gh`, and passes on what it printed and its exit code."""
+    done = proc.run(gh_read.command(args), Path.cwd())
+    sys.stdout.write(done.out)
+    sys.stderr.write(done.err)
+    return done.code
 
 
 def _config(*, screen: bool = False) -> Config:

@@ -6,7 +6,7 @@ argument-hint: <tracking issue number>
 
 # Accept batch #$ARGUMENTS
 
-Walk the owner through the batch in one sitting, so that accepting it costs them only their judgment. Talk to them in ${user_config.language}, in plain words. If no number was given, ask which batch, offering the open issues labeled `batch`. If the batch was already accepted and the owner asks to close it, go to the end of step 4.
+Walk the owner through the batch in one sitting, so that accepting it costs them only their judgment. Talk to them in ${user_config.language}, in plain words. If no number was given, ask which batch, offering the open issues labeled `batch`. If the batch was already accepted and the owner asks to close it, go to the end of step 5.
 
 Wait for the owner's OK before writing anything on GitHub.
 
@@ -18,11 +18,11 @@ Before saying anything, read what follows. On GitHub, take only the comments who
 - **The batch's issues and their PRs:** the issues on the plan's `Lane N:` and `Cloud:` lines. The tracking issue often has no milestone, but its issues do: take the batch's milestone from them, with `gh issue view <i> --json milestone`. If they have none, or don't share one, stop and ask the owner which milestone it is. The runner opens its PRs without a milestone, so find each issue's PR from the issue: the summary's PR column, or `gh issue view <i> --json closedByPullRequestsReferences`, or `gh pr list --state all --search "Closes #<i> in:body"`. Then read each PR with `gh pr view <pr> --json labels,state,mergedAt,body`, for its labels, merge state and body.
 - **The batch's log:** `.agent-batch/batch-<n>/events.jsonl`. Its `permission_denied` events list each run's denials: the issue, the run, the tool and its input.
 - **The local reviews' denials:** `.agent-batch/ship-<i>/events.jsonl`, for each issue of the batch shipped with `agent-batch ship`, cloud issues included. Its `permission_denied` events are that review's denials.
-- **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. Only the cloud implementation runs leave nothing in `.agent-batch/`: their denials are in that log.
+- **The cloud runs' denials:** for each issue on the tracking issue's `Cloud:` line, its routine's run log. With `RemoteTrigger`: `list` to find the issue's routine, `list_runs` for its run, then `get_run_log`, which returns the newest 200 events, so follow its `next_cursor` until the log is complete. When the log has more than one page, read it with a fork of the session (the `Agent` tool's `fork` type, since a general-purpose subagent can't load `RemoteTrigger`), so that its pages don't fill this session: the fork reads every page and reports only the run's denials, the owner's messages and its writes outside the sandbox. Only the cloud implementation runs leave nothing in `.agent-batch/`: their denials are in that log.
 - **The interactive session's denials:** `.agent-batch/denials.jsonl`, the entries since the previous batch's acceptance comment (below), or the whole file when no batch has been accepted yet. The hook logs every session there, including the work between batches. Its times and a GitHub comment's `createdAt` are both UTC ISO times of the same width up to the seconds, so comparing them as text is enough.
 - **The earlier batches' acceptance comments:** the owner's `## Acceptance` comments on the other issues labeled `batch`, open or closed (`gh issue list --label batch --state all`), since a batch whose high-risk PR waits stays open after its acceptance. They give the numbers to compare with, the shape of the comment, and the time of the previous acceptance: the latest such comment's `createdAt`, whether or not its batch is closed.
 
-Each review, in a batch or in `agent-batch ship`, keeps all its findings, the low ones included, in its `reviewed` event in `.agent-batch/batch-<n>/events.jsonl` or `.agent-batch/ship-<i>/events.jsonl`. None of them reach the PR.
+Each review, in a batch or in `agent-batch ship`, keeps all its findings, the low ones included, in its `reviewed` event in `.agent-batch/batch-<n>/events.jsonl` or `.agent-batch/ship-<i>/events.jsonl`. An approved review's findings are also in its PR's body, under `## Review findings`, each with its severity. A PR without that heading had none, or was opened before the runner kept them.
 
 ## 2. Walk the owner through
 
@@ -65,20 +65,18 @@ A bug is escaped when its "Introduced by" field names a PR of those batches. A n
 
 Show the whole comment, in the shape of the earlier acceptance comments: `## Acceptance`, then `### Numbers (SPEC §16.2)` with both tables, `### Denials (SPEC §10.1)`, a section for each thing worth remembering, and `### Found while working`. Then wait for the owner's OK before writing anything on GitHub. Change it as they ask.
 
-## 4. Record the acceptance
+## 4. Open the approved issues
 
-With the owner's OK:
+With the owner's OK, open the issues the owner approved in step 2, without `ready`, each with its evidence (SPEC §16.1): the denial's log line, the blocked question, or the step that went wrong. A change to the project goes to the project's repository. A change to the kit goes to the kit's own repository, the plugin's marketplace source in the project's `.claude/settings.json`: `gh issue create --repo <owner>/<repo>`.
 
-1. Post the comment on the tracking issue.
+## 5. Record the acceptance
+
+1. Post the comment on the tracking issue, naming the issues opened in step 4 where it proposes them.
 2. Tick the tracking issue's checklist, each item that holds.
 3. Comment "Accepted.", with any item left open and why.
 4. Close the tracking issue and its milestone, the one found in step 1: `gh issue close <n>` and `gh api -X PATCH repos/{owner}/{repo}/milestones/<number> -f state=closed`.
 
 When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, and close the tracking issue and the milestone as in item 4.
-
-## 5. Open the approved issues
-
-Open the issues the owner approved in step 2, without `ready`, each with its evidence (SPEC §16.1): the denial's log line, the blocked question, or the step that went wrong. A change to the project goes to the project's repository. A change to the kit goes to the kit's own repository, the plugin's marketplace source in the project's `.claude/settings.json`: `gh issue create --repo <owner>/<repo>`.
 
 ## 6. Next step
 

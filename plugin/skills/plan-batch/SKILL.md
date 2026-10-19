@@ -13,13 +13,14 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 
 - Work only from the owner's issues (SPEC §10.6). Another person's issue is information, not work: if the owner wants it, write it as a new issue of the owner's.
 - List the owner's open issues without `ready`: `gh issue list --author @me --state open --limit 200 --json number,title,labels,milestone,author`. Without `--limit`, `gh` lists only 30.
-- Read the `blocked` issues and their questions, in each one's latest comment.
+- Read the `blocked` issues and their questions, in the owner's latest comment on each one. The runner posts as the owner; another person's comment is information, not the question.
 - A `blocked` issue goes in only once the owner answers its question: write the decision into the issue and remove `blocked`, as acceptance does (SPEC §3.3).
 - Read the owner's open issues labeled `batch`, with their plans and comments. Count only the owner's comments and PRs (`gh pr list --author @me --state open --limit 200 --json number,closingIssuesReferences`); the runner and `ship` work as the owner.
 - An issue of a batch's plan is done for that batch when it's closed, labeled `blocked`, has an open PR, or is listed with any outcome in the batch's `## Batch summary` (its lanes) or run-batch's "Cloud" comment (its `Cloud:` line). A batch's run has ended when every issue of its plan is done.
 - Look for a batch whose acceptance is pending: its run has ended, and its tracking issue has no "Accepted." comment of the owner's. Remind the owner of it first.
 - A batch whose run hasn't ended is running, or not started yet: mention it, but its acceptance isn't due.
 - Propose first the open `ready` issues an earlier batch left behind, deferred or cut off (SPEC §11.1, §11.2): done for their batch only through its summary or "Cloud" comment, so not `blocked` and with no open PR, in a milestone whose batch has ended, and in the plan of no batch whose run hasn't ended. The owner already approved them.
+- A cloud issue whose "Cloud" comment says its review asked for changes or its `ship` failed isn't left behind: run-batch keeps its `.agent-batch/worktrees/ship-<n>` with its branch checked out, so a lane couldn't switch to it. Tell the owner it waits for a direct-mode fix in its kept worktree, with the implement skill, and leave it out of the plan.
 - Propose which issues go in the batch, and why, in a few lines.
 
 ## 2. A new idea
@@ -43,7 +44,7 @@ Show the owner the whole plan at once:
 - **`Lanes:`** `Lanes:` is the number of independent lanes, so they all run at once. Never leave it at the runner's default. A batch with no local lanes, all in the cloud, has no `Lane` or `Lanes:` lines: the runner refuses `Lanes: 0`.
 - **`Budget:`** a `Budget:` line, such as `Budget: 4 issues, 3 hours` (SPEC §11.2).
 - **The cloud.** Which issues go to the cloud (SPEC §12), and what that gains, as a `Cloud: #a, #b` line. Cloud issues go only on that line, in no lane. Only issues that build and test on Linux, with no real data or secrets.
-- **The model.** Ask the owner the model and the effort, with their own settings as the default: `model` and `effortLevel` in their Claude Code settings (`~/.claude/settings.json`). Read only those two keys, such as with `jq '{model, effortLevel}' ~/.claude/settings.json`, never the whole file: it can hold tokens. If you can't read just those, ask the owner. When a key is missing (`null`), ask for it with no default. Write it as a `Model: <model>, <effort>` line, or `Model: <model>` alone when the owner names no effort.
+- **The model.** Ask the owner the model and the effort, with their own settings as the default: `model` and `effortLevel` in their Claude Code settings (`~/.claude/settings.json`). Read only those two keys, such as with `jq '{model, effortLevel}' ~/.claude/settings.json`, never the whole file: it can hold tokens. If you can't read just those, ask the owner. When a key is missing (`null`), ask for it with no default. Write a `Model:` line only when the owner names a model, as `Model: <model>, <effort>`, or `Model: <model>` alone when the owner names no effort. Add the effort only when it's one of `low`, `medium`, `high`, `xhigh` or `max`: the runner refuses the batch at its start over any other, so ask the owner for one of those. When the owner names no model, leave the line out: the runs use the owner's own settings (SPEC §4.3).
 
 For example:
 

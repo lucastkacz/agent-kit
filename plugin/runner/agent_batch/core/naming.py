@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Sequence
+from dataclasses import replace
 
-from agent_batch.core.model import Issue
+from agent_batch.core import prompts
+from agent_batch.core.model import Finding, Issue
 
 MAX_SLUG = 40
 MAX_TITLE = 72
@@ -13,6 +16,11 @@ COMMIT_TYPES = (
     "feat", "fix", "docs", "test", "refactor", "chore", "ci", "build", "perf", "style", "revert",
 )  # fmt: skip
 CONVENTIONAL_TITLE = re.compile(rf"^(?:{'|'.join(COMMIT_TYPES)})(?:\([a-z0-9-]+\))?!?: \S.*$")
+FINDINGS_HEADING = "## Review findings"
+CLOSING_KEYWORD = r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)"
+# What GitHub closes on merge after a closing keyword: #N, owner/repo#N, or an issue's or PR's URL.
+REFERENCE = r"(?:[\w.-]+/[\w.-]+)?#\d+|https://github\.com/\S+?/(?:issues|pull)/\d+"
+CLOSING_REFERENCE = re.compile(rf"({CLOSING_KEYWORD}:?\s+)({REFERENCE})\b", re.IGNORECASE)
 
 
 def slugify(text: str) -> str:
@@ -37,10 +45,23 @@ def branch_name(issue: Issue) -> str:
 
 def pr_title(proposed: str, issue: Issue) -> str:
     """The implementer's title if it follows Conventional Commits, or one built from the issue."""
-    title = proposed.strip()
-    if "\n" not in title and len(title) <= MAX_TITLE and CONVENTIONAL_TITLE.match(title):
-        return title
+    if title_refusal(proposed) is None:
+        return proposed.strip()
     return f"{_default_type(issue)}: {issue.title.strip()}"
+
+
+def title_refusal(proposed: str) -> str | None:
+    """Why `proposed` can't be a PR's title, or None when it can."""
+    title = proposed.strip()
+    if "\n" in title:
+        return "it has more than one line"
+    if len(title) > MAX_TITLE:
+        return f"it has {len(title)} characters, and a title has at most {MAX_TITLE}"
+    if not CONVENTIONAL_TITLE.match(title):
+        return (
+            "it doesn't follow Conventional Commits, `<type>: <summary>` with a type such as feat"
+        )
+    return None
 
 
 def _default_type(issue: Issue) -> str:
@@ -51,9 +72,27 @@ def _default_type(issue: Issue) -> str:
     return "feat"
 
 
-def pr_body(body: str, number: int) -> str:
-    """The body, with `Closes #N` added unless it already closes the issue."""
-    closing = re.compile(rf"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #{number}\b", re.IGNORECASE)
-    if closing.search(body):
+def pr_body(body: str, number: int, findings: Sequence[Finding] = ()) -> str:
+    """The body, then the review's findings, then `Closes #N` unless the body closes the issue."""
+    closing = re.compile(rf"{CLOSING_KEYWORD} #{number}\b", re.IGNORECASE)
+    # Whether the implementer's body closes the issue: the findings' references are quoted below.
+    closes = closing.search(body) is not None
+    if findings:
+        listed = prompts.findings_list([_inert(finding) for finding in findings])
+        body = f"{body.rstrip()}\n\n{FINDINGS_HEADING}\n\n{listed}\n".lstrip()
+    if closes:
         return body
     return f"{body.rstrip()}\n\nCloses #{number}\n".lstrip()
+
+
+def _inert(finding: Finding) -> Finding:
+    """The finding, with each reference after a closing keyword in code, so the merge closes none.
+
+    GitHub closes every issue a PR body names after a closing keyword, even in the reviewer's words,
+    but it doesn't read references inside code.
+    """
+
+    def quote(text: str) -> str:
+        return CLOSING_REFERENCE.sub(r"\1`\2`", text)
+
+    return replace(finding, problem=quote(finding.problem), suggestion=quote(finding.suggestion))

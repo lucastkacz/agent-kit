@@ -11,6 +11,7 @@ from agent_batch.core.config import BLOCKED, HIGH_RISK
 from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
     ClaudeRun,
+    Finding,
     FoundIssue,
     ImplementResult,
     Issue,
@@ -24,6 +25,8 @@ from agent_batch.core.model import (
 from agent_batch.shell.proc import CommandError
 
 RISK_PATHS = ".claude/risk-paths"
+# GitHub's reason for an issue that its PR closed; "NOT_PLANNED" means the work was dropped.
+CLOSED_AS_COMPLETED = "COMPLETED"
 
 
 class Stopped(Exception):
@@ -41,6 +44,8 @@ class Job:
     branch: str
     report: IssueReport
     work: ImplementResult | None = None
+    # The approved review's findings, which go into the PR's body.
+    findings: tuple[Finding, ...] = ()
 
 
 def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
@@ -66,6 +71,8 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
 
 def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outcome:
     issue = ctx.gh.issue(number)
+    if _merged_before(ctx, issue, report):
+        return Outcome.MERGED
     refusal = eligibility.refusal(issue, ctx.owner)
     if refusal is not None:
         raise Stopped(Outcome.SKIPPED, refusal)
@@ -77,6 +84,21 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
     review_until_approved(ctx, lane, job)
     publish(ctx, lane, job)
     return _route(ctx, lane, job)
+
+
+def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
+    """Whether a merged PR closed the issue, as in an earlier run, so a re-run goes on past it."""
+    if issue.state == "OPEN":
+        return False
+    closure = ctx.gh.closure(issue.number)
+    if closure.reason != CLOSED_AS_COMPLETED:
+        return False
+    merged = [pr for pr in closure.prs if ctx.gh.pr_state(pr).state == "MERGED"]
+    if not merged:
+        return False
+    report.pr, report.detail = merged[0], "it merged in an earlier run"
+    report.human_checks = risk.count_human_checks(issue.body)
+    return True
 
 
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
@@ -132,6 +154,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
         job.report.review_rounds = attempt
         review = review_once(ctx, lane, job)
         if review.approved:
+            job.findings = review.findings
             return
         if attempt == most:
             findings = prompts.findings_list(review.findings)
@@ -174,19 +197,20 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
 
 
 def publish(ctx: Context, lane: Lane, job: Job) -> int:
-    """Pushes the branch, opens its PR and files the work found along the way."""
-    if job.work is None:
-        raise Stopped(Outcome.FAILED, "there's no implementation to publish")
+    """Pushes the branch, opens or updates its PR and files the work found along the way."""
+    work = _work(job)
     ctx.git.push(lane.worktree, job.branch)
+    title, body = _pr_text(job)
     pr = ctx.gh.find_pr(job.branch)
     if pr is None:
-        title = naming.pr_title(job.work.title, job.issue)
-        body = naming.pr_body(job.work.pr_body, job.issue.number)
         pr = ctx.gh.create_pr(job.branch, ctx.config.base_branch, title, body)
+        ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
+    else:
+        ctx.gh.edit_pr(pr, title, body)
+        ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
-    for found in job.work.found:
+    for found in work.found:
         _file(ctx, job, found)
-    ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     return pr
 
 
@@ -195,6 +219,19 @@ def _file(ctx: Context, job: Job, found: FoundIssue) -> None:
     body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
     number = ctx.gh.create_issue(found.title, body, found.kind)
     ctx.events.emit("issue_found", issue=job.issue.number, found=number)
+
+
+def _work(job: Job) -> ImplementResult:
+    if job.work is None:
+        raise Stopped(Outcome.FAILED, "there's no implementation to publish")
+    return job.work
+
+
+def _pr_text(job: Job) -> tuple[str, str]:
+    """The PR's title and body: the implementer's, with the approved review's findings."""
+    work = _work(job)
+    title = naming.pr_title(work.title, job.issue)
+    return title, naming.pr_body(work.pr_body, job.issue.number, job.findings)
 
 
 def classify(ctx: Context, lane: Lane, job: Job) -> Risk:
@@ -276,11 +313,15 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
             )
         require_committed(ctx, lane)
     job.report.review_rounds += 1
-    if not review_once(ctx, lane, job).approved:
+    review = review_once(ctx, lane, job)
+    if not review.approved:
         raise Stopped(
             Outcome.BLOCKED, "The review asked for changes after the conflicts were resolved."
         )
+    job.findings = review.findings
     ctx.git.push(lane.worktree, job.branch)
+    title, body = _pr_text(job)
+    ctx.gh.edit_pr(_pr(job), title, body)
 
 
 def _announce(ctx: Context, report: IssueReport) -> None:
