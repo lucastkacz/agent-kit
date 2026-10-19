@@ -115,10 +115,16 @@ def _number_above_zero(text: str) -> float | None:
 
 def _run(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
-    awake = keep_awake()
+    awake = keep_awake(sys.platform)
     try:
         limits = Limits(args.max_issues, args.max_hours, args.lanes, args.model, args.effort)
-        return run_batch(ctx, args.batch, limits, on_battery=on_battery())
+        return run_batch(
+            ctx,
+            args.batch,
+            limits,
+            kept_awake=awake is not None,
+            on_battery=on_battery(sys.platform),
+        )
     finally:
         if awake is not None:
             awake.terminate()
@@ -180,6 +186,7 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         claude=Claude(env, config),
         events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
         status=StatusBoard(repo / config.state_dir / log_name / status.STATUS, os.getpid()),
-        # The wall clock: on macOS, `time.monotonic` stops while the computer sleeps (#28).
+        # The wall clock: a monotonic clock can stop while the computer sleeps, as
+        # `time.monotonic` does on macOS and Linux (#28).
         clock=time.time,
     )

@@ -1,4 +1,4 @@
-"""A throwaway project with a git remote and fakes of `gh`, `claude`, `caffeinate` and `pmset`."""
+"""A throwaway project with a git remote and fakes of `gh`, `claude` and the power tools."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from agent_batch import cli
+from agent_batch.shell import system
 
 FAKES = Path(__file__).parent / "fakes"
 OWNER = "owner"
@@ -34,6 +35,10 @@ PMSET = """#!/bin/sh
 [ "$*" = "-g batt" ] || exit 64
 cat "$FAKE_PMSET_OUTPUT"
 """
+# `systemd-inhibit` writes down its arguments, like `caffeinate`.
+SYSTEMD_INHIBIT = """#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_SYSTEMD_INHIBIT_LOG"
+"""
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -52,6 +57,8 @@ class World:
     slept_file: Path
     caffeinate_log: Path
     power: Path
+    systemd_inhibit_log: Path
+    power_supplies: Path
 
     def gh(self) -> dict[str, Any]:
         state: dict[str, Any] = json.loads(self.gh_state.read_text())
@@ -132,6 +139,19 @@ class World:
             return []
         return [line.split() for line in self.caffeinate_log.read_text().splitlines()]
 
+    def systemd_inhibit_calls(self) -> list[list[str]]:
+        if not self.systemd_inhibit_log.exists():
+            return []
+        return [line.split() for line in self.systemd_inhibit_log.read_text().splitlines()]
+
+    def linux_power(self, *, mains_online: bool) -> None:
+        """A laptop's `/sys/class/power_supply`: its mains adapter and its battery."""
+        for name, kind, online in (("AC", "Mains", mains_online), ("BAT0", "Battery", True)):
+            supply = self.power_supplies / name
+            supply.mkdir(parents=True, exist_ok=True)
+            (supply / "type").write_text(f"{kind}\n")
+            (supply / "online").write_text("1\n" if online else "0\n")
+
     def run(self, *argv: str) -> int:
         return cli.main(list(argv))
 
@@ -142,7 +162,8 @@ def _make_fakes(bin_dir: Path) -> None:
         wrapper = bin_dir / name
         wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n')
         wrapper.chmod(0o755)
-    for name, script in (("caffeinate", CAFFEINATE), ("pmset", PMSET)):
+    fakes = (("caffeinate", CAFFEINATE), ("pmset", PMSET), ("systemd-inhibit", SYSTEMD_INHIBIT))
+    for name, script in fakes:
         fake = bin_dir / name
         fake.write_text(script)
         fake.chmod(0o755)
@@ -198,6 +219,8 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
         slept_file=tmp_path / "slept",
         caffeinate_log=tmp_path / "caffeinate.log",
         power=tmp_path / "pmset.txt",
+        systemd_inhibit_log=tmp_path / "systemd-inhibit.log",
+        power_supplies=tmp_path / "power_supply",
     )
     created.power.write_text(AC_POWER)
     created.gh_state.write_text(
@@ -212,6 +235,10 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setenv("FAKE_CLAUDE_LOG", str(created.claude_log))
     monkeypatch.setenv("FAKE_CAFFEINATE_LOG", str(created.caffeinate_log))
     monkeypatch.setenv("FAKE_PMSET_OUTPUT", str(created.power))
+    monkeypatch.setenv("FAKE_SYSTEMD_INHIBIT_LOG", str(created.systemd_inhibit_log))
+    # macOS unless a test says otherwise, whatever computer runs the tests.
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(system, "POWER_SUPPLIES", created.power_supplies)
     monkeypatch.setenv("FAKE_ORIGIN", str(origin))
     monkeypatch.setenv("FAKE_SLEPT", str(created.slept_file))
     monkeypatch.setenv("FAKE_STATE_DIR", str(project / ".agent-batch"))

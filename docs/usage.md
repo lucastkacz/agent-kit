@@ -59,7 +59,7 @@ Budget: 4 issues, 3 hours
 Model: opus, high
 ```
 
-During a batch, leave the Mac plugged in with its lid open. The runner keeps it awake only on AC power, and says so at the start when it's on battery; closing the lid sleeps it anyway.
+During a batch, leave the computer plugged in, and on a laptop keep the lid open: closing it sleeps the computer anyway. The runner holds off sleep with `caffeinate` on macOS and `systemd-inhibit` on Linux, and says at the start when the computer is on battery, or when it can't keep it awake at all.
 
 SPEC §5, §9 and §11 explain how a batch runs, what merges by itself and what waits for the owner.
 

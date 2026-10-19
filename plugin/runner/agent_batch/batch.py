@@ -17,8 +17,11 @@ from agent_batch.lane import Gate, run_lane
 from agent_batch.shell.proc import CommandError
 
 ON_BATTERY = (
-    "The Mac is on battery power, so it may sleep during the batch unless it's plugged in "
-    "with its lid open."
+    "The computer is on battery, so it may sleep during the batch unless it's plugged in. "
+    "On a laptop, keep the lid open."
+)
+CANT_KEEP_AWAKE = (
+    "The runner can't keep the computer awake on this system, so it may sleep during the batch."
 )
 
 
@@ -33,7 +36,9 @@ class Limits:
     effort: str | None = None
 
 
-def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) -> int:
+def run_batch(
+    ctx: Context, number: int, limits: Limits, *, kept_awake: bool, on_battery: bool
+) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)
@@ -44,6 +49,8 @@ def run_batch(ctx: Context, number: int, limits: Limits, *, on_battery: bool) ->
     described = report.model_lines(model, effort)
     lanes = batch_plan.lanes
     ctx.events.emit("batch_started", batch=number, lanes=[list(lane) for lane in lanes])
+    if not kept_awake:
+        ctx.events.emit("cant_keep_awake", warning=CANT_KEEP_AWAKE)
     if on_battery:
         ctx.events.emit("on_battery", warning=ON_BATTERY)
     _clean_up(ctx)
