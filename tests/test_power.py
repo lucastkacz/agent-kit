@@ -32,7 +32,7 @@ def test_a_refused_batch_on_battery_leaves_no_batch_running_for_the_next_session
 
 
 def test_a_pmset_that_cant_run_counts_as_not_on_battery(world: World) -> None:
-    (world.root / "bin" / "pmset").write_text("#!/nonexistent/sh\n")
+    world.replace_fake("pmset", "#!/nonexistent/sh\n")
 
     assert not system.on_battery("darwin")
 
@@ -40,13 +40,13 @@ def test_a_pmset_that_cant_run_counts_as_not_on_battery(world: World) -> None:
 def test_a_pmset_that_hangs_counts_as_not_on_battery(
     world: World, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (world.root / "bin" / "pmset").write_text("#!/bin/sh\nexec sleep 5\n")
+    world.replace_fake("pmset", "#!/bin/sh\nexec sleep 5\n")
     monkeypatch.setattr(system, "PMSET_TIMEOUT", 0.1)
 
     assert not system.on_battery("darwin")
 
 
 def test_a_pmset_output_that_isnt_text_counts_as_not_on_battery(world: World) -> None:
-    (world.root / "bin" / "pmset").write_text("#!/bin/sh\nprintf '\\377\\376 not text'\n")
+    world.replace_fake("pmset", "#!/bin/sh\nprintf '\\377\\376 not text'\n")
 
     assert not system.on_battery("darwin")

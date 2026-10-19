@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass
 
+from agent_batch import filing
 from agent_batch.context import Context, Lane
 from agent_batch.core import eligibility, merge, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
@@ -12,7 +13,6 @@ from agent_batch.core.merge import MergeStatus
 from agent_batch.core.model import (
     ClaudeRun,
     Finding,
-    FoundIssue,
     ImplementResult,
     Issue,
     IssueReport,
@@ -59,7 +59,7 @@ def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
     except CommandError as error:
         report.outcome, report.detail = Outcome.FAILED, str(error)
     report.seconds = ctx.clock() - started
-    _announce(ctx, report)
+    announce(ctx, report)
     ctx.events.emit(
         "issue_finished",
         lane=lane.index,
@@ -158,6 +158,7 @@ def _checked(
             "permission_denied",
             issue=report.number,
             run=what,
+            session=denial.session,
             tool=denial.tool,
             input=denial.tool_input,
         )
@@ -212,10 +213,10 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
     review, filed = rounds.settle(answer, number)
-    # The issues go before the event: if filing fails, this round isn't logged and runs again.
-    # That can file an issue twice, but the next round never reads as filed a finding that wasn't.
-    for finding in filed:
-        _file(ctx, job, rounds.found_issue(finding, number))
+    # The issue goes before the event: if filing fails, this round isn't logged and runs again.
+    # That can file a finding twice, but the next round never reads as filed one that wasn't.
+    found = [rounds.found_issue(finding, number) for finding in filed]
+    filing.file(ctx, job.issue.number, job.branch, found)
     # Every finding, filed ones included, so that the next review can read what this one found.
     # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
     ctx.events.emit(
@@ -247,16 +248,8 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         ctx.gh.edit_pr(pr, title, body)
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
-    for found in work.found:
-        _file(ctx, job, found)
+    filing.file(ctx, job.issue.number, job.branch, work.found)
     return pr
-
-
-def _file(ctx: Context, job: Job, found: FoundIssue) -> None:
-    """Files work found along the way as an issue of its own (SPEC §4.5)."""
-    body = f"{found.body.rstrip()}\n\nFound while working on #{job.issue.number}."
-    number = ctx.gh.create_issue(found.title, body, found.kind)
-    ctx.events.emit("issue_found", issue=job.issue.number, found=number)
 
 
 def _work(job: Job) -> ImplementResult:
@@ -365,7 +358,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     ctx.gh.edit_pr(_pr(job), title, body)
 
 
-def _announce(ctx: Context, report: IssueReport) -> None:
+def announce(ctx: Context, report: IssueReport) -> None:
     """Writes a blocked or failed issue's question on GitHub, where the owner will see it."""
     if report.outcome not in (Outcome.BLOCKED, Outcome.FAILED):
         return
@@ -380,6 +373,8 @@ def _announce(ctx: Context, report: IssueReport) -> None:
     try:
         ctx.gh.add_label(report.number, BLOCKED)
         ctx.gh.comment(report.number, body)
+        # A lane's set-aside reports start out unannounced; this one now has its comment.
+        report.unannounced = False
     except CommandError as error:
         report.unannounced = True
         ctx.events.emit("announce_failed", issue=report.number, detail=str(error))
