@@ -14,6 +14,8 @@ from pathlib import Path
 PMSET_TIMEOUT = 10
 POWER_SUPPLIES = Path("/sys/class/power_supply")
 INHIBIT_WHY = "agent-batch is running a batch"
+# `systemd-inhibit` that can't take its lock (no system bus, or polkit says no) exits at once.
+INHIBIT_GRACE = 0.5
 
 
 def keep_awake(platform: str) -> subprocess.Popen[bytes] | None:
@@ -71,11 +73,12 @@ def _systemd_inhibit() -> subprocess.Popen[bytes] | None:
     """`systemd-inhibit` on Linux, around a `tail` that exits with this process.
 
     Terminating `systemd-inhibit` ends the hold; its `tail` follows when this process ends.
+    One that fails within `INHIBIT_GRACE` seconds holds nothing, so it counts as None.
     """
     inhibit, tail = shutil.which("systemd-inhibit"), shutil.which("tail")
     if inhibit is None or tail is None:
         return None
-    return subprocess.Popen(
+    awake = subprocess.Popen(
         [
             inhibit,
             "--what=idle:sleep",
@@ -87,18 +90,31 @@ def _systemd_inhibit() -> subprocess.Popen[bytes] | None:
             "/dev/null",
         ]
     )
+    try:
+        failed = awake.wait(timeout=INHIBIT_GRACE) != 0
+    except subprocess.TimeoutExpired:
+        return awake
+    return None if failed else awake
 
 
 def _power_supplies_on_battery(supplies: Path) -> bool:
     """On Linux, on battery when the computer has a mains supply and none of them is online.
 
-    A desktop may list no supply at all, and one that can't be read counts as not on battery.
+    A desktop may list no supply at all. A supply whose type can't be read is skipped, and a
+    folder or a mains supply that can't be read counts as not on battery.
     """
     try:
-        mains = [supply for supply in supplies.iterdir() if _read(supply / "type") == "Mains"]
+        mains = [supply for supply in supplies.iterdir() if _kind(supply) == "Mains"]
         return bool(mains) and all(_read(supply / "online") == "0" for supply in mains)
     except OSError:
         return False
+
+
+def _kind(supply: Path) -> str | None:
+    try:
+        return _read(supply / "type")
+    except OSError:
+        return None
 
 
 def _read(path: Path) -> str:
