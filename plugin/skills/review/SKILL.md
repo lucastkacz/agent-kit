@@ -48,6 +48,7 @@ Your tools are few, and a command outside them is denied.
    - No rule is silenced without a reason on the same line.
    - Names come from the product's words.
 7. **Tests.** They're meaningful and named after behaviors. No test exists only to raise coverage. Property-based tests are used where the inputs are many.
+   - A behavior no test covers is a finding: a missing test. Never run code of your own to probe it, such as `python -c` or a script; it would be denied, since you're read-only. Read the code and its tests instead, and you may run `make test`.
 8. **Docs.** Whatever this change makes stale is updated in the same branch.
 
 Use Google's code review guide as the rubric: design, functionality, complexity, tests, naming, comments, style and documentation.
