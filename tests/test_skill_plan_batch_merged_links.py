@@ -29,7 +29,7 @@ def test_a_merge_moves_the_merged_issues_links_to_the_issue_that_holds_it_before
 def test_a_blocker_merged_into_another_issue_counts_through_that_issue() -> None:
     plan = section(4)
     assert (
-        'A blocker closed as not planned with the comment "Merged into #<m>." counts through #<m>'
+        'A blocker closed as not planned with the comment "Merged into #<h>." counts through #<h>'
         in plan
     )
 

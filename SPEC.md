@@ -133,7 +133,7 @@ A batch is a milestone plus a tracking issue labeled `batch`:
 
 Planning sizes the issues so that each is worth its fixed cost of an agent, its checks, a review and a merge: it merges small issues that share an area and a reason into one, aims for one to five criteria and a diff of roughly 50 to 400 lines, and keeps unrelated work apart so its lanes run side by side.
 
-The lane plan lists each lane's issues in order. A dependency is recorded as a GitHub "blocked by" link (`gh issue edit <n> --add-blocked-by <m>`), and planning puts an issue after its open blockers in their lane, or leaves it for a later batch; lanes still follow the files the issues touch, for conflicts. Optional lines add the rest:
+The lane plan lists each lane's issues in order. A dependency is recorded as a GitHub "blocked by" link (`gh issue edit <n> --add-blocked-by <m>`), and planning puts an issue after its open blockers in their lane, or leaves it for a later batch; lanes still follow the files the issues touch, for conflicts. A blocker counts as done only when it's closed as completed: one closed as not planned never landed its code, so it still blocks, but one merged into another issue counts through that issue, and is done when that issue is. An issue whose blocker was closed as not planned, and not merged into another, goes to the owner to remove the link, rewrite the issue or close it, instead of waiting for a later batch. Optional lines add the rest:
 
 - `Lanes:` how many lanes run at a time (§11.1).
 - `Budget:` the issues and hours the batch may spend (§11.2).
