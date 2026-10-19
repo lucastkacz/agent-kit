@@ -254,10 +254,9 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
     wait = ctx.config.poll_seconds
     retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), wait)
     title, body = _pr_text(job)
-    pr = ctx.gh.find_pr(job.branch)
-    if pr is None:
-        base = ctx.config.base_branch
-        pr = retry.retried(lambda: ctx.gh.create_pr(job.branch, base, title, body), wait)
+    base = ctx.config.base_branch
+    pr, opened = retry.retried(lambda: ctx.gh.open_pr(job.branch, base, title, body), wait)
+    if opened:
         ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     else:
         ctx.gh.edit_pr(pr, title, body)
@@ -368,7 +367,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
             Outcome.BLOCKED, "The review asked for changes after the conflicts were resolved."
         )
     job.findings = review.findings
-    ctx.git.push(lane.worktree, job.branch)
+    retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), ctx.config.poll_seconds)
     title, body = _pr_text(job)
     ctx.gh.edit_pr(_pr(job), title, body)
 
@@ -388,6 +387,7 @@ def announce(ctx: Context, report: IssueReport) -> None:
     try:
         wait = ctx.config.poll_seconds
         retry.retried(lambda: ctx.gh.add_label(report.number, BLOCKED), wait)
+        # A 5xx after GitHub saved the comment posts it twice: better than no comment at all.
         retry.retried(lambda: ctx.gh.comment(report.number, body), wait)
         # A lane's set-aside reports start out unannounced; this one now has its comment.
         report.unannounced = False

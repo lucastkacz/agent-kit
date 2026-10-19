@@ -41,15 +41,16 @@ def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round
 
 
 def approved_findings(earlier: Iterable[Round], head: str) -> tuple[Finding, ...] | None:
-    """The findings the PR's body keeps from an approved review of `head`, if one read it.
+    """The findings the PR's body keeps from the last review of `head`, if it approved the branch.
 
-    They leave out what that review filed in the follow-up, as they did when it ran.
+    Only the last one counts: a later review of the same head, such as `ship`'s, can ask for
+    changes. The findings leave out what that review filed in the follow-up, as they did then.
     """
-    for review in earlier:
-        if review.approved and review.head == head:
-            kept, _ = settle(ReviewResult(approved=True, findings=review.findings), review.number)
-            return kept.findings
-    return None
+    last = next((review for review in reversed(tuple(earlier)) if review.head == head), None)
+    if last is None or not last.approved:
+        return None
+    kept, _ = settle(ReviewResult(approved=True, findings=last.findings), last.number)
+    return kept.findings
 
 
 def filed(finding: Finding, number: int) -> bool:

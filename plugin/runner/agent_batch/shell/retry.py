@@ -17,19 +17,17 @@ def retried[T](call: Callable[[], T], wait: float) -> T:
     Only a server error is tried again: another failure, such as a rejected push, would fail the
     same way.
     """
-    for _ in range(TRIES - 1):
+    failure: CommandError | None = None
+    for attempt in range(TRIES):
+        if attempt:
+            time.sleep(wait)
         try:
             return call()
         except CommandError as error:
             if not is_server_error(str(error)):
                 raise
-        time.sleep(wait)
-    try:
-        return call()
-    except CommandError as error:
-        if not is_server_error(str(error)):
-            raise
-        raise CommandError(
-            f"The call failed after {TRIES} tries, each with a GitHub server error; the last "
-            f"one: {error}"
-        ) from error
+            failure = error
+    raise CommandError(
+        f"The call failed after {TRIES} tries, each with a GitHub server error; the last one: "
+        f"{failure}"
+    ) from failure
