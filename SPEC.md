@@ -131,6 +131,8 @@ A batch is a milestone plus a tracking issue labeled `batch`:
 - The milestone groups the batch's issues.
 - The tracking issue holds the lane plan, the budget, the live status, the final summary and the acceptance checklist. It exists because milestones can't hold a conversation.
 
+Planning sizes the issues so that each is worth its fixed cost of an agent, its checks, a review and a merge: it merges small issues that share an area and a reason into one, aims for one to five criteria and a diff of roughly 50 to 400 lines, and keeps unrelated work apart so its lanes run side by side.
+
 The lane plan lists each lane's issues in order. Optional lines add the rest:
 
 - `Lanes:` how many lanes run at a time (§11.1).
