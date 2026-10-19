@@ -17,7 +17,7 @@ class EventLog:
 
     def emit(self, event: str, **fields: object) -> None:
         record = {"time": datetime.now(UTC).isoformat(timespec="seconds"), "event": event, **fields}
-        details = " ".join(f"{key}={value}" for key, value in fields.items())
+        details = " ".join(f"{key}={_plain(event, key, value)}" for key, value in fields.items())
         with self._lock:
             with self.path.open("a", encoding="utf-8") as log:
                 log.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -33,6 +33,15 @@ class EventLog:
         with self._lock:
             found = [record for log in logs for record in _read(log, event)]
         return sorted(found, key=lambda record: str(record.get("time", "")))
+
+
+def _plain(event: str, key: str, value: object) -> object:
+    """A field as the plain line shows it: a review's findings by their count (#105)."""
+    if event == "reviewed" and key == "findings":
+        if not isinstance(value, list):
+            raise TypeError(f"A reviewed event's findings must be a list, not {value!r}.")
+        return len(value)
+    return value
 
 
 def _read(log: Path, event: str) -> list[dict[str, object]]:
