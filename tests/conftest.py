@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -180,22 +183,25 @@ def _write_executable(path: Path, script: str) -> None:
     path.chmod(0o755)
 
 
-def _shared_fakes(shared: Path) -> None:
-    """The fakes every world links to, written once: macOS checks a new executable on its first run.
-
-    They are read-only, so a test that writes over one through its link fails instead of changing
-    it for the tests after it; `World.replace_fake` gives a test a fake of its own.
-    """
+def _fake_scripts() -> dict[str, str]:
     fakes = {
         name: f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n'
         for name, script in (("gh", "fake_gh.py"), ("claude", "fake_claude.py"))
     }
-    fakes |= {
+    return fakes | {
         "caffeinate": CAFFEINATE,
         "pmset": PMSET,
         "systemd-inhibit": SYSTEMD_INHIBIT,
         "tail": TAIL,
     }
+
+
+def _shared_fakes(shared: Path, fakes: dict[str, str]) -> None:
+    """The fakes every world links to, written once: macOS checks a new executable on its first run.
+
+    They are read-only, so a test that writes over one through its link fails instead of changing
+    it for the tests after it; `World.replace_fake` gives a test a fake of its own.
+    """
     for name, script in fakes.items():
         _write_executable(shared / name, script)
         (shared / name).chmod(0o555)
@@ -211,10 +217,39 @@ def _shared_fakes(shared: Path) -> None:
 
 
 @pytest.fixture(scope="session")
-def shared_fakes(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    shared = tmp_path_factory.mktemp("fakes")
-    _shared_fakes(shared)
-    return shared
+def shared_fakes(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The shared fakes, kept in pytest's cache by their content: later sessions find them checked.
+
+    Each worker of a first session writes and runs its own, and the first to finish keeps them.
+    """
+    fakes = _fake_scripts()
+    cache: pytest.Cache | None = getattr(request.config, "cache", None)
+    if cache is None:
+        shared = tmp_path_factory.mktemp("fakes")
+        _shared_fakes(shared, fakes)
+        return shared
+    key = hashlib.sha256(json.dumps(fakes, sort_keys=True).encode()).hexdigest()[:16]
+    kept = cache.mkdir("fakes") / key
+    if not kept.is_dir():
+        fresh = Path(tempfile.mkdtemp(prefix=f"{key}-", dir=kept.parent))
+        _shared_fakes(fresh, fakes)
+        try:
+            fresh.rename(kept)
+        except OSError:
+            if not kept.is_dir():
+                raise
+            shutil.rmtree(fresh)
+    return kept
+
+
+@pytest.fixture(scope="session")
+def git_dir() -> Path:
+    """Where git keeps its commands, git itself among them, on any computer.
+
+    macOS's /usr/bin/git looks for the developer tools' git before it runs it, on every call, which
+    makes each of the suite's thousands of git calls take three times as long.
+    """
+    return Path(git(FAKES, "--exec-path").strip())
 
 
 def _make_fakes(bin_dir: Path, shared: Path) -> None:
@@ -248,6 +283,26 @@ ISOLATED_GIT = {
 }
 
 
+@pytest.fixture(scope="session")
+def template_repos(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A project and its `origin`, built with git once per session for every world to copy."""
+    root = tmp_path_factory.mktemp("template")
+    with pytest.MonkeyPatch.context() as patch:
+        for key, value in ISOLATED_GIT.items():
+            patch.setenv(key, value)
+        _make_repos(root)
+    return root
+
+
+def _copy_repos(template: Path, root: Path) -> tuple[Path, Path]:
+    origin, project = root / "origin.git", root / "project"
+    shutil.copytree(template / "origin.git", origin, symlinks=True)
+    shutil.copytree(template / "project", project, symlinks=True)
+    config = project / ".git" / "config"
+    config.write_text(config.read_text().replace(str(template / "origin.git"), str(origin)))
+    return origin, project
+
+
 @pytest.fixture(autouse=True)
 def isolated_git(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests run git the same way on any computer: without its config, as a test author.
@@ -260,8 +315,14 @@ def isolated_git(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.fixture
-def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shared_fakes: Path) -> World:
-    origin, project = _make_repos(tmp_path)
+def world(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    shared_fakes: Path,
+    template_repos: Path,
+    git_dir: Path,
+) -> World:
+    origin, project = _copy_repos(template_repos, tmp_path)
     _make_fakes(tmp_path / "bin", shared_fakes)
     created = World(
         root=tmp_path,
@@ -283,7 +344,9 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shared_fakes: Path) -
         )
     )
     created.scenario.write_text("{}")
-    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}:{Path(sys.executable).parent}:/usr/bin:/bin")
+    monkeypatch.setenv(
+        "PATH", f"{tmp_path / 'bin'}:{git_dir}:{Path(sys.executable).parent}:/usr/bin:/bin"
+    )
     monkeypatch.setenv("FAKE_GH_STATE", str(created.gh_state))
     monkeypatch.setenv("FAKE_CLAUDE_SCENARIO", str(created.scenario))
     monkeypatch.setenv("FAKE_CLAUDE_LOG", str(created.claude_log))
