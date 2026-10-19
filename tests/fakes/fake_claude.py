@@ -4,7 +4,8 @@ The scenario maps a kind of run (implement, review, fix, resolve) and an issue n
 that its calls take in order. A step can answer with an `output`, fail with an `error`, print `raw`
 text or `sleep`; when the steps run out, the run succeeds with a default answer. A step can also say
 the computer `slept` that many seconds: the test's wall clock moves on by them. Its `cost` is the
-run's cost in dollars, 0.01 by default.
+run's cost in dollars, 0.01 by default. Its `logged` denials go through the real PermissionDenied
+hook, with the run's session id, as auto mode's denials of a lane do.
 
 Asked for `--output-format stream-json`, it prints one message per line, as the real one does: its
 start, an assistant message for each of the step's `tools`, then its answer. With `snapshot`, it
@@ -38,6 +39,7 @@ DENIAL = {
     "tool_use_id": "toolu_fake",
     "tool_input": {"command": "git push origin HEAD"},
 }
+RUNNER = Path(__file__).resolve().parents[2] / "plugin" / "runner"
 # How long a `snapshot` waits for the runner to show a tool use before it keeps what it finds.
 SNAPSHOT_WAIT = 5.0
 
@@ -166,6 +168,27 @@ def tool_message(tool: Step) -> dict[str, Any]:
     }
 
 
+def log_denials(session: str, logged: list[Step]) -> None:
+    """Hands each denial to `agent-kit-hook log-denials`, as Claude Code does in auto mode."""
+    env = {**os.environ, "PYTHONPATH": str(RUNNER)}
+    for denied in logged:
+        payload = {
+            "hook_event_name": "PermissionDenied",
+            "session_id": session,
+            "cwd": str(Path.cwd()),
+            "tool_name": denied["tool_name"],
+            "tool_input": denied["tool_input"],
+            "reason": denied.get("reason", "Classifier unavailable"),
+        }
+        subprocess.run(
+            [sys.executable, "-m", "agent_hooks", "log-denials"],
+            input=json.dumps(payload),
+            text=True,
+            env=env,
+            check=True,
+        )
+
+
 def emit(message: dict[str, Any]) -> None:
     sys.stdout.write(json.dumps(message) + "\n")
     sys.stdout.flush()
@@ -228,6 +251,8 @@ def main(argv: list[str]) -> int:
     record(argv, kind, number)
     if streaming(argv):
         stream_tools(kind, number, step, count)
+    if "logged" in step:
+        log_denials(f"session-{kind}-{number}-{count}", step["logged"])
     if "slept" in step:
         sleep_computer(float(step["slept"]))
     if "sleep" in step:
