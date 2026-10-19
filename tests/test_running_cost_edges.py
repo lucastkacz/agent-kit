@@ -10,6 +10,7 @@ import pytest
 from agent_batch.core import progress
 from agent_batch.core.progress import LaneState
 from agent_batch.shell.status import StatusBoard
+from recorded_stream import check_recorded_stream
 
 RECORDED = Path(__file__).parent / "contract" / "recorded" / "claude-stream.json"
 
@@ -49,15 +50,7 @@ def test_a_messages_tokens_add_every_kind_and_skip_what_isnt_a_count() -> None:
 
 
 def test_the_recorded_streams_messages_each_carry_their_id_and_tokens() -> None:
-    messages = json.loads(RECORDED.read_text(encoding="utf-8"))
-    assistants = [message for message in messages if message.get("type") == "assistant"]
-
-    # Each `make contract` records a different number of messages, so only what each carries counts.
-    assert assistants, "the recording has no assistant message"
-    for message in assistants:
-        entry = progress.usage(json.dumps(message))
-        assert entry is not None, f"an assistant message has no id or no usage: {message}"
-        assert entry[1] > 0, f"message {entry[0]} has no tokens"
+    check_recorded_stream(RECORDED)
 
 
 def test_a_run_that_ended_without_a_cost_leaves_the_rate_unset(tmp_path: Path) -> None:
