@@ -27,15 +27,20 @@ def slugify(text: str) -> str:
     """Lowercase ASCII words joined by hyphens, cut at a word boundary."""
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     words: list[str] = re.findall(r"[a-z0-9]+", ascii_text.lower())
-    slug = ""
+    return _whole_words(words, "-", MAX_SLUG)
+
+
+def _whole_words(words: Sequence[str], separator: str, limit: int) -> str:
+    """The words joined while they fit in `limit`, or the first word cut when not even it fits."""
+    kept = ""
     for word in words:
-        candidate = f"{slug}-{word}" if slug else word
-        if len(candidate) > MAX_SLUG:
+        candidate = f"{kept}{separator}{word}" if kept else word
+        if len(candidate) > limit:
             break
-        slug = candidate
-    if not slug and words:
-        return words[0][:MAX_SLUG]
-    return slug
+        kept = candidate
+    if not kept and words:
+        return words[0][:limit]
+    return kept
 
 
 def branch_name(issue: Issue) -> str:
@@ -47,7 +52,9 @@ def pr_title(proposed: str, issue: Issue) -> str:
     """The implementer's title if it follows Conventional Commits, or one built from the issue."""
     if title_refusal(proposed) is None:
         return proposed.strip()
-    return f"{_default_type(issue)}: {issue.title.strip()}"
+    prefix = f"{_default_type(issue)}: "
+    words = issue.title.strip().split(" ")
+    return prefix + _whole_words(words, " ", MAX_TITLE - len(prefix)).rstrip()
 
 
 def title_refusal(proposed: str) -> str | None:
