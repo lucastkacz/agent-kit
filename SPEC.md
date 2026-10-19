@@ -131,7 +131,7 @@ A batch is a milestone plus a tracking issue labeled `batch`:
 - The milestone groups the batch's issues.
 - The tracking issue holds the lane plan, the budget, the live status, the final summary and the acceptance checklist. It exists because milestones can't hold a conversation.
 
-The lane plan lists each lane's issues in order. Optional lines add the rest:
+The lane plan lists each lane's issues in order. A dependency is recorded as a GitHub "blocked by" link (`gh issue edit <n> --add-blocked-by <m>`), and planning puts an issue after its open blockers in their lane, or leaves it for a later batch; lanes still follow the files the issues touch, for conflicts. Optional lines add the rest:
 
 - `Lanes:` how many lanes run at a time (§11.1).
 - `Budget:` the issues and hours the batch may spend (§11.2).
