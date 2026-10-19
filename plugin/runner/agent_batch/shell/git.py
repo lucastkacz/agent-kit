@@ -129,9 +129,15 @@ class Git:
         """Removes a worktree; git refuses one with changes or a lock, so no work is lost."""
         self._git(repo, "worktree", "remove", str(path))
 
-    def delete_branch(self, repo: Path, branch: str) -> None:
-        # `-D`: after a squash merge, `-d` refuses the branch as unmerged.
-        self._git(repo, "branch", "--quiet", "-D", branch)
+    def delete_branch(self, repo: Path, branch: str, head: str) -> None:
+        """Deletes the branch only if it still ends at `head`, so a commit made since stays.
+
+        Not `git branch -d`, which refuses a squash-merged branch as unmerged, nor `-D`, which
+        deletes whatever the branch ends at by then.
+        """
+        self._git(repo, "update-ref", "-d", f"{HEADS}{branch}", head)
+        # Only a branch that tracked a remote has a section, so its absence isn't a failure.
+        self._run(repo, "config", "--remove-section", f"branch.{branch}")
 
     def finish_branch(self, worktree: Path, branch: str) -> None:
         """Leaves the merged branch, so the lane's next issue starts from the latest base.

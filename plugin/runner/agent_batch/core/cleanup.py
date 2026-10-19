@@ -17,11 +17,15 @@ class Verdict:
     pr: int | None = None
 
 
-def decide(branch: LocalBranch, merged: Sequence[MergedPr], *, changed: bool) -> Verdict:
+def decide(
+    branch: LocalBranch, merged: Sequence[MergedPr], *, lane: str | None, changed: bool
+) -> Verdict:
     """Deletes a branch only when a PR merged at its head and its worktree has no changes.
 
     The head is compared, not the commits: after a squash merge, none of the branch's commits
-    is on the base branch, so git can't tell a merged branch from one with work left.
+    is on the base branch, so git can't tell a merged branch from one with work left. `lane`
+    names the runner's lane worktree the branch is checked out in: a running lane keeps its
+    merged branch until its next poll, then deletes it itself.
     """
     if not merged:
         return Verdict(delete=False, reason="it has no merged PR")
@@ -32,6 +36,12 @@ def decide(branch: LocalBranch, merged: Sequence[MergedPr], *, changed: bool) ->
         return Verdict(delete=False, reason=reason)
     if branch.main_folder:
         reason = f"PR #{pr.number} merged, but the branch is checked out in the main folder"
+        return Verdict(delete=False, reason=reason, pr=pr.number)
+    if lane is not None:
+        reason = (
+            f"PR #{pr.number} merged, but it's checked out in the runner's {lane} worktree, "
+            "which its lane cleans up"
+        )
         return Verdict(delete=False, reason=reason, pr=pr.number)
     if changed:
         reason = f"PR #{pr.number} merged, but its worktree {branch.worktree} has changes"

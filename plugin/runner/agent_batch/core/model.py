@@ -122,9 +122,10 @@ class PrState:
 
 @dataclass(frozen=True)
 class MergedPr:
-    """A merged PR, and the commit its branch ended at when it merged."""
+    """A merged PR, its branch, and the commit the branch ended at when it merged."""
 
     number: int
+    branch: str
     head: str
 
 

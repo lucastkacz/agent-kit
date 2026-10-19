@@ -103,6 +103,8 @@ def pr_list(state: State, argv: list[str], _stdin: str) -> str:
         wanted = [pr for pr in wanted if pr["branch"] == option(argv, "--head")]
     if "--label" in argv:
         wanted = [pr for pr in wanted if option(argv, "--label") in pr["labels"]]
+    if "--limit" in argv:
+        wanted = wanted[: int(option(argv, "--limit"))]
     return json.dumps([pr_fields(pr) for pr in wanted])
 
 
@@ -111,6 +113,7 @@ def pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
     return {
         "number": pr["number"],
         "title": pr["title"],
+        "headRefName": pr["branch"],
         "headRefOid": pr.get("head") or pr.get("armed") or "",
     }
 
