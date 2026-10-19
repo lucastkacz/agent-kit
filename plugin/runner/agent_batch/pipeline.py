@@ -109,13 +109,13 @@ def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
     reuse = lane.session_id is not None and lane.session_issues < ctx.config.issues_per_session
     prompt = prompts.implement(job.issue.number)
-    run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
+    run = _watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
     lane.session_issues = lane.session_issues + 1 if reuse else 1
     lane.session_id = run.session_id
     _accept_work(ctx, lane, job, run)
 
 
-def watched(ctx: Context, lane: Lane) -> Claude:
+def _watched(ctx: Context, lane: Lane) -> Claude:
     """The runs, each of whose tool uses becomes the lane's last action as it goes (#107)."""
     return ctx.claude.watching(lambda action: ctx.status.act(lane.index, action, ctx.clock()))
 
@@ -177,7 +177,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
             )
         prompt = prompts.fix(job.issue.number, review.findings)
         ctx.status.step(lane.index, progress.IMPLEMENTATION)
-        run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
+        run = _watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
         lane.session_id = run.session_id or lane.session_id
         _accept_work(ctx, lane, job, run)
 
@@ -188,7 +188,7 @@ def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
     number = len(earlier) + 1
     head = ctx.git.head(lane.worktree)
     ctx.status.step(lane.index, progress.REVIEW, job.report.review_rounds)
-    run = watched(ctx, lane).review(lane.worktree, prompts.review(job.issue.number, earlier))
+    run = _watched(ctx, lane).review(lane.worktree, prompts.review(job.issue.number, earlier))
     answer = results.to_review(_checked(ctx, lane, run, job.report, "review"))
     if answer is None:
         raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
@@ -321,7 +321,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     conflicts = ctx.git.merge_upstream(lane.worktree)
     if conflicts:
         prompt = prompts.resolve(job.issue.number, upstream, conflicts)
-        run = watched(ctx, lane).resolve(lane.worktree, prompt)
+        run = _watched(ctx, lane).resolve(lane.worktree, prompt)
         answer = results.to_resolve(_checked(ctx, lane, run, job.report, "conflict resolution"))
         if answer is None or not answer.resolved:
             reason = answer.message if answer is not None else "its answer doesn't match its schema"
