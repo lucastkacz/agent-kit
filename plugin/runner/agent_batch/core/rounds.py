@@ -17,11 +17,13 @@ TITLE_WIDTH = 72
 
 @dataclass(frozen=True)
 class Round:
-    """One review of a branch: its place in the order, the commit it read and what it found."""
+    """One review of a branch: its place in the order, the commit it read, what it found and
+    whether it approved the branch."""
 
     number: int
     head: str
     findings: tuple[Finding, ...]
+    approved: bool = False
 
 
 def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round, ...]:
@@ -33,8 +35,22 @@ def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round
         # Reviews logged before #74 kept only how many findings they had, and no branch.
         if record.get("branch") != branch or not isinstance(head, str) or findings is None:
             continue
-        rounds.append(Round(len(rounds) + 1, head, findings))
+        approved = record.get("approved") is True
+        rounds.append(Round(len(rounds) + 1, head, findings, approved))
     return tuple(rounds)
+
+
+def approved_findings(earlier: Iterable[Round], head: str) -> tuple[Finding, ...] | None:
+    """The findings the PR's body keeps from the last review of `head`, if it approved the branch.
+
+    Only the last one counts: a later review of the same head, such as `ship`'s, can ask for
+    changes. The findings leave out what that review filed in the follow-up, as they did then.
+    """
+    last = next((review for review in reversed(tuple(earlier)) if review.head == head), None)
+    if last is None or not last.approved:
+        return None
+    kept, _ = settle(ReviewResult(approved=True, findings=last.findings), last.number)
+    return kept.findings
 
 
 def filed(finding: Finding, number: int) -> bool:

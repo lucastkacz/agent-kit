@@ -12,7 +12,8 @@ start, an assistant message for each of the step's `tools`, then its answer. A t
 its message's usage, and tools with the same `message` share one, as the real stream repeats a
 message with several blocks once per block. With `snapshot`, it
 waits after each tool use until the runner's status files change, and keeps a copy of them. A
-step's `stderr` goes to its standard error.
+step's `stderr` goes to its standard error. An implementer's `done` commits work unless its step
+says `"commits": false`, as a resumed run on a finished branch does.
 """
 
 from __future__ import annotations
@@ -246,7 +247,8 @@ def stream_tools(kind: str, number: int, step: Step, count: int) -> None:
 def answer(kind: str, number: int, step: Step, count: int) -> int:
     result = result_json(kind, number, step, count)
     output = result["structured_output"]
-    if kind in ("implement", "fix") and output.get("status") == "done":
+    done = kind in ("implement", "fix") and output.get("status") == "done"
+    if done and step.get("commits", True):
         commit_work(number, step.get("files"))
     if kind == "resolve" and output.get("status") == "resolved":
         resolve_conflicts()

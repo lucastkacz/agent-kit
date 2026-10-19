@@ -22,6 +22,7 @@ from agent_batch.core.model import (
     RunDenial,
     RunKind,
 )
+from agent_batch.shell import retry
 from agent_batch.shell.claude import Claude
 from agent_batch.shell.proc import CommandError
 
@@ -180,6 +181,8 @@ def require_committed(ctx: Context, lane: Lane) -> None:
 
 def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
     """Reviews, sends findings back to the implementer, and gives up after the last round."""
+    if _approved_before(ctx, lane, job):
+        return
     most = ctx.config.review_rounds
     for attempt in range(1, most + 1):
         job.report.review_rounds = attempt
@@ -198,6 +201,16 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
         run = _watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
         lane.session_id = run.session_id or lane.session_id
         _accept_work(ctx, lane, job, run)
+
+
+def _approved_before(ctx: Context, lane: Lane, job: Job) -> bool:
+    """Whether an approved review already read the branch's head, as before a failed push."""
+    earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
+    findings = rounds.approved_findings(earlier, ctx.git.head(lane.worktree))
+    if findings is None:
+        return False
+    job.findings = findings
+    return True
 
 
 def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
@@ -238,11 +251,12 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
     """Pushes the branch, opens or updates its PR and files the work found along the way."""
     work = _work(job)
     ctx.status.step(lane.index, progress.PULL_REQUEST)
-    ctx.git.push(lane.worktree, job.branch)
+    wait = ctx.config.poll_seconds
+    retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), wait)
     title, body = _pr_text(job)
-    pr = ctx.gh.find_pr(job.branch)
-    if pr is None:
-        pr = ctx.gh.create_pr(job.branch, ctx.config.base_branch, title, body)
+    base = ctx.config.base_branch
+    pr, opened = retry.retried(lambda: ctx.gh.open_pr(job.branch, base, title, body), wait)
+    if opened:
         ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     else:
         ctx.gh.edit_pr(pr, title, body)
@@ -353,7 +367,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
             Outcome.BLOCKED, "The review asked for changes after the conflicts were resolved."
         )
     job.findings = review.findings
-    ctx.git.push(lane.worktree, job.branch)
+    retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), ctx.config.poll_seconds)
     title, body = _pr_text(job)
     ctx.gh.edit_pr(_pr(job), title, body)
 
@@ -371,8 +385,10 @@ def announce(ctx: Context, report: IssueReport) -> None:
         "issue goes back to the next batch.\n"
     )
     try:
-        ctx.gh.add_label(report.number, BLOCKED)
-        ctx.gh.comment(report.number, body)
+        wait = ctx.config.poll_seconds
+        retry.retried(lambda: ctx.gh.add_label(report.number, BLOCKED), wait)
+        # A 5xx after GitHub saved the comment posts it twice: better than no comment at all.
+        retry.retried(lambda: ctx.gh.comment(report.number, body), wait)
         # A lane's set-aside reports start out unannounced; this one now has its comment.
         report.unannounced = False
     except CommandError as error:

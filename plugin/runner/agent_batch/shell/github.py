@@ -91,6 +91,16 @@ class GitHub:
         )  # fmt: skip
         return _number(url)
 
+    def open_pr(self, branch: str, base: str, title: str, body: str) -> tuple[int, bool]:
+        """The branch's open PR, created if it has none, and whether this call created it.
+
+        A retry looks it up again: GraphQL can time out after GitHub created the PR (#195).
+        """
+        pr = self.find_pr(branch)
+        if pr is not None:
+            return pr, False
+        return self.create_pr(branch, base, title, body), True
+
     def edit_pr(self, number: int, title: str, body: str) -> None:
         self._gh("pr", "edit", str(number), "--title", title, "--body-file", "-", stdin=body)
 
