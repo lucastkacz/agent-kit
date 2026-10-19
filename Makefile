@@ -24,5 +24,6 @@ check:
 	uv run complexipy $(PYTHON_PATHS) --max-complexity-allowed 15 --failed --quiet
 	uv run python tools/check_limits.py $(PYTHON_PATHS)
 	uv run python tools/validate_plugin.py plugin .
+	claude plugin test plugin
 	uv run pytest --cov --cov-report=term
 	uv run pip-audit --strict --progress-spinner off
