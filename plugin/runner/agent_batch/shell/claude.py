@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from agent_batch.core import progress, results
+from agent_batch.core import denial_log, progress, results
 from agent_batch.core.config import Config
 from agent_batch.core.model import ClaudeRun
 from agent_batch.shell import proc
@@ -64,27 +65,26 @@ def command(
 
 
 class Claude:
-    def __init__(
-        self,
-        env: Mapping[str, str],
-        config: Config,
-        model: str | None = None,
-        effort: str | None = None,
-        watch: Watch | None = None,
-    ) -> None:
+    def __init__(self, env: Mapping[str, str], config: Config, denials: Path | None = None) -> None:
         self._env = env
         self._config = config
-        self._model = model
-        self._effort = effort
-        self._watch = watch
+        # The PermissionDenied hook's log, whose entries of a run's session are its denials too.
+        self._denials = denials
+        self._model: str | None = None
+        self._effort: str | None = None
+        self._watch: Watch | None = None
 
     def with_model(self, model: str | None, effort: str | None) -> Claude:
         """The same runs, on this model and effort (SPEC §11.1)."""
-        return Claude(self._env, self._config, model, effort, self._watch)
+        other = copy.copy(self)
+        other._model, other._effort = model, effort
+        return other
 
     def watching(self, watch: Watch) -> Claude:
         """The same runs, handing `watch` each of their tool uses as they go."""
-        return Claude(self._env, self._config, self._model, self._effort, watch)
+        other = copy.copy(self)
+        other._watch = watch
+        return other
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
@@ -116,13 +116,21 @@ class Claude:
     ) -> ClaudeRun:
         limit = timeout if timeout is not None else self._config.implement_timeout
         argv = command(prompt, schema, options, model=self._model, effort=self._effort)
+        start = _size(self._denials)
         done = proc.stream(argv, cwd, self._env, limit, self._follower(cwd))
         if done.timed_out:
             return ClaudeRun(None, None, f"the run took longer than {limit:.0f} seconds")
         if not results.ends_in_result(done.out):
             error = done.err.strip() or f"claude exited with code {done.code}"
             return ClaudeRun(None, None, error, limit_reached=bool(results.LIMIT.search(error)))
-        return results.parse_run(done.out)
+        return self._with_logged(results.parse_run(done.out), start)
+
+    def _with_logged(self, run: ClaudeRun, start: int) -> ClaudeRun:
+        """The run, with the denials the hook logged for its session since it started (#147)."""
+        if self._denials is None or run.session_id is None:
+            return run
+        entries = denial_log.logged(_read_from(self._denials, start), run.session_id)
+        return replace(run, denials=denial_log.combined(run.denials, entries, run.session_id))
 
     def _follower(self, cwd: Path) -> Callable[[str], None]:
         """Reads each line of the run's stream for its tool uses, with paths from its folder."""
@@ -141,6 +149,23 @@ class Claude:
 
 def _ignore(_line: str) -> None:
     """Follows a run that no one watches."""
+
+
+def _size(path: Path | None) -> int:
+    """Where the log ends now, so that a run reads only the entries written after it starts."""
+    try:
+        return path.stat().st_size if path is not None else 0
+    except FileNotFoundError:
+        return 0
+
+
+def _read_from(path: Path, start: int) -> str:
+    try:
+        with path.open("rb") as log:
+            log.seek(start)
+            return log.read().decode("utf-8", errors="replace")
+    except FileNotFoundError:
+        return ""
 
 
 def _resume(session: str | None) -> list[str]:

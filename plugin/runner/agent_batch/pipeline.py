@@ -152,6 +152,7 @@ def _checked(
             "permission_denied",
             issue=report.number,
             run=what,
+            session=denial.session,
             tool=denial.tool,
             input=denial.tool_input,
         )
