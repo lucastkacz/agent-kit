@@ -1,6 +1,6 @@
 # 1. A plugin agent for the cloud routines, instead of a fork of the control tower
 
-- **Status:** accepted
+- **Status:** proposed: run-batch and accept-batch keep the fork until a follow-up issue moves them to the agent
 - **Date:** 2026-10-19
 - **Issue:** #175 (spike)
 
@@ -52,10 +52,11 @@ The batch skills make their `RemoteTrigger` calls through a plugin agent, not th
 - **run-batch, "Bring a cloud branch back":** the agent reads the ended runs' reports: their status, the question or what went wrong, the work they found and the environment's problems. The fork goes.
 - **run-batch, "Resume":** the agent finds the batch's routines with `list`, grepping the saved answer for the names `<owner/name> batch <batch>: #<n>`.
 - **accept-batch, "The cloud runs' denials":** the agent reads each run log, page by page, and reports the denials, the owner's messages and the writes outside the sandbox. The fork goes.
-- **Cost:** each job costs about what a fresh small session does, some 80k tokens, mostly the cached system prompt, at the agent's model. A fork costs 246k–486k tokens at the control tower's model.
+- **Cost, measured:** a session that makes one or two read-only calls (`list`, `list_runs`, one page of `get_run_log`) through the agent costs some 80k tokens on haiku, mostly the cached system prompt. The forks it would replace cost 246k–486k tokens at the control tower's model, but for bigger jobs, so the two numbers aren't the same job.
+- **Cost, not measured:** creating N routines, where each `create` echoes its ~13k-character prompt about three times into the agent's context, some 10k tokens a call, which the agent then reads again on each turn; and reading a log of several pages. Six creates may well cost the agent a few hundred thousand tokens of cache reads, at its small model rather than the control tower's. The first batch with a `Cloud:` line measures both.
 - **Not tried:** `create` and `update`. Trying them needs a routine that fires, which this spike's issue asked to stop for. They are the same tool, with the same permission as `list` and `get_run_log`. The first batch with a `Cloud:` line tries them, and keeps the fork as the fallback until one has worked.
 - **Risk:** the agent acts on the owner's account. Its instructions name the calls it may make, and the control tower names each one. Claude Code's `tools` field limits the agent to its three tools, so it can't run commands or edit files.
 
 ## The spike's code
 
-The throwaway plugin lived outside the repository and isn't kept. Its only file of substance is the agent above.
+The agent above is the whole spike: the throwaway plugin around it held only a `plugin.json` with its name, and lived outside the repository. So nothing was left to keep on a throwaway branch.
