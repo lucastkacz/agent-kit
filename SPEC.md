@@ -403,9 +403,10 @@ No `--no-verify`, no disabled hooks, no admin merges. If a guardrail is wrong, t
 - runs several lanes in parallel: as many as `--lanes` says, else the batch issue's `Lanes:` line, else 2. Each lane's issues run in order, and the next one starts only after the previous PR merged, from the latest `master`;
 - defers the rest of a lane to the next batch when one of its issues doesn't merge (it waits for the owner, is blocked or failed), because they build on the same files. Planning puts high-risk issues last in their lane, or in a lane of their own;
 - makes one attempt to resolve a merge conflict; if that fails, the issue is blocked;
-- labels, comments, writes every step to an event log, and posts the summary in the batch issue.
+- labels, comments, writes every step to an event log, and posts the summary in the batch issue;
+- keeps each lane's live state (its issue, step, review round, last action, minutes and cost) in `.agent-batch/<run>/status.json`, rewritten whole on each change, which `agent-batch status` shows for every running lane and `agent-batch ship`.
 
-The runner is written in Python with only the standard library, and runs on a pinned Python through `uv`. Its state (the lanes' worktrees and the event logs) lives in `.agent-batch/` in the project's main folder, which git ignores.
+The runner is written in Python with only the standard library, and runs on a pinned Python through `uv`. Its state (the lanes' worktrees, the event logs and the live states) lives in `.agent-batch/` in the project's main folder, which git ignores.
 
 Why a script instead of a long interactive session: in auto mode, an interactive session still stops to ask in some cases (ask rules, protected paths, repeated classifier denials). A headless run with prompts turned off never waits.
 
