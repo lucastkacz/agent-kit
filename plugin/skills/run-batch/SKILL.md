@@ -49,6 +49,7 @@ When you dispatch them, tell the owner:
 - The cloud: the routines' runs, with `RemoteTrigger`'s `list_runs`, and a `Monitor` on `git ls-remote origin <branch>` for each cloud branch, which shows a branch as soon as it's pushed.
 - A watch shows its own errors. Never hide a command's failure with `2>/dev/null` or `|| true`: print it, so that a broken watch is seen. A watch that swallowed `git ls-remote`'s failures stayed silent for 30 minutes while the branches were already pushed.
 - A `Monitor` watch lasts 30 minutes at most: re-arm it until the batch ends, lanes and cloud.
+- When the owner asks how the batch is going, run `agent-batch status` and show its rows, with the cloud runs beside them: its rows give each lane's and each `ship`'s issue, step, round, last action, minutes and cost, and `list_runs` gives each cloud run's state.
 
 ## Bring a cloud branch back
 
@@ -92,6 +93,17 @@ When the owner asks to continue a batch, don't start it over:
   - a routine whose run ended: bring its branch back, as above, when its issue isn't labeled `blocked` and its branch has no PR yet. But when its kept `.agent-batch/worktrees/ship-<n>` is at `origin/<branch>` and the last `reviewed` event in `.agent-batch/ship-<n>/events.jsonl` has `approved` false, don't ship it again: tell the owner it waits for a direct-mode fix.
 - Send to the cloud only the `Cloud:` issues that have no routine yet and aren't labeled `blocked`.
 
+## Merge the waiting PRs on trial
+
+When the whole batch ended, lanes and cloud, and before the owner names the PRs that wait for them, merge those PRs on trial: two PRs that each merge cleanly alone can conflict with each other, and master's ruleset doesn't require a branch to be up to date, so a PR can break master without a textual conflict.
+
+1. The waiting PRs are the batch's open PRs, lanes and cloud. Take them in the plan's order: the merge order the tracking issue's Notes give for shared files, then the lanes' order, then the `Cloud:` line's.
+2. From the project's main folder, `git fetch origin master`, then `git worktree add --detach .agent-batch/worktrees/trial-<batch> origin/master`, and `make setup` in it.
+3. In that scratch worktree, for each PR in order: `git fetch origin pull/<pr>/head`, then `git merge --no-ff --no-commit FETCH_HEAD`, and `make check` after each. When both pass, `git commit --no-edit`, so that the next PR merges on top of it. When the merge conflicts or `make check` fails, note the PR and why, `git merge --abort`, and go on with the next one.
+4. From the project's main folder, `git worktree remove --force .agent-batch/worktrees/trial-<batch>`: it held only the trial.
+5. Bring each PR that conflicts or fails up to date, one at a time, in its branch's worktree (`.agent-batch/worktrees/ship-<n>` for a cloud branch, the lane's worktree for a lane's, or, when none is left, `git fetch origin <branch>`, `git worktree add .agent-batch/worktrees/ship-<n> -b <branch> origin/<branch>` and `make setup` in it; bring an existing worktree to `origin/<branch>` first with `git merge --ff-only origin/<branch>`): `git fetch origin master`, then `git merge origin/master`, keeping both sides of each conflict, and `make check`. Never rebase. Then ship it again: `agent-batch ship <n>`, with its title and body, and with `--model` and `--effort` as in "Bring a cloud branch back". If `ship` asks for changes or fails, the PR waits for a direct-mode fix: tell the owner, and leave it out of the PRs they name.
+6. Once the PRs that conflicted have shipped again, run the trial again from step 2, since the next PR in the order may now conflict with one brought up to date. A PR that conflicts only with a waiting PR earlier in the order, not with master, can't be brought up to date before that one merges: tell the owner to merge it after the earlier one, and why.
+
 ## Next step
 
-When the whole batch ended, end with one next step: ask the owner whether to accept the batch now, with the `accept-batch` skill.
+When the whole batch ended, end with one next step. Only once the trial merged every waiting PR cleanly, or told the owner which ones can't, ask the owner whether to accept the batch now, with the `accept-batch` skill, which gives them the merge command in the trial's order.
