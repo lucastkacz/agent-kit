@@ -1,4 +1,4 @@
-"""`agent-batch gh-read`: the reviewer's read-only way into pull requests and GitHub's API (#72).
+"""`agent-batch gh-read`: the batch's read-only way into pull requests and GitHub's API (#72, #148).
 
 The reviewer runs on the owner's admin token, so `gh pr` and `gh api` stay denied to it: through
 them it could merge, label, comment or delete. This lets through only their reads, and refuses

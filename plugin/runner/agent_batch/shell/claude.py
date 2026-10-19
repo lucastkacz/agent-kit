@@ -29,7 +29,9 @@ REVIEW_DENIED = (
     "Bash(gh api *)",
 )  # fmt: skip
 
-IMPLEMENTER = ("--permission-mode", "auto")
+# The implementer reads pull requests and the API through `gh-read` too, since the batch denies
+# every run `gh pr` and `gh api` (#148).
+IMPLEMENTER = ("--permission-mode", "auto", "--allowedTools", "Bash(agent-batch gh-read *)")
 REVIEWER = (
     "--permission-mode", "dontAsk",
     "--allowedTools", *REVIEW_ALLOWED,
@@ -88,7 +90,8 @@ class Claude:
 
     def implement(self, cwd: Path, prompt: str, resume: str | None) -> ClaudeRun:
         """Runs the implementer, resuming the lane's session when there is one to resume."""
-        options = [*IMPLEMENTER, *_resume(resume)]
+        # The resume goes first: the tool list in IMPLEMENTER takes every word after it.
+        options = [*_resume(resume), *IMPLEMENTER]
         run = self._run(cwd, prompt, options, results.IMPLEMENT_SCHEMA)
         if resume is not None and run.data is None and not run.limit_reached:
             # A session that can't be resumed shouldn't cost the issue: start a fresh one. Its
