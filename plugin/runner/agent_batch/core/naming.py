@@ -115,11 +115,12 @@ def pr_body(body: str, number: int, findings: Sequence[Finding] = ()) -> str:
     Only the issue closes on merge: every other closing reference goes in code.
     """
     own = f"#{number}"
-    body = _quote(body, [found for found in _read_by_github(body) if _rendered(found) != own])
     if opening := _open_fence(body):
-        # Left open, the fence would run on over the findings and `Closes #N`.
+        # Left open, the fence would run on over the findings and `Closes #N`. Closed before the
+        # quoting, its lines are code, and their references stay as written.
         body = f"{body.rstrip()}\n{opening['within']}{opening['fence']}\n"
-    # Read once quoted and closed: a stray backtick can pair with an added one, and put `#N` in
+    body = _quote(body, [found for found in _read_by_github(body) if _rendered(found) != own])
+    # Read once closed and quoted: a stray backtick can pair with an added one, and put `#N` in
     # code. The findings' references are quoted below.
     closes = any(_rendered(found) == own for found in _read_by_github(body))
     if findings:
