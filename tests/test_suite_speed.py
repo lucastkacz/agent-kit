@@ -6,7 +6,7 @@ wrote its fakes anew waited for that check on each of them, in every test.
 
 from conftest import World
 
-FAKES = ("gh", "claude", "caffeinate", "pmset", "systemd-inhibit")
+FAKES = ("gh", "claude", "caffeinate", "pmset", "systemd-inhibit", "tail")
 
 
 def test_a_worlds_fakes_are_symlinks_to_executables_that_every_world_shares(world: World) -> None:

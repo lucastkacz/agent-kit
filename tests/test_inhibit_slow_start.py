@@ -18,11 +18,6 @@ sleep 1
 echo "Failed to inhibit: Access denied" >&2
 exit 1
 """
-# `tail --pid=<pid> -f /dev/null` on any computer: it lasts the pid.
-TAIL = """#!/bin/sh
-pid="${1#--pid=}"
-while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
-"""
 # One that neither takes its lock nor exits, as when the system bus never answers. It stays the
 # fake, not a `sleep` it execs, so a process left behind still names the fake's path.
 STUCK_INHIBIT = """#!/bin/sh
@@ -60,8 +55,6 @@ def test_a_systemd_inhibit_that_takes_its_lock_after_a_slow_start_is_the_running
 ) -> None:
     held = world.root / "inhibit-held"
     world.replace_fake("systemd-inhibit", _slow_holding_inhibit(held))
-    (world.root / "bin" / "tail").write_text(TAIL)
-    (world.root / "bin" / "tail").chmod(0o755)
 
     hold = system.keep_awake("linux")
     try:
