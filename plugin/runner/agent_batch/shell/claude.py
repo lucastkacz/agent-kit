@@ -93,6 +93,12 @@ class Claude:
         other._model, other._effort = model, effort
         return other
 
+    def with_env(self, extra: Mapping[str, str]) -> Claude:
+        """The same runs, with these variables added to their environment."""
+        other = copy.copy(self)
+        other._env = {**self._env, **extra}
+        return other
+
     def watching(self, watch: Watch, count: Count) -> Claude:
         """The same runs, handing `watch` each of their tool uses and `count` their tokens."""
         other = copy.copy(self)
