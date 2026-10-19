@@ -131,6 +131,8 @@ def _run(args: argparse.Namespace) -> int:
         computer = Computer(
             kept_awake=awake is not None,
             on_battery=on_battery(sys.platform),
+            # Not `os.process_cpu_count`: the owner's computer gives the runner all its cores, and
+            # the acceptance tests of #198 set the cores through `os.cpu_count`.
             cores=os.cpu_count(),
         )
         return run_batch(ctx, args.batch, limits, computer)
