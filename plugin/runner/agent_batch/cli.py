@@ -1,4 +1,4 @@
-"""`agent-batch`: runs a batch, ships one issue in direct mode, or reads GitHub for a reviewer."""
+"""`agent-batch`: runs a batch, ships one issue, deletes merged branches, or reads GitHub."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from agent_batch.batch import Limits, run_batch
+from agent_batch.clean import clean_branches
 from agent_batch.context import Context
 from agent_batch.core import gh_read
 from agent_batch.core.config import Config
@@ -36,6 +37,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run(args)
         if args.command == "gh-read":
             return _gh_read(args.args)
+        if args.command == "clean":
+            return _clean()
         return _ship(args)
     except (CommandError, PlanError, ShipError, gh_read.Refused, SettingError) as error:
         sys.stderr.write(f"agent-batch: {error}\n")
@@ -61,6 +64,7 @@ def _parser() -> argparse.ArgumentParser:
     direct.add_argument("--title", required=True, help="the PR title, in Conventional Commits")
     direct.add_argument("--body-file", type=Path, required=True, help="the PR body")
     _model_flags(direct, "claude's own")
+    commands.add_parser("clean", help="delete the local branches whose PR merged at their head")
     read = commands.add_parser("gh-read", help="run one of gh's reads of pull requests or the API")
     read.add_argument(
         "args", nargs=argparse.REMAINDER, help="pr view|list|diff|checks ..., or api <endpoint> ..."
@@ -122,6 +126,11 @@ def _ship(args: argparse.Namespace) -> int:
     ctx = _context(Path.cwd(), _config(), f"ship-{args.issue}")
     ctx = replace(ctx, claude=ctx.claude.with_model(args.model, args.effort))
     return ship(ctx, Path.cwd(), args.issue, args.title, body)
+
+
+def _clean() -> int:
+    clean_branches(_context(Path.cwd(), _config(), "clean"))
+    return 0
 
 
 def _gh_read(args: Sequence[str]) -> int:

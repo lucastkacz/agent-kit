@@ -80,7 +80,7 @@ type = "layers"
 layers = [
   "agent_batch.cli",
   "agent_batch.batch | agent_batch.ship",
-  "agent_batch.lane",
+  "agent_batch.lane | agent_batch.clean",
   "agent_batch.pipeline",
   "agent_batch.context",
   "agent_batch.shell",

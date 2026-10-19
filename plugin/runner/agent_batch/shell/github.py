@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_batch.core.model import Closure, Issue, PrState
+from agent_batch.core.model import Closure, Issue, MergedPr, PrState
 from agent_batch.shell import proc
 from agent_batch.shell.proc import CommandError
 
@@ -14,6 +14,7 @@ from agent_batch.shell.proc import CommandError
 ISSUE_FIELDS = "number,title,body,author,labels,state"
 CLOSURE_FIELDS = "url,stateReason,closedByPullRequestsReferences"
 PR_FIELDS = "state,mergeable,headRefOid,statusCheckRollup"
+MERGED_PR_FIELDS = "number,headRefOid"
 
 
 class GitHub:
@@ -59,6 +60,13 @@ class GitHub:
     def find_pr(self, branch: str) -> int | None:
         raw = self._json("pr", "list", "--head", branch, "--state", "open", "--json", "number")
         return int(raw[0]["number"]) if raw else None
+
+    def merged_prs(self, branch: str) -> list[MergedPr]:
+        """The branch's merged PRs, each with the head it merged at, kept after the merge."""
+        raw = self._json(
+            "pr", "list", "--head", branch, "--state", "merged", "--json", MERGED_PR_FIELDS
+        )
+        return [MergedPr(number=int(pr["number"]), head=str(pr["headRefOid"])) for pr in raw]
 
     def create_pr(self, branch: str, base: str, title: str, body: str) -> int:
         url = self._gh(

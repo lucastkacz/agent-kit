@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Literal
 
 ImplementStatus = Literal["done", "blocked", "failed"]
@@ -117,6 +118,24 @@ class PrState:
     mergeable: str
     head_sha: str
     checks: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class MergedPr:
+    """A merged PR, and the commit its branch ended at when it merged."""
+
+    number: int
+    head: str
+
+
+@dataclass(frozen=True)
+class LocalBranch:
+    """A branch of the shared repository, and the worktree it's checked out in, if any."""
+
+    name: str
+    head: str
+    worktree: Path | None = None
+    main_folder: bool = False
 
 
 @dataclass(frozen=True)
