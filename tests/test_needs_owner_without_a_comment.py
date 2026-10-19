@@ -33,7 +33,7 @@ def test_a_multi_line_detail_with_no_comment_points_to_the_event_log() -> None:
     assert report.render(reports, 60).endswith(f"- #13: failed. It broke{TO_THE_LOG}\n")
 
 
-def test_a_lane_whose_worktree_fails_points_its_issues_to_the_event_log(world: World) -> None:
+def test_a_lane_whose_worktree_fails_points_its_issues_to_their_comment(world: World) -> None:
     world.add_issue(10)
     world.add_batch(BATCH, "Lane 1: #10\n")
     # Without its remote, git's fetch fails with several lines of explanation.
@@ -43,8 +43,8 @@ def test_a_lane_whose_worktree_fails_points_its_issues_to_the_event_log(world: W
 
     line = _needs(_summary(world), 10)
     assert line.startswith("- #10: failed. the lane's worktree failed: "), line
-    assert line.endswith(TO_THE_LOG), line
-    assert world.gh()["issues"]["10"]["comments"] == []
+    # Since #127 the runner comments on these issues too.
+    assert line.endswith("; see #10's comment."), line
 
 
 def test_an_issue_whose_comment_fails_points_to_the_event_log(

@@ -13,7 +13,7 @@ from pathlib import Path
 from agent_batch.batch import Limits, run_batch
 from agent_batch.clean import clean_branches
 from agent_batch.context import Context
-from agent_batch.core import gh_read, progress
+from agent_batch.core import denial_log, gh_read, progress
 from agent_batch.core.config import Config
 from agent_batch.core.env import clean_env
 from agent_batch.core.plan import EFFORTS, MODEL_NAME, PlanError
@@ -208,7 +208,7 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         config=config,
         git=git,
         gh=gh,
-        claude=Claude(env, config),
+        claude=Claude(env, config, denials=repo / config.state_dir / denial_log.LOG),
         events=EventLog(repo / config.state_dir / log_name / "events.jsonl"),
         status=StatusBoard(repo / config.state_dir / log_name / status.STATUS, os.getpid()),
         # The wall clock: a monotonic clock can stop while the computer sleeps, as

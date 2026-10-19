@@ -91,6 +91,19 @@ def _last_line(stdout: str) -> str:
     return lines[-1] if lines else ""
 
 
+def stream_session(stdout: str) -> str | None:
+    """The session id of the first message that names one, as the stream's `init` message does."""
+    for line in stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        session = message.get("session_id") if isinstance(message, dict) else None
+        if isinstance(session, str):
+            return session
+    return None
+
+
 def parse_run(stdout: str) -> ClaudeRun:
     """Reads the result message that ends what `claude -p --output-format stream-json` printed.
 

@@ -25,10 +25,11 @@ def _line(outcome: Outcome, detail: str) -> str:
 
 
 def _today(outcome: Outcome, detail: str) -> str:
-    """The line as the summary wrote it before #54."""
+    """The line as the summary wrote it before #54, with no period after a `?` or `!` (#127)."""
     target = "#31" if outcome is Outcome.WAITING_OWNER else "#29"
     first = detail.splitlines()[0] if detail else ""
-    return f"- {target}: {outcome.value}. {first}".rstrip(". ") + "."
+    line = f"- {target}: {outcome.value}. {first}".rstrip(". ")
+    return line if line.endswith(("?", "!")) else line + "."
 
 
 @pytest.mark.parametrize("outcome", [Outcome.BLOCKED, Outcome.FAILED])

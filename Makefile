@@ -9,8 +9,9 @@ fmt:
 	uv run ruff format $(PYTHON_PATHS)
 	uv run ruff check --fix $(PYTHON_PATHS)
 
+# Four workers, not -n auto: several lanes run the tests at once on one computer (SPEC §7.3).
 test:
-	uv run pytest
+	uv run pytest -n 4
 
 # On demand, by the owner: the real claude and gh, on this repository (tests/contract).
 contract:
@@ -25,5 +26,5 @@ check:
 	uv run python tools/check_limits.py $(PYTHON_PATHS)
 	uv run python tools/validate_plugin.py plugin .
 	claude plugin test plugin
-	uv run pytest --cov --cov-report=term
+	uv run pytest -n 4 --cov --cov-report=term
 	uv run pip-audit --strict --progress-spinner off

@@ -45,7 +45,7 @@ class Closure:
 
 @dataclass(frozen=True)
 class FoundIssue:
-    """Work an implementer found along the way, to become an issue of its own."""
+    """Work found along the way, one item of its PR's follow-up issue (SPEC §4.5)."""
 
     kind: IssueKind
     title: str
@@ -86,10 +86,11 @@ class ResolveResult:
 
 @dataclass(frozen=True)
 class Denial:
-    """A tool call that the run's permissions refused."""
+    """A tool call that the run's permissions refused, and the session it was refused in."""
 
     tool: str
     tool_input: dict[str, object]
+    session: str | None = None
 
 
 @dataclass(frozen=True)

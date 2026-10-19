@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from agent_batch.core.model import Finding, FoundIssue, ReviewResult
 from agent_batch.core.results import to_findings
 
-# From this review of a branch on, a new medium finding is filed as an issue instead of blocking.
+# From this review of a branch on, a new medium finding goes in the PR's follow-up issue instead
+# of blocking (SPEC §4.5).
 CONVERGES_FROM = 3
 TITLE_WIDTH = 72
 
@@ -37,12 +38,12 @@ def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round
 
 
 def filed(finding: Finding, number: int) -> bool:
-    """Whether review `number` of a branch files this finding as an issue rather than block."""
+    """Whether review `number` of a branch files this finding in the follow-up rather than block."""
     return number >= CONVERGES_FROM and finding.severity == "medium" and finding.origin == "new"
 
 
 def settle(review: ReviewResult, number: int) -> tuple[ReviewResult, tuple[Finding, ...]]:
-    """The review the runner acts on, and the findings it files as issues instead."""
+    """The review the runner acts on, and the findings it files in the PR's follow-up instead."""
     to_file = tuple(finding for finding in review.findings if filed(finding, number))
     if not to_file:
         return review, ()
@@ -52,12 +53,12 @@ def settle(review: ReviewResult, number: int) -> tuple[ReviewResult, tuple[Findi
 
 
 def found_issue(finding: Finding, number: int) -> FoundIssue:
-    """The issue that waits for a finding review `number` filed, like work found along the way."""
+    """A finding review `number` filed, as one item of the PR's follow-up issue (SPEC §4.5)."""
     title = textwrap.shorten(finding.problem, TITLE_WIDTH, placeholder="…")
     body = (
         f"Review {number} of the branch found this at `{finding.location}`. From review "
         f"{CONVERGES_FROM} of a branch on, a new medium finding doesn't block its pull request: "
-        f"it waits here instead (SPEC §5).\n\n{finding.problem}\n\n"
+        f"it goes in the follow-up issue instead (SPEC §5).\n\n{finding.problem}\n\n"
         f"**Suggestion:** {finding.suggestion}"
     )
     return FoundIssue("bug", title or f"A review finding at {finding.location}", body)

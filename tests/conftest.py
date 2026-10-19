@@ -152,21 +152,57 @@ class World:
             (supply / "type").write_text(f"{kind}\n")
             (supply / "online").write_text("1\n" if online else "0\n")
 
+    def replace_fake(self, name: str, script: str) -> None:
+        """Gives this world its own `name` fake, leaving the one other worlds share alone."""
+        fake = self.root / "bin" / name
+        fake.unlink()
+        _write_executable(fake, script)
+
     def run(self, *argv: str) -> int:
         return cli.main(list(argv))
 
 
-def _make_fakes(bin_dir: Path) -> None:
+def _write_executable(path: Path, script: str) -> None:
+    path.write_text(script)
+    path.chmod(0o755)
+
+
+def _shared_fakes(shared: Path) -> None:
+    """The fakes every world links to, written once: macOS checks a new executable on its first run.
+
+    They are read-only, so a test that writes over one through its link fails instead of changing
+    it for the tests after it; `World.replace_fake` gives a test a fake of its own.
+    """
+    fakes = {
+        name: f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n'
+        for name, script in (("gh", "fake_gh.py"), ("claude", "fake_claude.py"))
+    }
+    fakes |= {"caffeinate": CAFFEINATE, "pmset": PMSET, "systemd-inhibit": SYSTEMD_INHIBIT}
+    for name, script in fakes.items():
+        _write_executable(shared / name, script)
+        (shared / name).chmod(0o555)
+    # Each runs once now, all at a time, so that no test's timeout waits for that check. Without
+    # their scenario they just fail, so what they say and how they exit don't matter.
+    quiet = subprocess.DEVNULL
+    runs = [
+        subprocess.Popen([shared / name], env={}, stdin=quiet, stdout=quiet, stderr=quiet)
+        for name in fakes
+    ]
+    for run in runs:
+        run.wait()
+
+
+@pytest.fixture(scope="session")
+def shared_fakes(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    shared = tmp_path_factory.mktemp("fakes")
+    _shared_fakes(shared)
+    return shared
+
+
+def _make_fakes(bin_dir: Path, shared: Path) -> None:
     bin_dir.mkdir()
-    for name, script in (("gh", "fake_gh.py"), ("claude", "fake_claude.py")):
-        wrapper = bin_dir / name
-        wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKES / script}" "$@"\n')
-        wrapper.chmod(0o755)
-    fakes = (("caffeinate", CAFFEINATE), ("pmset", PMSET), ("systemd-inhibit", SYSTEMD_INHIBIT))
-    for name, script in fakes:
-        fake = bin_dir / name
-        fake.write_text(script)
-        fake.chmod(0o755)
+    for fake in shared.iterdir():
+        (bin_dir / fake.name).symlink_to(fake)
 
 
 def _make_repos(root: Path) -> tuple[Path, Path]:
@@ -206,9 +242,9 @@ def isolated_git(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.fixture
-def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
+def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shared_fakes: Path) -> World:
     origin, project = _make_repos(tmp_path)
-    _make_fakes(tmp_path / "bin")
+    _make_fakes(tmp_path / "bin", shared_fakes)
     created = World(
         root=tmp_path,
         project=project,

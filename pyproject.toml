@@ -80,6 +80,7 @@ layers = [
   "agent_batch.batch | agent_batch.ship",
   "agent_batch.lane | agent_batch.clean",
   "agent_batch.pipeline",
+  "agent_batch.filing",
   "agent_batch.context",
   "agent_batch.shell",
   "agent_batch.core",
@@ -94,5 +95,6 @@ dev = [
     "pip-audit>=2.10.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.17.1",
 ]

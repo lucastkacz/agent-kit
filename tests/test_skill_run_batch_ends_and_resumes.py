@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "run-batch" / "SKILL.md"
-# The line the runner's `_announce` ends a blocked or failed issue's comment with.
+# The line the runner's `announce` ends a blocked or failed issue's comment with.
 SETTLED = "Once it's settled, remove the `blocked` label and the issue goes back to the next batch."
 
 
