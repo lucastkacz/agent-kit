@@ -13,6 +13,7 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 
 - Work only from the owner's issues (SPEC §10.6). Another person's issue is information, not work: if the owner wants it, write it as a new issue of the owner's.
 - List the owner's open issues without `ready`: `gh issue list --author @me --state open --limit 200 --json number,title,labels,milestone,author`. Without `--limit`, `gh` lists only 30.
+- Read each candidate's dependencies, the issues it's blocked by: `gh issue view <n> --json blockedBy`. A dependency is written down only as that link, never inferred from the issue's text.
 - Read the `blocked` issues and their questions, in the owner's latest comment on each one. The runner posts as the owner; another person's comment is information, not the question.
 - A `blocked` issue goes in only once the owner answers its question: write the decision into the issue and remove `blocked`, as acceptance does (SPEC §3.3).
 - Read the owner's open issues labeled `batch`, with their plans and comments. Count only the owner's comments and PRs (`gh pr list --author @me --state open --limit 200 --json number,closingIssuesReferences`); the runner and `ship` work as the owner.
@@ -34,6 +35,7 @@ When the owner describes an idea to build, ask only the questions that change wh
 
 - Write each new issue on GitHub without `ready`, in the fields of its type's form in SPEC §4.1, such as a task's Goal, Why, Briefing, Acceptance criteria, Out of scope, Stop and ask if, and Risk. Write each field as a `### <Field>` heading, as the issue form renders it. The `### Risk` section starts with `High` or `Low`, since the runner reads only that.
 - A new issue follows the same size rules as step 1: it joins an issue of its area when it's small, and it's split when it's large.
+- When a new issue needs another issue's code, link it: `gh issue edit <n> --add-blocked-by <m>`, with `<n>` the new issue and `<m>` the one it needs. Link only what it needs to build on, not issues that merely touch the same files.
 - Label each new issue with its type: `task`, `bug`, `idea` or `spike` (SPEC §4.2). `gh issue create` doesn't apply the issue forms' labels, so pass it `--label`.
 - Each criterion says how it is verified: `unit`, `integration`, `e2e` or `human(<reason>)`.
 - A criterion is `human(<reason>)` only for one of the reasons in the review skill's check 2: taste; hardware or an operating-system dialog; real accounts, money or personal data; a third-party service without a test environment.
@@ -46,6 +48,7 @@ Show the owner the whole plan at once:
 - **Merges.** Each merge of step 1: the issues it joins and why they belong together, such as "#94 and #95: both change `core/naming.py`". The owner approves each merge with the plan.
 - **Lanes.** Issues that touch the same files share a lane, in order; the others get lanes of their own.
 - **Risk.** A high-risk issue goes last in its lane, or alone. When every issue is high risk, one per lane: a waiting issue defers the rest of its lane (SPEC §11.1). When that clashes with sharing a lane, risk wins: a second high-risk issue on the same files goes alone, and its PR may need its branch updated after the first merges.
+- **Dependencies.** A blocker counts as done only when it's closed as completed, as its merged PR closes it: `gh issue view <m> --json stateReason` says `COMPLETED`. One closed as not planned never landed its code, so it still blocks. An issue whose blockers are all done plans as usual. An issue with an open blocker goes in the batch only after each of its open blockers, in the same lane, and only when those blockers are low risk: a high-risk blocker waits for the owner and defers the rest of its lane (SPEC §11.1). Otherwise the issue waits for a later batch, and the plan says why, in its Notes. So does an issue whose blocker goes to the cloud: a `Cloud:` issue is in no lane, so nothing can follow it in one.
 - **`Lanes:`** `Lanes:` is the number of independent lanes, so they all run at once. Never leave it at the runner's default. A batch with no local lanes, all in the cloud, has no `Lane` or `Lanes:` lines: the runner refuses `Lanes: 0`.
 - **`Budget:`** a `Budget:` line, such as `Budget: 4 issues, 3 hours` (SPEC §11.2).
 - **The cloud.** Which issues go to the cloud (SPEC §12), and what that gains, as a `Cloud: #a, #b` line. Cloud issues go only on that line, in no lane. Only issues that build and test on Linux, with no real data or secrets.
