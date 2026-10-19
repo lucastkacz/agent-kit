@@ -10,7 +10,7 @@ from agent_batch.core import budget
 from agent_batch.core.budget import Budget
 from agent_batch.core.config import LANE, WORKTREES
 from agent_batch.core.model import IssueReport, Outcome
-from agent_batch.pipeline import run_issue
+from agent_batch.pipeline import announce, run_issue
 from agent_batch.shell.proc import CommandError
 
 
@@ -43,7 +43,11 @@ def run_lane(ctx: Context, gate: Gate, index: int, numbers: Sequence[int]) -> li
     try:
         ctx.git.add_lane_worktree(ctx.repo, worktree)
     except CommandError as error:
-        return _set_aside(ctx, numbers, Outcome.FAILED, f"the lane's worktree failed: {error}")
+        reports = _set_aside(ctx, numbers, Outcome.FAILED, f"the lane's worktree failed: {error}")
+        # Labeled and commented as a failed run is, so that no batch retries them blindly (SPEC §3).
+        for report in reports:
+            announce(ctx, report)
+        return reports
     try:
         return _run_issues(ctx, gate, Lane(index=index, worktree=worktree), numbers)
     finally:
