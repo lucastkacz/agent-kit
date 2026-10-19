@@ -159,3 +159,33 @@ def test_gh_read_refuses_a_method_a_body_a_field_or_graphql_saying_why_without_c
     assert gh.called_with() is None
     assert f"gh-read refuses `{refused}`" in err
     assert reason in err
+
+
+# Each pull request read with an argument that would open the owner's browser, and that argument.
+PR_WEB_READS = [
+    (("pr", "view", "72", "--web"), "--web"),
+    (("pr", "view", "72", "-w"), "-w"),
+    (("pr", "view", "72", "-cw"), "-cw"),
+    (("pr", "view", "72", "--web=true"), "--web=true"),
+    (("pr", "list", "--web"), "--web"),
+    (("pr", "list", "-w"), "-w"),
+    (("pr", "diff", "72", "--web"), "--web"),
+    (("pr", "diff", "72", "-w"), "-w"),
+    (("pr", "checks", "72", "--web"), "--web"),
+    (("pr", "checks", "72", "-w"), "-w"),
+]
+
+
+@pytest.mark.parametrize(
+    ("args", "refused"), PR_WEB_READS, ids=[" ".join(args) for args, _ in PR_WEB_READS]
+)
+def test_gh_read_refuses_web_on_a_pull_request_read_saying_the_reviewer_reads_in_the_terminal(
+    gh: FakeGh, capsys: pytest.CaptureFixture[str], args: tuple[str, ...], refused: str
+) -> None:
+    code = gh_read(*args)
+
+    err = capsys.readouterr().err
+    assert code != 0
+    assert gh.called_with() is None
+    assert f"gh-read refuses `{refused}`" in err
+    assert "terminal" in err
