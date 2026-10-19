@@ -75,8 +75,9 @@ With the owner's OK, open the issues the owner approved in step 2, without `read
 2. Tick the tracking issue's checklist, each item that holds.
 3. Comment "Accepted.", with any item left open and why.
 4. Close the tracking issue and its milestone, the one found in step 1: `gh issue close <n>` and `gh api -X PATCH repos/{owner}/{repo}/milestones/<number> -f state=closed`.
+5. From the project's main folder, run `agent-batch clean`. It deletes each local branch whose PR merged at the branch's head, and its worktree when it has one without changes. Tell the owner, in one line each, the branches it kept and why.
 
-When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, and close the tracking issue and the milestone as in item 4.
+When a high-risk PR hasn't merged yet, the batch is still accepted: post the comment, but its checklist item stays open, and don't close the tracking issue or the milestone. Close them only when the owner has merged it and asks to close the batch. Then, without walking the batch again, check that it merged, tick that item, close the tracking issue and the milestone as in item 4, and clean up as in item 5.
 
 ## 6. Next step
 
