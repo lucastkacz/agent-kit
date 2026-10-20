@@ -46,8 +46,15 @@ class Computer:
 
 
 def run_batch(ctx: Context, number: int, limits: Limits, computer: Computer) -> int:
-    # `agent-batch status` shows the runner from here, which tells a resume it still runs.
+    # `agent-batch status` shows the runner from here, which tells a resume it still runs (#217).
     ctx.status.open()
+    try:
+        return _run_batch(ctx, number, limits, computer)
+    finally:
+        ctx.status.close()
+
+
+def _run_batch(ctx: Context, number: int, limits: Limits, computer: Computer) -> int:
     batch = ctx.gh.issue(number)
     _check(batch, ctx.owner)
     batch_plan = plan.parse_plan(batch.body)

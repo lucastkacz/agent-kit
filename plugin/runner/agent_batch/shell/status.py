@@ -38,6 +38,19 @@ class StatusBoard:
         with self._lock:
             self._write()
 
+    def close(self) -> None:
+        """The runner ends: its batch no longer shows, even before its process exits.
+
+        Only its own file goes: another runner may have written here since.
+        """
+        with self._lock:
+            try:
+                record = progress.parse_status(self.path.read_text(encoding="utf-8"))
+                if record is not None and record[0] == self._pid:
+                    self.path.unlink()
+            except OSError:
+                pass  # No file, or one it can't remove: a runner that's gone doesn't show anyway.
+
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""
         with self._lock:
