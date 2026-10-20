@@ -211,8 +211,9 @@ def _context(cwd: Path, config: Config, log_name: str) -> Context:
         env[SCREEN_ENV] = "1"
     folder = repo / config.state_dir / log_name
     events = EventLog(folder / "events.jsonl")
-    # Only this batch's own log: its earlier runs, as when it's resumed (#156).
-    spent = progress.earlier_rate(events.records("reviewed"))
+    # Only this batch's own log: its earlier runs, as when it's resumed (#156), each of them:
+    # the reviews log their cost in `reviewed`, the others in `run_ended` (#217).
+    spent = progress.earlier_rate(events.records("reviewed") + events.records("run_ended"))
     return Context(
         repo=repo,
         owner=gh.login(),

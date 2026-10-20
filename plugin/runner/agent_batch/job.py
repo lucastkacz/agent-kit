@@ -9,6 +9,7 @@ from agent_batch.context import Context, Lane
 from agent_batch.core import naming, progress, prompts, results, rounds
 from agent_batch.core.model import (
     ClaudeRun,
+    EndedKind,
     Finding,
     ImplementResult,
     Issue,
@@ -48,6 +49,18 @@ def watched(ctx: Context, lane: Lane) -> Claude:
     return ctx.claude.watching(
         lambda action: ctx.status.act(lane.index, action, ctx.clock()),
         lambda tokens: ctx.status.used(lane.index, tokens),
+    )
+
+
+def ended(ctx: Context, lane: Lane, issue: int, kind: EndedKind, run: ClaudeRun) -> None:
+    """Logs what the run cost and its tokens, which price a resumed batch's runs (#217)."""
+    ctx.events.emit(
+        "run_ended",
+        lane=lane.index,
+        issue=issue,
+        kind=kind,
+        cost_usd=run.cost_usd,
+        tokens=run.tokens,
     )
 
 

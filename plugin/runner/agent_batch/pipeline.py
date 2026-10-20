@@ -6,11 +6,12 @@ from agent_batch import filing, landing
 from agent_batch.context import Context, Lane
 from agent_batch.core import eligibility, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
-from agent_batch.core.model import ClaudeRun, Issue, IssueReport, Outcome
+from agent_batch.core.model import ClaudeRun, EndedKind, Issue, IssueReport, Outcome
 from agent_batch.job import (
     Job,
     Stopped,
     checked,
+    ended,
     pr_text,
     require_committed,
     review_once,
@@ -98,10 +99,11 @@ def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
     run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
     lane.session_issues = lane.session_issues + 1 if reuse else 1
     lane.session_id = run.session_id
-    _accept_work(ctx, lane, job, run)
+    _accept_work(ctx, lane, job, run, "implementation")
 
 
-def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
+def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun, kind: EndedKind) -> None:
+    ended(ctx, lane, job.issue.number, kind, run)
     answer = results.to_implement(checked(ctx, lane, run, job.report, "implementation"))
     if answer is None:
         raise Stopped(Outcome.FAILED, "the implementer's answer doesn't match its schema")
@@ -134,7 +136,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
         ctx.status.step(lane.index, progress.IMPLEMENTATION)
         run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
         lane.session_id = run.session_id or lane.session_id
-        _accept_work(ctx, lane, job, run)
+        _accept_work(ctx, lane, job, run, "fix")
 
 
 def _approved_before(ctx: Context, lane: Lane, job: Job) -> bool:

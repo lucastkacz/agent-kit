@@ -10,6 +10,8 @@ from typing import Literal
 ImplementStatus = Literal["done", "blocked", "failed"]
 IssueKind = Literal["bug", "idea", "task"]
 RunKind = Literal["implementation", "review", "conflict resolution"]
+# The runs that a `run_ended` event logs; a review logs its cost in its `reviewed` event (#217).
+EndedKind = Literal["implementation", "fix", "resolve"]
 
 
 class Outcome(StrEnum):
