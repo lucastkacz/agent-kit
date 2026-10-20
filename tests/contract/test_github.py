@@ -39,8 +39,11 @@ def clone(tmp_path: Path) -> Path:
 def test_issues_are_created_read_labeled_and_commented(clone: Path) -> None:
     gh = GitHub(clone)
     title = unique("contract-issue")
-    number = gh.create_issue(title, "Opened by a contract test.\n\n### Risk\n\nLow\n", "task")
+    body = "Opened by a contract test.\n\n### Risk\n\nLow\n"
+    number = gh.create_issue(title, body, "task")
     try:
+        # A retry finds the issue it may have created (#210).
+        assert gh.create_issue_unless_created(title, body, "task") == number
         raw = proc.must(["gh", "issue", "view", str(number), "--json", ISSUE_FIELDS], clone)
         record("gh-issue-view", raw)
         issue = gh.issue(number)
@@ -76,6 +79,10 @@ def test_a_pr_with_failing_checks_keeps_its_auto_merge_armed_and_never_merges(cl
         gh.pr_add_label(number, HIGH_RISK)
         assert _wait_for_a_labeled_pr(gh, branch) == number
         gh.pr_comment(number, "A contract test's comment.")
+        # A retry finds the comment it may have posted (#210).
+        gh.pr_comment_unless_posted(number, "A contract test's comment.")
+        raw = proc.must(["gh", "pr", "view", str(number), "--json", "comments"], clone)
+        assert len(json.loads(raw)["comments"]) == 1
 
         assert _wait_for_a_decision(gh, number) is MergeStatus.CHECKS_FAILED
         record(
