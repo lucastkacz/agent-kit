@@ -60,7 +60,9 @@ Work moves through three moments, plus a shortcut for small changes. The owner's
 
 ### 3.1 Planning: owner and assistant
 
-- The owner describes the idea. The assistant asks only the questions that change what gets built, one topic at a time.
+- The owner describes the idea. The assistant interviews the owner with the `interview` skill, about the idea and then about each issue it will label `ready`, in rounds: each round asks every decision whose prerequisites are settled, each question numbered with a recommended answer that "yes" accepts. It looks up the facts itself, with subagents, and asks the owner only the decisions. It ends when no decision is left open and the owner confirms the shared understanding.
+- The answers go into the issue's fields (§4.1). A decision that binds more than the issue goes into an ADR (§15).
+- Before the owner approves the batch, a ready check reads each issue as its implementer would: one read-only subagent per issue, in parallel, at the implementer's model, lists the decisions it would have to guess. Its questions go back to the interview, never to `blocked`. After two checks that still find some, the owner decides whether the issue goes in as it is or stays out.
 - The assistant writes the issues (§4) and proposes the batch: which issues, in which lanes, with what budget, which of them go to the cloud (§12) and what that gains, and the model and effort, with the owner's own settings as the default.
 - Issues that touch the same files share a lane, in order; the others get lanes of their own. A high-risk issue goes last in its lane or alone, and when every issue is high risk, one per lane (§11.1). `Lanes:` is the number of independent lanes.
 - The owner approves the batch as a whole. Only then does the assistant label its issues `ready`.
@@ -158,7 +160,7 @@ An issue is ready when all of these hold:
 
 - It was opened by the owner (§10.6). Issues the assistant writes during planning count, since it works under the owner's account.
 - It has a goal, criteria with their verification, and a risk.
-- It has no open question.
+- It has no open question, or the owner put it in as it is after two ready checks (§3.1).
 - The owner approved its batch.
 
 Agents take only ready issues.
