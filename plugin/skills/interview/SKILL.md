@@ -38,7 +38,7 @@ Never label an issue `ready`: plan-batch does that, and only once the owner appr
 - Write each answer into the issue's fields, the ones SPEC §4.1 gives its type: for a task, its Briefing, Acceptance criteria, Out of scope and Stop and ask if; for a bug, its own fields plus its criteria. Keep each field a `### <Field>` heading, and each criterion with how it's verified (SPEC §7.1).
 - Write the new body to a file outside the repository, then `gh issue edit <n> --body-file <file>`.
 - A decision that binds more than the issue, such as the architecture or other issues, goes into an ADR in `docs/adr/`, numbered after the last one, in the shape of `docs/adr/0001-a-plugin-agent-for-the-cloud-routines.md`: its status, date and issue, then its context, the decision and its consequences.
-- An ADR merges as code does, never straight to `master`: the first issue it binds holds the ADR's text in its Briefing, with a criterion that its PR adds it (`Verify: unit`), and each other issue it binds names that ADR and that issue in its own Briefing.
+- An ADR merges as code does, never straight to `master`: one issue it binds holds the ADR's text in its Briefing, with a criterion that its PR adds it (`Verify: unit`). Each other issue it binds names that ADR in its own Briefing and is blocked by that issue, so that it runs after the ADR merges: `gh issue edit <other> --add-blocked-by <n>`.
 - No glossary: SPEC defines the kit's terms.
 
 ## 5. The ready check
