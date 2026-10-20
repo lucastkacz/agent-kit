@@ -68,7 +68,10 @@ def test_it_brings_each_cloud_branch_back_with_agent_batch_ship() -> None:
     text = skill_text()
     assert "`list_runs`" in text
     assert "`get_run_log`" in text
-    assert "git worktree add .agent-batch/worktrees/ship-<n> -b <branch> origin/<branch>" in text
+    assert (
+        "git worktree add .agent-batch/worktrees.noindex/ship-<n> -b <branch> origin/<branch>"
+        in text
+    )
     assert "agent-batch ship <n> --title" in text
 
 

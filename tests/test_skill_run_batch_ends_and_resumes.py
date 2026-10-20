@@ -77,7 +77,9 @@ def test_a_ship_that_asks_for_changes_or_fails_ends_the_issue_for_the_batch() ->
 
 def test_a_worktree_on_a_local_branch_gets_its_setup_and_a_bare_number_isnt_sent() -> None:
     back = section("Bring a cloud branch back")
-    local = "`git worktree add .agent-batch/worktrees/ship-<n> <branch>`, then the same merge"
+    local = (
+        "`git worktree add .agent-batch/worktrees.noindex/ship-<n> <branch>`, then the same merge"
+    )
     assert f"{local}, and `make setup`" in back, back
     send = section("Send an issue to the cloud")
     assert "`naming.branch_name`" in send, send

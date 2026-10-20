@@ -41,6 +41,6 @@ def test_a_fork_is_used_only_for_remote_trigger() -> None:
 
 def test_step_6_removes_the_ship_worktree_and_leaves_the_branch_to_clean() -> None:
     removal = step(section(skill_text(), "Bring a cloud branch back"), 6)
-    assert "git worktree remove .agent-batch/worktrees/ship-<n>" in removal, removal
+    assert "git worktree remove .agent-batch/worktrees.noindex/ship-<n>" in removal, removal
     assert "git branch -d" not in removal, removal
     assert "`agent-batch clean`" in removal, removal
