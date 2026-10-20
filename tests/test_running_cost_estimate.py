@@ -10,9 +10,9 @@ import pytest
 from agent_batch.core import progress
 from agent_batch.core.progress import LaneState, Row
 from agent_batch.shell.status import StatusBoard
+from batch_runs import BATCH
 from conftest import World
 
-BATCH = 1
 NOW = 1_000.0
 
 
@@ -35,8 +35,8 @@ def status_row(world: World, capsys: pytest.CaptureFixture[str], issue: int) -> 
     return rows[0]
 
 
-def read(tokens: int, message: str | None = None) -> dict[str, object]:
-    tool: dict[str, object] = {"name": "Read", "input": {"file_path": "README.md"}}
+def read(tokens: int, message: str | None = None, path: str = "README.md") -> dict[str, object]:
+    tool: dict[str, object] = {"name": "Read", "input": {"file_path": path}}
     tool["tokens"] = tokens
     if message is not None:
         tool["message"] = message
@@ -72,7 +72,9 @@ def test_a_runs_message_counts_its_tokens_once_however_many_blocks_repeat_it(
     world.add_issue(11)
     world.add_batch(BATCH, "Lane 1: #10, #11\n")
     world.script("implement", 10, {"tools": [read(1000)], "cost": 0.10})
-    tools = [read(300, "msg_a"), read(300, "msg_a"), read(200, "msg_b")]
+    # The snapshot waits for the last tool use, which the runner shows after it counts its tokens.
+    last = {**read(200, "msg_b", "b.md"), "shows": "Read(b.md)"}
+    tools = [read(300, "msg_a"), read(300, "msg_a"), last]
     world.script("implement", 11, {"tools": tools, "snapshot": True})
 
     assert world.run("run", str(BATCH)) == 0

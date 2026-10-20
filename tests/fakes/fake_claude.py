@@ -11,8 +11,8 @@ Asked for `--output-format stream-json`, it prints one message per line, as the 
 start, an assistant message for each of the step's `tools`, then its answer. A tool's `tokens` are
 its message's usage, and tools with the same `message` share one, as the real stream repeats a
 message with several blocks once per block. With `snapshot`, it
-waits after each tool use until the runner's status files change, and keeps a copy of them. A
-step's `stderr` goes to its standard error. An implementer's `done` commits work unless its step
+waits after each tool use until the runner's status files change, and keeps a copy of them; a tool
+that names what it `shows` waits instead until a status file shows that text. A step's `stderr` goes to its standard error. An implementer's `done` commits work unless its step
 says `"commits": false`, as a resumed run on a finished branch does.
 """
 
@@ -218,14 +218,24 @@ def statuses() -> dict[str, str]:
     }
 
 
-def snapshot(kind: str, number: int, before: dict[str, str]) -> None:
-    """Keeps the status files once the runner changed them, as `World.status_snapshots` reads."""
+def snapshot(kind: str, number: int, before: dict[str, str], shows: str | None) -> None:
+    """Keeps the status files once the runner changed them, as `World.status_snapshots` reads.
+
+    The first change can be the runner's last write for the tool use before: a tool that `shows`
+    waits for its own, the last the runner writes for its message, after its tokens.
+    """
     deadline = time.monotonic() + SNAPSHOT_WAIT
     seen = statuses()
-    while seen == before and time.monotonic() < deadline:
+    while not shown(seen, before, shows) and time.monotonic() < deadline:
         time.sleep(0.01)
         seen = statuses()
     keep_snapshot(kind, number, seen)
+
+
+def shown(seen: dict[str, str], before: dict[str, str], shows: str | None) -> bool:
+    if shows is None:
+        return seen != before
+    return any(shows in text for text in seen.values())
 
 
 def keep_snapshot(kind: str, number: int, seen: dict[str, str]) -> None:
@@ -242,7 +252,7 @@ def stream_tools(kind: str, number: int, step: Step, count: int) -> None:
         before = statuses()
         emit(tool_message(tool, index))
         if step.get("snapshot"):
-            snapshot(kind, number, before)
+            snapshot(kind, number, before, tool.get("shows"))
 
 
 def answer(kind: str, number: int, step: Step, count: int) -> int:
