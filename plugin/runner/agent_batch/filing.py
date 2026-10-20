@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from agent_batch.context import Context
 from agent_batch.core import followup
-from agent_batch.core.model import FoundIssue
+from agent_batch.core.model import FoundIssue, Issue
 from agent_batch.shell import retry
 
 
@@ -19,18 +19,34 @@ def file(ctx: Context, number: int, branch: str, items: Sequence[FoundIssue]) ->
     """
     if not items:
         return
+    wait = ctx.config.poll_seconds
     known = followup.existing(ctx.events.project_records("issue_found"), branch)
-    current = ctx.gh.issue(known) if known is not None else None
-    if known is None or current is None or current.state != "OPEN":
+    current = retry.retried(lambda: ctx.gh.issue(known), wait) if known is not None else None
+    if current is None or current.state != "OPEN":
         found = followup.issue(items, number)
         filed = retry.retried_with(
             lambda: ctx.gh.create_issue(found.title, found.body, found.kind),
             lambda: ctx.gh.create_issue_unless_created(found.title, found.body, found.kind),
-            ctx.config.poll_seconds,
+            wait,
         )
         ctx.events.emit("issue_found", issue=number, branch=branch, found=filed)
         return
-    ctx.gh.comment(known, followup.comment(items, number))
-    change = followup.relabel(current.labels, items)
+    _join(ctx, current, number, items, wait)
+
+
+def _join(
+    ctx: Context, follow_up: Issue, number: int, items: Sequence[FoundIssue], wait: float
+) -> None:
+    """Comments the items on the open follow-up issue and relabels it.
+
+    Each call is tried again on a server error, and a retry doesn't post the comment twice.
+    """
+    text = followup.comment(items, number)
+    change = followup.relabel(follow_up.labels, items)
+    retry.retried_with(
+        lambda: ctx.gh.comment(follow_up.number, text),
+        lambda: ctx.gh.comment_unless_posted(follow_up.number, text),
+        wait,
+    )
     if change is not None:
-        ctx.gh.relabel(known, *change)
+        retry.retried(lambda: ctx.gh.relabel(follow_up.number, *change), wait)
