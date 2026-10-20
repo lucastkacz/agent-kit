@@ -55,6 +55,12 @@ class GitHub:
     def comment(self, number: int, body: str) -> None:
         self._gh("issue", "comment", str(number), "--body-file", "-", stdin=body)
 
+    def comment_unless_posted(self, number: int, body: str) -> None:
+        """Comments on the issue, unless it already has this comment (#232)."""
+        raw = self._json("issue", "view", str(number), "--json", "comments")
+        if not any(_same_text(c["body"], body) for c in raw.get("comments") or []):
+            self.comment(number, body)
+
     def create_issue(self, title: str, body: str, label: str) -> int:
         url = self._gh(
             "issue", "create", "--title", title, "--body-file", "-", "--label", label, stdin=body

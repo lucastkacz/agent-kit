@@ -37,6 +37,8 @@ def api_user(state: State, _argv: list[str], _stdin: str) -> str:
 
 def issue_view(state: State, argv: list[str], _stdin: str) -> str:
     issue = state["issues"][argv[2]]
+    if "--json" in argv and option(argv, "--json") == "comments":
+        return json.dumps({"comments": [{"body": body} for body in issue["comments"]]})
     closed = "COMPLETED" if issue["state"] == "CLOSED" else ""
     return json.dumps(
         {
