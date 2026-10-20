@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_accept_batch import section
+from accept_batch_skill import section
 
 
 def numbers() -> str:

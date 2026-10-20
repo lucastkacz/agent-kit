@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_run_batch_cloud_branch_through_git import step
-from test_skill_run_batch_cloud_dispatch import prompt_text, section, skill_text
+from run_batch_skill import prompt_text, section, skill_text, step
 
 
 def test_the_runs_status_is_read_before_its_branch_is_brought_back() -> None:

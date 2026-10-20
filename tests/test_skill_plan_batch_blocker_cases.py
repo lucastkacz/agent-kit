@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_plan_batch_rules import section
+from plan_batch_skill import section
 
 
 def test_a_blocker_counts_as_done_only_when_its_closed_as_completed() -> None:

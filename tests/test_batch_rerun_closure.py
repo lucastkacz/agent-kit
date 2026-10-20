@@ -6,8 +6,8 @@ import json
 
 from agent_batch.core.model import Closure
 from agent_batch.shell.github import closure_of
+from batch_runs import BATCH, calls_for, stop_after_the_first_issue, summary
 from conftest import World
-from test_batch_rerun import BATCH, calls_for, stop_after_the_first_issue, summary
 
 REPOSITORY = "https://github.com/owner/project"
 

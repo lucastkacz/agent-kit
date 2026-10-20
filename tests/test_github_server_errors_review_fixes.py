@@ -13,9 +13,9 @@ from agent_batch.shell import retry
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
+from batch_runs import BATCH, done, pr_for
 from conftest import World
-from test_batch import BATCH, done, pr_for
-from test_github_server_errors_retried import PR_GRAPHQL, PUSH_500, finished
+from github_server_errors import PR_GRAPHQL, PUSH_500, finished
 
 
 def test_the_push_after_a_resolved_conflict_is_tried_again_after_a_server_error(

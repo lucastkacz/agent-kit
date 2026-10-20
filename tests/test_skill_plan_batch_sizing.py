@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from test_skill_plan_batch_rules import section, spec_section
+from plan_batch_skill import section
+from spec_text import spec_section
 
 
 def test_it_groups_issues_that_share_an_area_and_a_reason_before_proposing_lanes() -> None:

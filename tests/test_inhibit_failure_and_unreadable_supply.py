@@ -8,22 +8,13 @@ import pytest
 
 from agent_batch.shell import system
 from conftest import World
-
-# What `systemd-inhibit` does without a system bus: it says why on stderr and exits at once.
-FAILING_INHIBIT = """#!/bin/sh
-echo "Failed to inhibit: Failed to connect to bus: No such file or directory" >&2
-exit 1
-"""
-
-
-def _failing_inhibit(world: World) -> None:
-    world.replace_fake("systemd-inhibit", FAILING_INHIBIT)
+from inhibit_fakes import failing_inhibit
 
 
 def test_a_systemd_inhibit_that_fails_doesnt_count_as_keeping_the_computer_awake(
     world: World,
 ) -> None:
-    _failing_inhibit(world)
+    failing_inhibit(world)
 
     assert system.keep_awake("linux") is None
 
@@ -33,7 +24,7 @@ def test_where_systemd_inhibit_fails_the_batch_says_so_at_the_start_and_still_ru
 ) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     world.linux_power(mains_online=True)
-    _failing_inhibit(world)
+    failing_inhibit(world)
     world.add_issue(10)
     world.add_batch(1, "Lane 1: #10\n")
 

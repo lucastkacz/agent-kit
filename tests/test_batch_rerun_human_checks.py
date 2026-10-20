@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from batch_runs import BATCH, stop_after_the_first_issue, summary
 from conftest import World
-from test_batch_rerun import BATCH, stop_after_the_first_issue, summary
 
 
 def test_a_rerun_summary_counts_the_human_checks_of_an_issue_that_merged_before(

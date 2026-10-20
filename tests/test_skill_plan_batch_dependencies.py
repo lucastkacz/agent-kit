@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from test_skill_plan_batch_rules import section
+from plan_batch_skill import section
 
 SPEC = Path(__file__).resolve().parents[1] / "SPEC.md"
 

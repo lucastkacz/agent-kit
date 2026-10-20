@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from conftest import World, git
+from conftest import World
+from ship_branches import branch_with_work
 
 CHANGES = {
     "output": {
@@ -20,18 +19,6 @@ CHANGES = {
         ],
     }
 }
-
-
-def branch_with_work(world: World, branch: str, file: str = "feature.txt") -> Path:
-    git(world.project, "switch", "--quiet", "--create", branch)
-    path = world.project / file
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("work\n")
-    git(world.project, "add", "-A")
-    git(world.project, "commit", "--quiet", "-m", "feat: work")
-    body = world.root / "body.md"
-    body.write_text("Adds the feature.\n")
-    return body
 
 
 def test_an_approved_branch_gets_its_pr_and_an_armed_merge(world: World) -> None:

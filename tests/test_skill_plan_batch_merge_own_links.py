@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_plan_batch_merged_links import merge_step
-from test_skill_plan_batch_rules import section
+from plan_batch_skill import merge_step, section
 
 
 def test_a_merge_skips_the_links_between_its_own_issues() -> None:

@@ -7,7 +7,7 @@ It trusts only the owner's questions, skips cloud issues that wait for a fix, an
 from __future__ import annotations
 
 from agent_batch.core.plan import EFFORTS
-from test_skill_plan_batch_rules import section
+from plan_batch_skill import section
 
 
 def model_bullet() -> str:

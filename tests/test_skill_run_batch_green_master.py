@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from test_skill_run_batch_cloud_dispatch import section, skill_text
-from test_skills import implement_step
+from run_batch_skill import section, skill_text
+from skill_files import implement_step
 
 
 def test_the_check_before_starting_runs_make_check_on_master_after_it_is_clean() -> None:

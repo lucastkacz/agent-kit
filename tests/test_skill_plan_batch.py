@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from test_skills import frontmatter
-from test_skills import test_each_skill_is_well_formed as check_well_formed
-
-SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "plan-batch"
-
-
-def text() -> str:
-    return (SKILL / "SKILL.md").read_text(encoding="utf-8")
+from plan_batch_skill import SKILL, text
+from skill_files import check_well_formed, frontmatter
 
 
 def test_the_skill_exists_and_is_well_formed() -> None:

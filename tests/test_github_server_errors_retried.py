@@ -6,7 +6,6 @@ between tries are `AGENT_BATCH_POLL_SECONDS`, which the tests set near 0.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import pytest
@@ -14,16 +13,10 @@ import pytest
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
+from batch_runs import BATCH, events
 from conftest import World
+from github_server_errors import ISSUE, PR_GRAPHQL, PUSH_500, finished
 
-BATCH = 1
-ISSUE = 10
-PUSH_500 = "`git push --quiet` failed: remote: Internal Server Error"
-PR_GRAPHQL = (
-    "`gh pr create` failed: GraphQL: Something went wrong while executing your query. This may "
-    "be the result of a timeout, or it could be a GitHub bug. Please include "
-    "`E322:12220F:324587:4ED219:6AD64F5E` when reporting this issue."
-)
 LABEL_502 = "`gh issue edit` failed: HTTP 502: Bad Gateway (https://api.github.com/graphql)"
 COMMENT_503 = (
     "`gh issue comment` failed: HTTP 503: Service Unavailable "
@@ -66,15 +59,6 @@ def flaky(
 
     monkeypatch.setattr(owner, name, call)
     return calls
-
-
-def events(world: World) -> list[dict[str, Any]]:
-    log = world.project / ".agent-batch" / f"batch-{BATCH}" / "events.jsonl"
-    return [json.loads(line) for line in log.read_text().splitlines()]
-
-
-def finished(world: World) -> dict[str, Any]:
-    return next(e for e in events(world) if e["event"] == "issue_finished" and e["issue"] == ISSUE)
 
 
 def armed(world: World) -> bool:
@@ -128,7 +112,7 @@ def test_announce_tries_its_label_and_its_comment_again_after_a_server_error(
     assert "blocked" in issue["labels"]
     assert len(issue["comments"]) == 1
     assert "Which one?" in issue["comments"][0]
-    assert not [e for e in events(world) if e["event"] == "announce_failed"]
+    assert not [e for e in events(world, BATCH) if e["event"] == "announce_failed"]
 
 
 def test_a_rejected_push_isnt_tried_again(world: World, monkeypatch: pytest.MonkeyPatch) -> None:

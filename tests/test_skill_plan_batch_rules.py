@@ -5,22 +5,9 @@ Also that the SPEC says what planning proposes, and that its batch example runs 
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from agent_batch.core.plan import parse_plan
-from test_skill_plan_batch import text
-
-SPEC = Path(__file__).resolve().parents[1] / "SPEC.md"
-
-
-def section(number: int) -> str:
-    """The skill's `## <number>.` section, up to the next one."""
-    return text().split(f"\n## {number}. ", 1)[1].split("\n## ", 1)[0]
-
-
-def spec_section(heading: str) -> str:
-    """The SPEC's `### <heading>` section, up to the next heading."""
-    return SPEC.read_text(encoding="utf-8").split(f"\n### {heading}\n", 1)[1].split("\n#", 1)[0]
+from plan_batch_skill import section
+from spec_text import spec_section
 
 
 def test_a_blocked_issue_goes_in_only_once_the_owner_answers_its_question() -> None:

@@ -9,8 +9,9 @@ import json
 import re
 from pathlib import Path
 
+from accept_batch_skill import section
+from batch_runs import events
 from conftest import World, git
-from test_skill_accept_batch import section
 
 SPEC = Path(__file__).resolve().parents[1] / "SPEC.md"
 HIGH_RISK_BRANCH = "10-issue-10"
@@ -27,11 +28,6 @@ def owner_merges(world: World, branch: str) -> None:
     pr = next(pr for pr in gh["prs"].values() if pr["branch"] == branch)
     pr["state"], pr["head"] = "MERGED", head
     world.gh_state.write_text(json.dumps(gh))
-
-
-def events(world: World, batch: int) -> list[dict[str, object]]:
-    log = world.project / ".agent-batch" / f"batch-{batch}" / "events.jsonl"
-    return [json.loads(line) for line in log.read_text().splitlines()]
 
 
 def test_a_batch_run_deletes_at_its_start_a_branch_the_owner_merged_after_its_lane_ended(

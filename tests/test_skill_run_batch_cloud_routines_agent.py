@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_run_batch_cloud_dispatch import section, skill_text
+from run_batch_skill import section, skill_text
 
 
 def test_the_agent_creates_and_clears_each_routine_and_reports_only_its_id_and_time() -> None:

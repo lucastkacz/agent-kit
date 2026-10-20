@@ -10,7 +10,7 @@ from agent_batch.core import plan
 from agent_batch.core.plan import PlanError
 from agent_batch.shell import claude
 from conftest import World
-from test_ship import branch_with_work
+from ship_branches import branch_with_work
 
 BATCH = 1
 EFFORTS = ("low", "medium", "high", "xhigh", "max")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from conftest import World
-from test_lane_hook_denials import CHECK, SESSION, denial, denials_log, events, run_batch
+from lane_denials import CHECK, SESSION, denial, denials_log, events, run_batch
 
 
 def test_an_entry_the_session_logged_before_the_run_started_is_not_counted_again(
