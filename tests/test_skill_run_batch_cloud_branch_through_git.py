@@ -31,12 +31,9 @@ def test_a_general_purpose_subagent_brings_each_branch_back_with_a_short_prompt(
     assert "`fork`" not in back.split("general-purpose subagent", 1)[1], back
 
 
-def test_a_fork_is_used_only_for_remote_trigger() -> None:
-    paragraphs = skill_text().split("\n\n")
-    forks = [p for p in paragraphs if "fork" in p.lower()]
-    assert forks
-    for paragraph in forks:
-        assert "RemoteTrigger" in paragraph, paragraph
+def test_run_batch_never_forks_the_session() -> None:
+    # Since #235 the routines agent's headless session makes even the `RemoteTrigger` calls.
+    assert "fork" not in skill_text().lower()
 
 
 def test_step_6_removes_the_ship_worktree_and_leaves_the_branch_to_clean() -> None:

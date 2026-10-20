@@ -1,6 +1,8 @@
 """run-batch and accept-batch call `RemoteTrigger` through a plugin agent, not a fork (#213).
 
-Each test checks the few words that carry the behavior, so rewording the skills doesn't break it.
+How the skills start the agent, as a headless session since #235, is in
+`test_routines_agent_headless.py`. Each test checks the few words that carry the behavior,
+so rewording the skills doesn't break it.
 """
 
 from __future__ import annotations
@@ -73,23 +75,9 @@ def test_the_agent_makes_only_the_calls_its_caller_names_and_reports_only_what_i
     assert "`Read`" in body, body
 
 
-def test_each_remote_trigger_section_hands_its_calls_to_the_agent_in_the_foreground() -> None:
+def test_no_remote_trigger_section_forks_the_session() -> None:
     for heading, text in remote_trigger_sections().items():
-        assert AGENT_TYPE in text, (heading, text)
-        assert "in the foreground" in text, (heading, text)
-
-
-def test_each_remote_trigger_section_says_why_the_agent_runs_in_the_foreground() -> None:
-    for heading, text in remote_trigger_sections().items():
-        assert "in the background" in text, (heading, text)
-        why = text[text.index("in the background") :]
-        assert "doesn't get `RemoteTrigger`" in why, (heading, text)
-
-
-def test_only_the_create_fallback_still_forks_the_session() -> None:
-    sections = remote_trigger_sections()
-    for heading in ("Bring a cloud branch back", "Resume", "The cloud runs' denials"):
-        assert "fork" not in sections[heading], (heading, sections[heading])
+        assert "fork" not in text, (heading, text)
 
 
 def test_run_batch_writes_each_filled_prompt_to_a_file_outside_the_repository_for_the_agent() -> (
@@ -108,15 +96,3 @@ def test_the_agent_greps_a_large_saved_answer_instead_of_reading_it_whole() -> N
     resume = run_batch("Resume")
     assert "`list`" in resume, resume
     assert "greps" in resume, resume
-
-
-def test_run_batch_falls_back_to_the_fork_when_the_agents_create_fails_and_tells_the_owner() -> (
-    None
-):
-    send = run_batch("Send an issue to the cloud")
-    assert "Until a routine has been created through the agent" in send, send
-    fallback = send[send.index("Until a routine has been created through the agent") :]
-    assert "`create` fails" in fallback, fallback
-    assert "fork of the session" in fallback, fallback
-    assert "`fork` type" in fallback, fallback
-    assert "tell the owner" in fallback, fallback

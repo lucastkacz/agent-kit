@@ -17,7 +17,7 @@ def has(text: str, *tokens: str) -> None:
 
 def test_it_reads_a_cloud_log_page_by_page_with_an_agent_that_reports_what_matters() -> None:
     gather = section("Gather everything")
-    has(gather, "page by page", "`agent-kit:routines` type")
+    has(gather, "page by page", "--agent agent-kit:routines")
     has(gather, "denials", "owner's messages", "writes outside the sandbox")
 
 
