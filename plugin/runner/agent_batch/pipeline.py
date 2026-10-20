@@ -6,7 +6,7 @@ from agent_batch import filing, landing
 from agent_batch.context import Context, Lane
 from agent_batch.core import eligibility, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
-from agent_batch.core.model import ClaudeRun, EndedKind, Issue, IssueReport, Outcome
+from agent_batch.core.model import ClaudeRun, EndedKind, Finding, Issue, IssueReport, Outcome
 from agent_batch.job import (
     Job,
     Stopped,
@@ -116,27 +116,46 @@ def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun, kind: Ended
 
 
 def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
-    """Reviews, sends findings back to the implementer, and gives up after the last round."""
+    """Reviews, sends findings back to the implementer, and gives up after the last round.
+
+    An approval's findings go back once per branch too, the low pass, so that the PR reaches the
+    owner with its lows fixed or answered; it isn't a round that asked for changes (SPEC §5).
+    """
     if _approved_before(ctx, lane, job):
         return
     most = ctx.config.review_rounds
-    for attempt in range(1, most + 1):
-        job.report.review_rounds = attempt
+    asked = 0
+    low_passed = rounds.low_passed(ctx.events.project_records("low_pass"), job.branch)
+    while True:
+        job.report.review_rounds += 1
         review = review_once(ctx, lane, job)
-        if review.approved:
+        if review.approved and (low_passed or not review.findings):
             job.findings = review.findings
             return
-        if attempt == most:
-            findings = prompts.findings_list(review.findings)
-            raise Stopped(
-                Outcome.BLOCKED,
-                f"The review still asks for changes after {most} rounds:\n\n{findings}",
+        if review.approved:
+            low_passed = True
+            head = ctx.git.head(lane.worktree)
+            ctx.events.emit(
+                "low_pass", lane=lane.index, issue=job.issue.number, branch=job.branch, head=head
             )
-        prompt = prompts.fix(job.issue.number, review.findings)
-        ctx.status.step(lane.index, progress.IMPLEMENTATION)
-        run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
-        lane.session_id = run.session_id or lane.session_id
-        _accept_work(ctx, lane, job, run, "fix")
+        else:
+            asked += 1
+            if asked == most:
+                findings = prompts.findings_list(review.findings)
+                raise Stopped(
+                    Outcome.BLOCKED,
+                    f"The review still asks for changes after {most} rounds:\n\n{findings}",
+                )
+        _send_back(ctx, lane, job, review.findings)
+
+
+def _send_back(ctx: Context, lane: Lane, job: Job, findings: tuple[Finding, ...]) -> None:
+    """Has the implementer's session fix or answer a review's findings."""
+    prompt = prompts.fix(job.issue.number, findings)
+    ctx.status.step(lane.index, progress.IMPLEMENTATION)
+    run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
+    lane.session_id = run.session_id or lane.session_id
+    _accept_work(ctx, lane, job, run, "fix")
 
 
 def _approved_before(ctx: Context, lane: Lane, job: Job) -> bool:
