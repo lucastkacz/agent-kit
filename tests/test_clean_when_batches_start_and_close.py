@@ -11,14 +11,11 @@ from pathlib import Path
 
 from accept_batch_skill import section
 from batch_runs import events
+from clean_branches import local_branches
 from conftest import World, git
 
 SPEC = Path(__file__).resolve().parents[1] / "SPEC.md"
 HIGH_RISK_BRANCH = "10-issue-10"
-
-
-def local_branches(world: World) -> list[str]:
-    return git(world.project, "branch", "--format=%(refname:short)").split()
 
 
 def owner_merges(world: World, branch: str) -> None:

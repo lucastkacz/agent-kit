@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from batch_runs import BATCH
 from conftest import World
 
-BATCH = 1
 KIT = Path(__file__).parent.parent
 TODAY = 4
 

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+from batch_runs import BATCH
 from conftest import World
-
-BATCH = 1
 
 
 def test_the_start_comment_counts_no_more_lanes_at_a_time_than_the_plan_has(world: World) -> None:

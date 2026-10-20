@@ -9,9 +9,8 @@ import pytest
 
 from agent_batch.shell import system
 from agent_hooks import session_start
+from batch_runs import BATCH
 from conftest import World
-
-BATCH = 1
 
 
 def test_a_refused_batch_on_battery_leaves_no_batch_running_for_the_next_session(

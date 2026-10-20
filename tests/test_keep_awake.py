@@ -6,9 +6,8 @@ import os
 
 import pytest
 
+from batch_runs import BATCH
 from conftest import World
-
-BATCH = 1
 
 
 def _run_one_issue(world: World) -> int:

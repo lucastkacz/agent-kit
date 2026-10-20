@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from batch_runs import BATCH
 from conftest import World, git
 
-BATCH = 1
 LONG_LINE = "uv run pytest " + "tests/test_a_long_name.py " * 10
 TOOLS = [
     {"name": "Read", "input": {"file_path": "src/app.py"}},

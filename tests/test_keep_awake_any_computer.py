@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
+from batch_runs import BATCH
 from conftest import World
 
-BATCH = 1
 KIT = Path(__file__).parent.parent
 # "Mac" as a word, as in "the Mac", "a Mac's" or "MacBook"; "macOS" names a platform.
 MAC = re.compile(r"\bMac(Book)?\b", re.IGNORECASE)

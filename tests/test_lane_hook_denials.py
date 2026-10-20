@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from accept_batch_skill import section
-from batch_runs import BATCH
+from batch_runs import summary
 from conftest import World
 from lane_denials import CHECK, SESSION, denial, denials_log, events, run_batch
 from spec_text import zero_prompts
@@ -18,11 +18,6 @@ PUSH = {"command": "git push origin HEAD"}
 WATCH = {"command": 'until grep -qE "passed|failed" "$f"; do sleep 2; done; tail -3 "$f"'}
 COMMIT = {"command": "git commit -m 'fix: on master'"}
 BLOCKED = "protect-master blocked it: commit on a branch of your own, never on master"
-
-
-def summary(world: World) -> str:
-    text: str = world.gh()["issues"][str(BATCH)]["comments"][-1]
-    return text
 
 
 def row_denials(text: str, number: int) -> int:

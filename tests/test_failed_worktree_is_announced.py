@@ -11,9 +11,8 @@ import pytest
 from agent_batch.core import report
 from agent_batch.core.config import BLOCKED
 from agent_batch.core.model import IssueReport, Outcome
+from batch_runs import BATCH
 from conftest import World
-
-BATCH = 1
 
 
 def test_a_lane_whose_worktree_fails_labels_and_comments_each_of_its_issues(
