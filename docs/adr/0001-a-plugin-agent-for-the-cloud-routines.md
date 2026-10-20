@@ -1,8 +1,8 @@
 # 1. A plugin agent for the cloud routines, instead of a fork of the control tower
 
-- **Status:** proposed: run-batch and accept-batch keep the fork until a follow-up issue moves them to the agent
+- **Status:** accepted on 2026-10-20, with the agent run as a headless session (see "In an interactive session")
 - **Date:** 2026-10-19
-- **Issue:** #175 (spike)
+- **Issue:** #175 (spike), then #213 and #235
 
 ## Context
 
@@ -42,7 +42,7 @@ The tokens and cost are the whole session's, the agent's and its caller's togeth
 The batch skills make their `RemoteTrigger` calls through a plugin agent, not through a fork of the control tower:
 
 1. The plugin ships an agent with `tools: RemoteTrigger, Read, Grep` and a small `model`. Its instructions limit it to the calls its caller names, and to reporting only what its caller asks for.
-2. The control tower calls it in the foreground, always. In the background, the agent doesn't get `RemoteTrigger`.
+2. The control tower calls it in the foreground, always. In the background, the agent doesn't get `RemoteTrigger`. Since #235, that foreground is a headless session that runs as the agent (see "In an interactive session").
 3. A large answer, such as `list`'s, is saved to a file. The agent greps that file and never reads it whole.
 4. The control tower writes each filled cloud prompt to a file outside the repository, and the agent reads it from there. So the prompt, some 13k characters that each `create` echoes about three times, stays out of both the control tower's context and the agent's report.
 
@@ -54,8 +54,23 @@ The batch skills make their `RemoteTrigger` calls through a plugin agent, not th
 - **accept-batch, "The cloud runs' denials":** the agent reads each run log, page by page, and reports the denials, the owner's messages and the writes outside the sandbox. The fork goes.
 - **Cost, measured:** a session that makes one or two read-only calls (`list`, `list_runs`, one page of `get_run_log`) through the agent costs some 80k tokens on haiku, mostly the cached system prompt. The forks it would replace cost 246k–486k tokens at the control tower's model, but for bigger jobs, so the two numbers aren't the same job.
 - **Cost, not measured:** creating N routines, where each `create` echoes its ~13k-character prompt about three times into the agent's context, some 10k tokens a call, which the agent then reads again on each turn; and reading a log of several pages. Six creates may well cost the agent a few hundred thousand tokens of cache reads, at its small model rather than the control tower's. The first batch with a `Cloud:` line measures both.
-- **Not tried:** `create` and `update`. Trying them needs a routine that fires, which this spike's issue asked to stop for. They are the same tool, with the same permission as `list` and `get_run_log`. The first batch with a `Cloud:` line tries them, and keeps the fork as the fallback until one has worked.
+- **Not tried in the spike:** `create` and `update`. Trying them needs a routine that fires, which this spike's issue asked to stop for. They are the same tool, with the same permission as `list` and `get_run_log`. #235 tried them on a disabled routine (below), and the fork fallback went.
 - **Risk:** the agent acts on the owner's account. Its instructions name the calls it may make, and the control tower names each one. Claude Code's `tools` field limits the agent to its three tools, so it can't run commands or edit files.
+
+## In an interactive session
+
+#213 moved the skills to the agent, started with the `Agent` tool in the foreground. Its human check, on 2026-10-20 in the owner's interactive session on Claude Code 2.1.304, failed: the `Agent` tool started `agent-kit:routines` in the background, though the call asked for nothing of the kind, and the tool there has no option to run a subagent in the foreground. The agent's first call, `list`, failed with "No such tool available: RemoteTrigger", and it created nothing. The spike's probes had run in `claude -p`, where the `Agent` tool waited for the agent.
+
+Claude Code's docs name no frontmatter field that keeps a subagent in the foreground: only `background: true`. They name `CLAUDE_CODE_FORK_SUBAGENT=0`, which lets Claude wait for its subagents, and `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which turns background tasks off everywhere. Both change every subagent of the owner's sessions, so neither was tried.
+
+What works needs no setting: a headless session started from the `Bash` tool that runs as the agent itself, `claude -p --agent agent-kit:routines --allowedTools "RemoteTrigger,Read,Grep" "<the calls, and what to report>"`, from the project's main folder, where the plugin is enabled. From another folder, `--agent agent-kit:routines` isn't found when the plugin is enabled at project scope. The session has the agent's three tools and its model, and prints only its report. Two probes, on 2.1.304 and haiku:
+
+| Probe | Calls | Result | Tokens (cache reads) | Cost |
+|---|---|---|---|---|
+| 1 | `list` | called; it grepped the saved answer and found 17 routines named `lucastkacz/agent-kit batch …` | 113k (94k) | $0.0060 |
+| 2 | `list`, `create`, `update` with `clear_mcp_connections: true`, `update` with `enabled: false`, `get` | all called; it created a disabled test routine shaped like a batch's, with a 14k-character prompt read from a file. `create`'s answer listed four MCP connections; after the `update`, none was left, and `disallowed_tools` held `mcp__github__*`. Its report left the prompt out | 605k (492k) | $0.0326 |
+
+The control tower checked the routine with its own `get`, which echoed the prompt three times. So the skills run the agent this way, and never through the `Agent` tool, and run-batch's fork fallback for a failed `create` went. One `create` costs the agent about $0.03 at haiku, against the 486k tokens at the control tower's model that the fork of batch #153 used for six.
 
 ## The spike's code
 
