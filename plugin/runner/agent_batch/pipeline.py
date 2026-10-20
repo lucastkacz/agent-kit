@@ -133,20 +133,26 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
             job.findings = review.findings
             return
         if review.approved:
+            _low_pass(ctx, lane, job, review.findings)
             low_passed = True
-            head = ctx.git.head(lane.worktree)
-            ctx.events.emit(
-                "low_pass", lane=lane.index, issue=job.issue.number, branch=job.branch, head=head
+            continue
+        asked += 1
+        if asked == most:
+            findings = prompts.findings_list(review.findings)
+            raise Stopped(
+                Outcome.BLOCKED,
+                f"The review still asks for changes after {most} rounds:\n\n{findings}",
             )
-        else:
-            asked += 1
-            if asked == most:
-                findings = prompts.findings_list(review.findings)
-                raise Stopped(
-                    Outcome.BLOCKED,
-                    f"The review still asks for changes after {most} rounds:\n\n{findings}",
-                )
         _send_back(ctx, lane, job, review.findings)
+
+
+def _low_pass(ctx: Context, lane: Lane, job: Job, findings: tuple[Finding, ...]) -> None:
+    """Sends an approval's findings back, and logs the pass only once its fix is done."""
+    head = ctx.git.head(lane.worktree)
+    _send_back(ctx, lane, job, findings)
+    ctx.events.emit(
+        "low_pass", lane=lane.index, issue=job.issue.number, branch=job.branch, head=head
+    )
 
 
 def _send_back(ctx: Context, lane: Lane, job: Job, findings: tuple[Finding, ...]) -> None:
