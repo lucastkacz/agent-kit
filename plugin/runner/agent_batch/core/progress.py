@@ -194,6 +194,15 @@ def parse_status(text: str) -> tuple[int, list[tuple[int, LaneState]]] | None:
     return pid, [(int(key), state) for key, state in states if key.isdigit() and state is not None]
 
 
+def opened_by_runner(text: str) -> bool:
+    """Whether a batch's runner opened this `status.json`, which then shows with no lanes (#217)."""
+    try:
+        record = json.loads(text)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(record, dict) and record.get("runner") is True
+
+
 def _state(raw: object) -> LaneState | None:
     if not isinstance(raw, dict):
         return None

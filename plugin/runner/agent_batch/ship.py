@@ -39,6 +39,7 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
         raise ShipError(stop.detail) from stop
     finally:
         ctx.status.drop(lane.index)
+        ctx.status.close()
 
 
 def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
