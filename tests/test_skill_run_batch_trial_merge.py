@@ -10,9 +10,14 @@ def test_the_batch_end_merges_the_waiting_prs_on_trial_in_a_scratch_worktree() -
     assert "When the whole batch ended" in trial, trial
     assert "in the plan's order" in trial, trial
     assert "the tracking issue's Notes" in trial, trial
-    assert "git worktree add --detach .agent-batch/worktrees/trial-<batch> origin/master" in trial
+    assert (
+        "git worktree add --detach .agent-batch/worktrees.noindex/trial-<batch> origin/master"
+        in trial
+    )
     assert "`make check` after each" in trial, trial
-    assert "git worktree remove --force .agent-batch/worktrees/trial-<batch>" in trial, trial
+    assert "git worktree remove --force .agent-batch/worktrees.noindex/trial-<batch>" in trial, (
+        trial
+    )
 
 
 def test_a_pr_that_conflicts_or_fails_is_updated_and_shipped_before_the_owner_names_them() -> None:

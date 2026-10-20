@@ -49,7 +49,7 @@ def test_a_branch_checked_out_in_the_main_folder_stays() -> None:
 
 
 def test_a_worktree_with_changes_is_named_in_the_reason() -> None:
-    branch = LocalBranch("51-x", HEAD, Path("/project/.agent-batch/worktrees/ship-51"))
+    branch = LocalBranch("51-x", HEAD, Path("/project/.agent-batch/worktrees.noindex/ship-51"))
 
     verdict = decide(branch, [MergedPr(83, "51-x", HEAD)], lane=None, changed=True)
 

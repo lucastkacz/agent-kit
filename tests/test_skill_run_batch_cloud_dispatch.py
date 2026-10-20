@@ -68,4 +68,4 @@ def test_it_ships_the_branch_it_dispatched_once_its_head_holds_the_pr() -> None:
     assert "the `{branch}` you dispatched" in back, back
     assert "`git diff --quiet origin/<branch>~1 origin/<branch>` exits 0" in back, back
     assert "--title '<title>'" in back, back
-    assert "git worktree remove .agent-batch/worktrees/ship-<n>" in back, back
+    assert "git worktree remove .agent-batch/worktrees.noindex/ship-<n>" in back, back
