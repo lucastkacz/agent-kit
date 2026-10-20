@@ -12,9 +12,9 @@ from agent_batch.core import report
 from agent_batch.core.model import IssueReport, Outcome
 from agent_batch.shell.github import GitHub
 from agent_batch.shell.proc import CommandError
+from batch_runs import BATCH
 from conftest import World
 
-BATCH = 1
 TO_THE_LOG = "; see the batch's event log (`events.jsonl`)."
 
 

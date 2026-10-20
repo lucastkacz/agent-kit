@@ -7,10 +7,8 @@ from typing import Any
 
 import pytest
 
+from batch_runs import BATCH, LIMIT_REACHED, close_issue
 from conftest import World
-
-BATCH = 1
-LIMIT_REACHED = {"error": "Claude usage limit reached."}
 
 
 def read(tokens: int, message: str | None = None) -> dict[str, object]:
@@ -36,13 +34,6 @@ def status_row(world: World, capsys: pytest.CaptureFixture[str], issue: int) -> 
     rows = [line for line in capsys.readouterr().out.splitlines() if f"#{issue}" in line]
     assert len(rows) == 1, rows
     return rows[0]
-
-
-def close_issue(world: World, number: int) -> None:
-    """Closes the issue, as GitHub does when the PR that says `Closes #N` merges."""
-    state = world.gh()
-    state["issues"][str(number)]["state"] = "CLOSED"
-    world.gh_state.write_text(json.dumps(state))
 
 
 def test_the_event_log_keeps_each_reviews_tokens_beside_its_cost(world: World) -> None:

@@ -9,10 +9,10 @@ import pytest
 from agent_batch.core import plan
 from agent_batch.core.plan import PlanError
 from agent_batch.shell import claude
+from batch_runs import BATCH
 from conftest import World
 from ship_branches import branch_with_work
 
-BATCH = 1
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 DONE = {"status": "done", "title": "feat: a thing", "pr_body": "Body.", "message": "", "found": []}
 

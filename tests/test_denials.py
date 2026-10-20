@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
+from batch_runs import APPROVED, BATCH, events
 from conftest import World
 
-BATCH = 1
 PUSH = {"command": "git push origin HEAD"}
 LONG = {"command": "echo " + "x" * 300}
 WRITE = {"file_path": "/project/marker.txt", "content": "hi"}
@@ -26,17 +25,9 @@ def batch_with_denials(world: World) -> None:
     world.script(
         "review",
         10,
-        {
-            "output": {"verdict": "approved", "findings": []},
-            "denials": [denial("Write", WRITE, "t3")],
-        },
+        {**APPROVED, "denials": [denial("Write", WRITE, "t3")]},
     )
     world.run("run", str(BATCH))
-
-
-def events(world: World) -> list[dict[str, Any]]:
-    log = world.project / ".agent-batch" / f"batch-{BATCH}" / "events.jsonl"
-    return [json.loads(line) for line in log.read_text().splitlines()]
 
 
 def test_each_denial_is_an_event_with_its_issue_run_tool_and_input(world: World) -> None:
@@ -44,7 +35,7 @@ def test_each_denial_is_an_event_with_its_issue_run_tool_and_input(world: World)
 
     denied = [
         {key: event.get(key) for key in ("issue", "run", "tool", "input")}
-        for event in events(world)
+        for event in events(world, BATCH)
         if event["event"] == "permission_denied"
     ]
     assert denied == [

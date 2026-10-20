@@ -7,9 +7,9 @@ import time
 
 import pytest
 
+from batch_runs import BATCH, summary
 from conftest import World
 
-BATCH = 1
 TWO_HOURS = 7200
 
 
@@ -18,11 +18,6 @@ def wall_clock(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
     """The computer's wall clock, which goes on while it sleeps."""
     awake = time.time
     monkeypatch.setattr(time, "time", lambda: awake() + world.slept())
-
-
-def summary(world: World) -> str:
-    comment: str = world.gh()["issues"][str(BATCH)]["comments"][-1]
-    return comment
 
 
 def test_the_summary_minutes_include_the_time_the_computer_slept(world: World) -> None:

@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
-from batch_runs import APPROVED, BATCH, CHANGES, done, pr_for
+from batch_runs import APPROVED, BATCH, CHANGES, done, events, pr_for
 from conftest import World
-
-
-def events(world: World) -> list[dict[str, Any]]:
-    log = world.project / ".agent-batch" / f"batch-{BATCH}" / "events.jsonl"
-    return [json.loads(line) for line in log.read_text().splitlines()]
 
 
 def test_a_lane_merges_its_issues_in_order_and_keeps_the_implementer_session(world: World) -> None:
@@ -224,7 +216,7 @@ def test_a_merged_issue_stays_merged_and_untouched_when_the_cleanup_fails(world:
 
     world.run("run", str(BATCH))
 
-    finished = [event for event in events(world) if event["event"] == "issue_finished"]
+    finished = [event for event in events(world, BATCH) if event["event"] == "issue_finished"]
     assert [event["outcome"] for event in finished] == ["merged"]
     issue = world.gh()["issues"]["10"]
     assert issue["labels"] == ["task", "ready"]
@@ -239,7 +231,7 @@ def test_a_failed_cleanup_after_the_merge_is_logged_with_the_command_error(world
 
     world.run("run", str(BATCH))
 
-    failed = [event for event in events(world) if event["event"] == "cleanup_failed"]
+    failed = [event for event in events(world, BATCH) if event["event"] == "cleanup_failed"]
     assert [event.get("issue") for event in failed] == [10]
     assert "`git fetch --quiet` failed" in failed[0]["detail"]
     assert "does not appear to be a git repository" in failed[0]["detail"]

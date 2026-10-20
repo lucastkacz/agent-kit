@@ -6,23 +6,9 @@ import re
 
 import pytest
 
+from batch_runs import BATCH, CHANGES
 from conftest import World
 
-BATCH = 1
-CHANGES = {
-    "output": {
-        "verdict": "changes",
-        "findings": [
-            {
-                "severity": "high",
-                "origin": "new",
-                "location": "a.py:1",
-                "problem": "It breaks.",
-                "suggestion": "Fix.",
-            }
-        ],
-    }
-}
 READ_README = {"name": "Read", "input": {"file_path": "README.md"}}
 
 

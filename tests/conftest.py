@@ -222,28 +222,26 @@ def _shared_fakes(shared: Path, fakes: dict[str, str]) -> None:
 
 
 @pytest.fixture(scope="session")
-def shared_fakes(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory) -> Path:
+def shared_fakes(request: pytest.FixtureRequest) -> Path:
     """The shared fakes, kept in pytest's cache by their content: later sessions find them checked.
 
     Each worker of a first session writes and runs its own, and the first to finish keeps them.
     """
     fakes = _fake_scripts()
-    cache: pytest.Cache | None = getattr(request.config, "cache", None)
-    if cache is None:
-        shared = tmp_path_factory.mktemp("fakes")
-        _shared_fakes(shared, fakes)
-        return shared
     key = hashlib.sha256(json.dumps(fakes, sort_keys=True).encode()).hexdigest()[:16]
-    kept = cache.mkdir("fakes") / key
+    kept = request.config.cache.mkdir("fakes") / key
     if not kept.is_dir():
         fresh = Path(tempfile.mkdtemp(prefix=f"{key}-", dir=kept.parent))
-        _shared_fakes(fresh, fakes)
         try:
+            _shared_fakes(fresh, fakes)
             fresh.rename(kept)
         except OSError:
+            # Another worker kept its fakes first.
             if not kept.is_dir():
                 raise
-            shutil.rmtree(fresh)
+        finally:
+            # Gone once kept; else half written, and no later session would ever remove it.
+            shutil.rmtree(fresh, ignore_errors=True)
     return kept
 
 

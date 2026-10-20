@@ -9,11 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from batch_runs import pr_for
+from batch_runs import BATCH, pr_for
 from clean_branches import MERGED, add_pr, branch_with_work, clean, local_branches, said_about
 from conftest import World, git
 
-BATCH = 1
 BRANCH = "10-issue-10"
 
 

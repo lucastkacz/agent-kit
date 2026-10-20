@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from batch_runs import BATCH, events
 from conftest import World
 
-BATCH = 1
 PUSH = {"command": "git push origin HEAD"}
 FORCE = {"command": "git push --force origin HEAD"}
 # The fake claude's answered runs cost $0.01 each; the replaced run's cost stands out from theirs.
@@ -36,11 +36,6 @@ def batch_with_a_replaced_resumed_run(world: World) -> None:
     world.run("run", str(BATCH))
 
 
-def events(world: World) -> list[dict[str, Any]]:
-    log = world.project / ".agent-batch" / f"batch-{BATCH}" / "events.jsonl"
-    return [json.loads(line) for line in log.read_text().splitlines()]
-
-
 def test_the_event_log_has_the_denials_of_the_replaced_run_and_of_the_fresh_one(
     world: World,
 ) -> None:
@@ -52,7 +47,7 @@ def test_the_event_log_has_the_denials_of_the_replaced_run_and_of_the_fresh_one(
     assert ["--resume" in call["argv"] for call in implement_11] == [True, False]
     denied = [
         {key: event.get(key) for key in ("issue", "run", "tool", "input")}
-        for event in events(world)
+        for event in events(world, BATCH)
         if event["event"] == "permission_denied"
     ]
     assert denied == [

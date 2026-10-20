@@ -9,6 +9,7 @@ import pytest
 from agent_batch.core.config import Config
 from agent_batch.shell.git import Git
 from agent_batch.shell.proc import CommandError
+from clean_branches import local_branches
 from conftest import World, git
 from ship_branches import master_moves_on_the_remote
 
@@ -25,10 +26,6 @@ def lane_on_a_merged_branch(world: World) -> tuple[Git, Path]:
     git(worktree, "add", "-A")
     git(worktree, "commit", "--quiet", "-m", "feat: work")
     return runner, worktree
-
-
-def local_branches(world: World) -> list[str]:
-    return git(world.project, "branch", "--format=%(refname:short)").split()
 
 
 def test_a_failed_fetch_in_the_cleanup_leaves_no_merged_branch_behind(world: World) -> None:

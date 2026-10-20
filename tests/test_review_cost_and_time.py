@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
+from batch_runs import BATCH
 from conftest import World, git
 
-BATCH = 1
 CHANGES = {
     "verdict": "changes",
     "findings": [
