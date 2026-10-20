@@ -31,12 +31,16 @@ def file(ctx: Context, number: int, branch: str, items: Sequence[FoundIssue]) ->
         )
         ctx.events.emit("issue_found", issue=number, branch=branch, found=filed)
         return
-    _join(ctx, current, number, items)
+    _join(ctx, current, number, items, wait)
 
 
-def _join(ctx: Context, follow_up: Issue, number: int, items: Sequence[FoundIssue]) -> None:
-    """Comments the items on the open follow-up issue and relabels it, tried again as #210's."""
-    wait = ctx.config.poll_seconds
+def _join(
+    ctx: Context, follow_up: Issue, number: int, items: Sequence[FoundIssue], wait: float
+) -> None:
+    """Comments the items on the open follow-up issue and relabels it.
+
+    Each call is tried again on a server error, and a retry doesn't post the comment twice.
+    """
     text = followup.comment(items, number)
     change = followup.relabel(follow_up.labels, items)
     retry.retried_with(
