@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
+from batch_runs import pr_for
 from conftest import World
-from test_batch import pr_for
-from test_ship import branch_with_work
+from ship_branches import branch_with_work, only_pr
 
 HEADING = "## Review findings"
 FINDINGS = [
@@ -28,13 +26,6 @@ FINDINGS = [
     },
 ]
 APPROVED_WITH_FINDINGS = {"output": {"verdict": "approved", "findings": FINDINGS}}
-
-
-def only_pr(world: World) -> dict[str, Any]:
-    prs = list(world.gh()["prs"].values())
-    assert len(prs) == 1, prs
-    pr: dict[str, Any] = prs[0]
-    return pr
 
 
 def findings_section(body: str) -> str:

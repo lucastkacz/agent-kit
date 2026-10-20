@@ -5,12 +5,7 @@ And an issue whose blocker was closed as not planned goes to the owner.
 
 from __future__ import annotations
 
-from test_skill_plan_batch_rules import section
-
-
-def merge_step() -> str:
-    """Step 6.1 of the skill: the merges."""
-    return section(6).split("\n1. ", 1)[1].split("\n2. ", 1)[0]
+from plan_batch_skill import merge_step, section
 
 
 def test_a_merge_moves_the_merged_issues_links_to_the_issue_that_holds_it_before_closing_it() -> (

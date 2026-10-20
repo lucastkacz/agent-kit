@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from batch_runs import APPROVED, BATCH, CHANGES, done
 from conftest import World
-from test_batch import BATCH, CHANGES, done
-from test_found_work_one_follow_up import APPROVED, CONFLICTING, DATES, follow_ups
-from test_review_rounds import SLOW, changes
+from follow_ups import CONFLICTING, DATES, follow_ups
+from review_rounds import SLOW, changes
 
 
 def test_a_third_reviews_finding_makes_an_idea_follow_up_a_bug(world: World) -> None:

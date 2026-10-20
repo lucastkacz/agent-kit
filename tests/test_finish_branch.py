@@ -10,7 +10,7 @@ from agent_batch.core.config import Config
 from agent_batch.shell.git import Git
 from agent_batch.shell.proc import CommandError
 from conftest import World, git
-from test_ship_fetches import master_moves_on_the_remote
+from ship_branches import master_moves_on_the_remote
 
 BRANCH = "10-issue-10"
 

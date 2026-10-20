@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_run_batch_cloud_dispatch import prompt_text, section, skill_text
-
-
-def step(text: str, number: int) -> str:
-    start = text.index(f"\n{number}. ")
-    end = text.find(f"\n{number + 1}. ", start)
-    return text[start : end if end != -1 else len(text)]
+from run_batch_skill import prompt_text, section, skill_text, step
 
 
 def test_the_run_pushes_its_pr_title_and_body_whole_as_its_branchs_head_commit() -> None:

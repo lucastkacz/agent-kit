@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_plan_batch_rules import section
+from plan_batch_skill import section
 
 
 def test_a_merged_issue_takes_the_highest_risk_of_the_issues_it_joins() -> None:

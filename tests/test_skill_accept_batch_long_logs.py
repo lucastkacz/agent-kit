@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from test_skill_accept_batch import section, text
+from accept_batch_skill import section, text
 
 
 def has(text: str, *tokens: str) -> None:

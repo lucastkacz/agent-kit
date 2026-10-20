@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import re
 
-from test_skill_plan_batch_rules import section, spec_section
+from plan_batch_skill import section
+from spec_text import spec_section
 
 
 def dependencies_rule() -> str:

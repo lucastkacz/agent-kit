@@ -6,10 +6,11 @@ from dataclasses import replace
 
 import pytest
 
+from accept_batch_skill import section
 from agent_batch import cli
+from batch_runs import BATCH
 from conftest import World
-from test_lane_hook_denials import BATCH, CHECK, denial, events
-from test_skill_accept_batch import section
+from lane_denials import CHECK, denial, events
 
 
 def test_a_resumed_run_past_its_timeout_still_records_its_hook_logged_denials(

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 
-from test_fakes_match_recordings import FIELDS, MISSING, RECORDED, fake_answer, kind, pluck
+from recorded_answers import FIELDS, MISSING, RECORDED, fake_answer, kind, pluck
 
 MERGED_LISTS = ("gh-pr-list-merged", "gh-pr-list-recent-merged")
 MERGED_FIELDS = ("[].number", "[].headRefName", "[].headRefOid")

@@ -3,30 +3,14 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-from test_skills import frontmatter
-
-SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "accept-batch"
-
-
-def text() -> str:
-    assert (SKILL / "SKILL.md").is_file(), f"no skill at {SKILL}"
-    return (SKILL / "SKILL.md").read_text(encoding="utf-8")
+from accept_batch_skill import SKILL, section, text
+from skill_files import frontmatter
 
 
 def flat() -> str:
     """The skill's text in lowercase, on one line, so that a check doesn't depend on wrapping."""
     return re.sub(r"\s+", " ", text()).lower()
-
-
-def section(heading: str) -> str:
-    """The skill's `## <n>. <heading>` section, up to the next `## `."""
-    body = text()
-    start = re.search(rf"^## \d+\. {re.escape(heading)}", body, re.MULTILINE)
-    assert start is not None, f"no section `## <n>. {heading}`"
-    end = body.find("\n## ", start.end())
-    return re.sub(r"\s+", " ", body[start.start() : end if end != -1 else None]).lower()
 
 
 def test_the_accept_batch_skill_is_well_formed_and_model_invoked() -> None:
