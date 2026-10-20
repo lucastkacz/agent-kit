@@ -39,7 +39,7 @@ Your tools are few, and a command outside them is denied.
    - hardware or an operating-system dialog;
    - real accounts, money or personal data;
    - a third-party service without a test environment.
-3. **Acceptance tests unchanged.** Find the commit `test: acceptance tests for #$0`. `git diff <that commit> HEAD` on its test files must be empty. If the issue has automatable criteria and there's no such commit, that blocks. It must be the branch's first commit since master, the first of `git log --reverse --first-parent --oneline origin/master..HEAD` (a merge of master since doesn't count): a commit of the branch before it blocks, since this diff wouldn't see what that commit changed.
+3. **Acceptance tests unchanged.** Find the commit `test: acceptance tests for #$0`. `git diff <that commit> HEAD` on the test files it adds or changes must be empty. Shared test code it touches, such as `conftest.py` or a helper module, may change later. If the issue has automatable criteria and there's no such commit, that blocks. It must be the branch's first commit since master, the first of `git log --reverse --first-parent --oneline origin/master..HEAD` (a merge of master since doesn't count): a commit of the branch before it blocks, since this diff wouldn't see what that commit changed.
 4. **Correctness.** Logic, edge cases (empty, missing, limits, time zones, concurrency), and errors that fail loudly with a clear message.
 5. **Security.** Input is validated where it enters. No secrets in code, logs or fixtures, and no real data. Anything that handles input, files or the network follows OWASP's guidance.
 6. **Quality.**
