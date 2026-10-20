@@ -40,7 +40,7 @@ When the owner describes an idea to build, settle what gets built with the `inte
 - Each criterion says how it is verified: `unit`, `integration`, `e2e` or `human(<reason>)`.
 - A criterion is `human(<reason>)` only for one of the reasons in the review skill's check 2: taste; hardware or an operating-system dialog; real accounts, money or personal data; a third-party service without a test environment.
 - The wording of a skill or a doc is verified with a text check, as `tests/test_skills.py` does, not by a human.
-- Then interview the owner about each issue the batch will label `ready`, with the `interview` skill: the new issues, the candidates of step 1 and the answered `blocked` ones, but not the `ready` issues an earlier batch left behind, which the owner already approved. Settle the model first, as step 4's **The model** says, since each issue's ready check runs at the implementer's model.
+- Then interview the owner about each issue the batch will label `ready`, with the `interview` skill: the new issues and the candidates of step 1, but not the `ready` issues an earlier batch left behind or the answered `blocked` ones, which keep their `ready` label: the owner already approved them. Settle the model first, as step 4's **The model** says, since each issue's ready check runs at the implementer's model.
 
 ## 4. Propose the plan
 
