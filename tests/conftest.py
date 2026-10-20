@@ -75,6 +75,8 @@ class World:
     power: Path
     systemd_inhibit_log: Path
     power_supplies: Path
+    # The cores the runner is told it may use; None leaves it the computer's own count.
+    cores: int | None = None
 
     def gh(self) -> dict[str, Any]:
         state: dict[str, Any] = json.loads(self.gh_state.read_text())
