@@ -13,6 +13,7 @@ from agent_batch.job import (
     Job,
     Stopped,
     checked,
+    ended,
     pr_of,
     pr_text,
     require_committed,
@@ -100,6 +101,7 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     if conflicts:
         prompt = prompts.resolve(job.issue.number, upstream, conflicts)
         run = watched(ctx, lane).resolve(lane.worktree, prompt)
+        ended(ctx, lane, job.issue.number, "resolve", run)
         answer = results.to_resolve(checked(ctx, lane, run, job.report, "conflict resolution"))
         if answer is None or not answer.resolved:
             reason = answer.message if answer is not None else "its answer doesn't match its schema"

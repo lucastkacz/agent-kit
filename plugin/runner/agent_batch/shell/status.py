@@ -29,9 +29,30 @@ class StatusBoard:
         self._lanes: dict[int, LaneState] = {}
         self._lock = threading.Lock()
         self._failed = False
+        # Set once a batch's runner opens the board: only its record shows with no lanes (#217).
+        self._runner = False
         # What the ended runs cost, and their tokens: the rate that prices a running run's (#144).
         # A resumed batch starts with its earlier runs', from its event log (#156).
         self._spent_usd, self._spent_tokens = spent
+
+    def open(self) -> None:
+        """The runner starts: its batch shows with no lanes until the first one starts (#217)."""
+        with self._lock:
+            self._runner = True
+            self._write()
+
+    def close(self) -> None:
+        """The runner ends: its batch no longer shows, even before its process exits.
+
+        Only its own file goes: another runner may have written here since.
+        """
+        with self._lock:
+            try:
+                record = progress.parse_status(self.path.read_text(encoding="utf-8"))
+                if record is not None and record[0] == self._pid:
+                    self.path.unlink()
+            except OSError:
+                pass  # No file, or one it can't remove: a runner that's gone doesn't show anyway.
 
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""
@@ -101,7 +122,8 @@ class StatusBoard:
         staged = self.path.with_name(f"{self.path.stem}.{self._pid}.tmp")
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            staged.write_text(json.dumps({"pid": self._pid, "lanes": lanes}), encoding="utf-8")
+            record = {"pid": self._pid, "runner": self._runner, "lanes": lanes}
+            staged.write_text(json.dumps(record), encoding="utf-8")
             # A reader never sees the file half written.
             staged.replace(self.path)
         except OSError as error:
@@ -115,10 +137,27 @@ class StatusBoard:
 
 def running(state_dir: Path) -> list[Row]:
     """The lanes of each batch and `agent-batch ship` whose runner still runs."""
-    rows: list[Row] = []
+    return [row for _, rows in _live(state_dir).values() for row in rows]
+
+
+def idle(state_dir: Path) -> list[str]:
+    """The batches whose runner still runs with no lane at work, as before its first one starts.
+
+    Only a record its runner opened: a file that an older runner, or `ship`, left with no lanes
+    isn't one, even when its process id runs again, or always does, where it can't be told.
+    """
+    return [run for run, (opened, rows) in _live(state_dir).items() if opened and not rows]
+
+
+def _live(state_dir: Path) -> dict[str, tuple[bool, list[Row]]]:
+    """Whether a runner opened each run's record, and its lanes, by its state's folder."""
+    runs: dict[str, tuple[bool, list[Row]]] = {}
     for path in sorted(state_dir.glob(f"*/{STATUS}")):
-        record = progress.parse_status(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        record = progress.parse_status(text)
         if record is None or not system.is_running(record[0]):
             continue
-        rows += [Row(path.parent.name, lane, state) for lane, state in record[1]]
-    return rows
+        run = path.parent.name
+        rows = [Row(run, lane, state) for lane, state in record[1]]
+        runs[run] = (progress.opened_by_runner(text), rows)
+    return runs
