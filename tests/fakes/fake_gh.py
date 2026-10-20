@@ -146,7 +146,7 @@ def pr_create(state: State, argv: list[str], stdin: str) -> str:
 
 def pr_view(state: State, argv: list[str], _stdin: str) -> str:
     pr = state["prs"][argv[2]]
-    if option(argv, "--json") == "comments":
+    if "--json" in argv and option(argv, "--json") == "comments":
         return json.dumps({"comments": [{"body": body} for body in pr["comments"]]})
     merged = {"state": "MERGED" if pr["armed"] else "OPEN", "mergeable": "MERGEABLE"}
     view: dict[str, Any] = pr["views"].pop(0) if pr["views"] else merged
