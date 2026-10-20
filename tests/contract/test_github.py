@@ -53,6 +53,10 @@ def test_issues_are_created_read_labeled_and_commented(clone: Path) -> None:
 
         gh.add_label(number, "blocked")
         gh.comment(number, "A contract test's comment.")
+        # A retry finds the comment it may have posted (#232).
+        gh.comment_unless_posted(number, "A contract test's comment.")
+        raw = proc.must(["gh", "issue", "view", str(number), "--json", "comments"], clone)
+        assert len(json.loads(raw)["comments"]) == 1
         assert "blocked" in gh.issue(number).labels
     finally:
         proc.must(["gh", "issue", "close", str(number), "--reason", "not planned"], clone)
