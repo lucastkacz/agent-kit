@@ -2,52 +2,26 @@
 
 from __future__ import annotations
 
-import time
-from dataclasses import asdict, dataclass
-
-from agent_batch import filing
+from agent_batch import filing, landing
 from agent_batch.context import Context, Lane
-from agent_batch.core import eligibility, merge, naming, progress, prompts, results, risk, rounds
+from agent_batch.core import eligibility, naming, progress, prompts, results, risk, rounds
 from agent_batch.core.config import BLOCKED, HIGH_RISK
-from agent_batch.core.merge import MergeStatus
-from agent_batch.core.model import (
-    ClaudeRun,
-    Finding,
-    ImplementResult,
-    Issue,
-    IssueReport,
-    Outcome,
-    ReviewResult,
-    Risk,
-    RunDenial,
-    RunKind,
+from agent_batch.core.model import ClaudeRun, Issue, IssueReport, Outcome
+from agent_batch.job import (
+    Job,
+    Stopped,
+    checked,
+    pr_text,
+    require_committed,
+    review_once,
+    watched,
+    work,
 )
 from agent_batch.shell import retry
-from agent_batch.shell.claude import Claude
 from agent_batch.shell.proc import CommandError
 
-RISK_PATHS = ".claude/risk-paths"
 # GitHub's reason for an issue that its PR closed; "NOT_PLANNED" means the work was dropped.
 CLOSED_AS_COMPLETED = "COMPLETED"
-
-
-class Stopped(Exception):
-    """The issue can't go on; `outcome` says how it ended."""
-
-    def __init__(self, outcome: Outcome, detail: str) -> None:
-        super().__init__(detail)
-        self.outcome = outcome
-        self.detail = detail
-
-
-@dataclass
-class Job:
-    issue: Issue
-    branch: str
-    report: IssueReport
-    work: ImplementResult | None = None
-    # The approved review's findings, which go into the PR's body.
-    findings: tuple[Finding, ...] = ()
 
 
 def run_issue(ctx: Context, lane: Lane, number: int) -> IssueReport:
@@ -91,7 +65,7 @@ def _attempt(ctx: Context, lane: Lane, number: int, report: IssueReport) -> Outc
     _start_work(ctx, lane, job)
     review_until_approved(ctx, lane, job)
     publish(ctx, lane, job)
-    return _route(ctx, lane, job)
+    return landing.route(ctx, lane, job)
 
 
 def _merged_before(ctx: Context, issue: Issue, report: IssueReport) -> bool:
@@ -121,62 +95,22 @@ def _waiting_before(ctx: Context, job: Job) -> bool:
 def _start_work(ctx: Context, lane: Lane, job: Job) -> None:
     reuse = lane.session_id is not None and lane.session_issues < ctx.config.issues_per_session
     prompt = prompts.implement(job.issue.number)
-    run = _watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
+    run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id if reuse else None)
     lane.session_issues = lane.session_issues + 1 if reuse else 1
     lane.session_id = run.session_id
     _accept_work(ctx, lane, job, run)
 
 
-def _watched(ctx: Context, lane: Lane) -> Claude:
-    """The runs, each of whose tool uses becomes the lane's last action as it goes (#107).
-
-    Their tokens add to the lane's estimated cost as they go, too (#144).
-    """
-    return ctx.claude.watching(
-        lambda action: ctx.status.act(lane.index, action, ctx.clock()),
-        lambda tokens: ctx.status.used(lane.index, tokens),
-    )
-
-
 def _accept_work(ctx: Context, lane: Lane, job: Job, run: ClaudeRun) -> None:
-    work = results.to_implement(_checked(ctx, lane, run, job.report, "implementation"))
-    if work is None:
+    answer = results.to_implement(checked(ctx, lane, run, job.report, "implementation"))
+    if answer is None:
         raise Stopped(Outcome.FAILED, "the implementer's answer doesn't match its schema")
-    if work.status == "blocked":
-        raise Stopped(Outcome.BLOCKED, work.message)
-    if work.status == "failed":
-        raise Stopped(Outcome.FAILED, work.message)
+    if answer.status == "blocked":
+        raise Stopped(Outcome.BLOCKED, answer.message)
+    if answer.status == "failed":
+        raise Stopped(Outcome.FAILED, answer.message)
     require_committed(ctx, lane)
-    job.work = work
-
-
-def _checked(
-    ctx: Context, lane: Lane, run: ClaudeRun, report: IssueReport, what: RunKind
-) -> dict[str, object]:
-    for denial in run.denials:
-        report.denials.append(RunDenial(what, denial))
-        ctx.events.emit(
-            "permission_denied",
-            issue=report.number,
-            run=what,
-            session=denial.session,
-            tool=denial.tool,
-            input=denial.tool_input,
-        )
-    report.cost_usd += run.cost_usd
-    ctx.status.spent(lane.index, report.cost_usd)
-    if run.limit_reached:
-        raise Stopped(Outcome.INTERRUPTED, "the subscription's usage limit was reached")
-    if run.error is not None or run.data is None:
-        raise Stopped(Outcome.FAILED, f"the {what} run failed: {run.error}")
-    return run.data
-
-
-def require_committed(ctx: Context, lane: Lane) -> None:
-    if not ctx.git.is_clean(lane.worktree):
-        raise Stopped(Outcome.FAILED, "the branch has uncommitted changes")
-    if ctx.git.commits_ahead(lane.worktree) == 0:
-        raise Stopped(Outcome.FAILED, "the branch has no commits of its own")
+    job.work = answer
 
 
 def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
@@ -198,7 +132,7 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
             )
         prompt = prompts.fix(job.issue.number, review.findings)
         ctx.status.step(lane.index, progress.IMPLEMENTATION)
-        run = _watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
+        run = watched(ctx, lane).implement(lane.worktree, prompt, lane.session_id)
         lane.session_id = run.session_id or lane.session_id
         _accept_work(ctx, lane, job, run)
 
@@ -213,49 +147,13 @@ def _approved_before(ctx: Context, lane: Lane, job: Job) -> bool:
     return True
 
 
-def review_once(ctx: Context, lane: Lane, job: Job) -> ReviewResult:
-    """One review of the branch, which gets what its earlier reviews found (SPEC §5)."""
-    earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
-    number = len(earlier) + 1
-    head = ctx.git.head(lane.worktree)
-    ctx.status.step(lane.index, progress.REVIEW, job.report.review_rounds)
-    started = ctx.clock()
-    run = _watched(ctx, lane).review(lane.worktree, prompts.review(job.issue.number, earlier))
-    seconds = ctx.clock() - started
-    answer = results.to_review(_checked(ctx, lane, run, job.report, "review"))
-    if answer is None:
-        raise Stopped(Outcome.FAILED, "the reviewer's answer doesn't match its schema")
-    review, filed = rounds.settle(answer, number)
-    # The issue goes before the event: if filing fails, this round isn't logged and runs again.
-    # That can file a finding twice, but the next round never reads as filed one that wasn't.
-    found = [rounds.found_issue(finding, number) for finding in filed]
-    filing.file(ctx, job.issue.number, job.branch, found)
-    # Every finding, filed ones included, so that the next review can read what this one found.
-    # Its cost and time too: `ship`'s reviews count in no summary, only in the acceptance's numbers.
-    # Its tokens price a resumed batch's runs before any of its own has ended (#156).
-    ctx.events.emit(
-        "reviewed",
-        lane=lane.index,
-        issue=job.issue.number,
-        branch=job.branch,
-        head=head,
-        round=number,
-        approved=review.approved,
-        findings=[asdict(finding) for finding in answer.findings],
-        cost_usd=run.cost_usd,
-        tokens=run.tokens,
-        seconds=round(seconds, 1),
-    )
-    return review
-
-
 def publish(ctx: Context, lane: Lane, job: Job) -> int:
     """Pushes the branch, opens or updates its PR and files the work found along the way."""
-    work = _work(job)
+    done = work(job)
     ctx.status.step(lane.index, progress.PULL_REQUEST)
     wait = ctx.config.poll_seconds
     retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), wait)
-    title, body = _pr_text(job)
+    title, body = pr_text(job)
     base = ctx.config.base_branch
     pr, opened = retry.retried(lambda: ctx.gh.open_pr(job.branch, base, title, body), wait)
     if opened:
@@ -264,114 +162,8 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
         ctx.gh.edit_pr(pr, title, body)
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
-    filing.file(ctx, job.issue.number, job.branch, work.found)
+    filing.file(ctx, job.issue.number, job.branch, done.found)
     return pr
-
-
-def _work(job: Job) -> ImplementResult:
-    if job.work is None:
-        raise Stopped(Outcome.FAILED, "there's no implementation to publish")
-    return job.work
-
-
-def _pr_text(job: Job) -> tuple[str, str]:
-    """The PR's title and body: the implementer's, with the approved review's findings."""
-    work = _work(job)
-    title = naming.pr_title(work.title, job.issue)
-    return title, naming.pr_body(work.pr_body, job.issue.number, job.findings)
-
-
-def classify(ctx: Context, lane: Lane, job: Job) -> Risk:
-    # The project's risk paths come from the base branch, where no agent of this batch wrote.
-    patterns = risk.parse_patterns(ctx.git.base_file(lane.worktree, RISK_PATHS) or "")
-    return risk.classify(ctx.git.changed_files(lane.worktree), patterns, job.issue)
-
-
-def hold(ctx: Context, pr: int, level: Risk) -> None:
-    """Leaves a high-risk PR for the owner to merge, saying why."""
-    ctx.gh.pr_add_label(pr, HIGH_RISK)
-    reasons = "\n".join(f"- {reason}" for reason in level.reasons)
-    ctx.gh.pr_comment(pr, f"**High risk: the owner merges this PR.**\n\n{reasons}\n")
-
-
-def _route(ctx: Context, lane: Lane, job: Job) -> Outcome:
-    ctx.status.step(lane.index, progress.RISK_AND_MERGE)
-    level = classify(ctx, lane, job)
-    if level.high:
-        hold(ctx, _pr(job), level)
-        ctx.events.emit("waiting_owner", lane=lane.index, issue=job.issue.number, pr=_pr(job))
-        return Outcome.WAITING_OWNER
-    return _merge(ctx, lane, job, resolve_conflicts=True)
-
-
-def _pr(job: Job) -> int:
-    if job.report.pr is None:
-        raise Stopped(Outcome.FAILED, "the issue has no PR")
-    return job.report.pr
-
-
-def _merge(ctx: Context, lane: Lane, job: Job, *, resolve_conflicts: bool) -> Outcome:
-    # Again on the merge after a conflict, which went through a review and the PR in between.
-    ctx.status.step(lane.index, progress.RISK_AND_MERGE)
-    pr = _pr(job)
-    ctx.gh.arm_merge(pr, ctx.git.head(lane.worktree))
-    ctx.events.emit("merge_armed", lane=lane.index, issue=job.issue.number, pr=pr)
-    status = _wait(ctx, pr)
-    if status is MergeStatus.MERGED:
-        ctx.events.emit("merged", lane=lane.index, issue=job.issue.number, pr=pr)
-        _finish(ctx, lane, job)
-        return Outcome.MERGED
-    if status is MergeStatus.CONFLICT and resolve_conflicts:
-        _resolve(ctx, lane, job)
-        return _merge(ctx, lane, job, resolve_conflicts=False)
-    raise Stopped(Outcome.BLOCKED, f"PR #{pr} didn't merge: {status.value}.")
-
-
-def _finish(ctx: Context, lane: Lane, job: Job) -> None:
-    """Leaves the merged branch; a failure only goes to the log, since the issue is done."""
-    try:
-        ctx.git.finish_branch(lane.worktree, job.branch)
-    except CommandError as error:
-        ctx.events.emit(
-            "cleanup_failed", lane=lane.index, issue=job.issue.number, detail=str(error)
-        )
-
-
-def _wait(ctx: Context, pr: int) -> MergeStatus:
-    deadline = time.monotonic() + ctx.config.merge_timeout
-    while True:
-        status = merge.decide(ctx.gh.pr_state(pr))
-        if status is not MergeStatus.WAIT:
-            return status
-        if time.monotonic() >= deadline:
-            return MergeStatus.TIMED_OUT
-        time.sleep(ctx.config.poll_seconds)
-
-
-def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
-    """One attempt at the conflicts with the base branch, then a new review (SPEC §11.1)."""
-    upstream = ctx.config.upstream
-    conflicts = ctx.git.merge_upstream(lane.worktree)
-    if conflicts:
-        prompt = prompts.resolve(job.issue.number, upstream, conflicts)
-        run = _watched(ctx, lane).resolve(lane.worktree, prompt)
-        answer = results.to_resolve(_checked(ctx, lane, run, job.report, "conflict resolution"))
-        if answer is None or not answer.resolved:
-            reason = answer.message if answer is not None else "its answer doesn't match its schema"
-            raise Stopped(
-                Outcome.BLOCKED, f"The conflicts with {upstream} weren't resolved: {reason}"
-            )
-        require_committed(ctx, lane)
-    job.report.review_rounds += 1
-    review = review_once(ctx, lane, job)
-    if not review.approved:
-        raise Stopped(
-            Outcome.BLOCKED, "The review asked for changes after the conflicts were resolved."
-        )
-    job.findings = review.findings
-    retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), ctx.config.poll_seconds)
-    title, body = _pr_text(job)
-    ctx.gh.edit_pr(_pr(job), title, body)
 
 
 def announce(ctx: Context, report: IssueReport) -> None:
