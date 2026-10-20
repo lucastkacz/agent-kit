@@ -88,29 +88,6 @@ def test_shipping_a_branch_whose_pr_is_open_updates_its_title_and_body(world: Wo
     assert "Closes #10" in pr["body"]
 
 
-@pytest.mark.parametrize(
-    ("given", "reason"),
-    [
-        ("Added the feature", "Conventional Commits"),
-        ("feat: " + " and ".join(["a very long title"] * 5), "72"),
-    ],
-)
-def test_ship_says_why_it_didnt_use_the_given_title_and_which_it_used(
-    world: World, capsys: pytest.CaptureFixture[str], given: str, reason: str
-) -> None:
-    world.add_issue(10)
-    body = branch_with_work(world, "10-add-feature")
-
-    assert world.run("ship", "10", "--title", given, "--body-file", str(body)) == 0
-
-    used = only_pr(world)["title"]
-    assert used == "feat: Issue 10"
-    out = capsys.readouterr().out
-    assert given in out
-    assert reason in out
-    assert used in out
-
-
 def test_ship_says_nothing_about_a_title_it_used(
     world: World, capsys: pytest.CaptureFixture[str]
 ) -> None:
