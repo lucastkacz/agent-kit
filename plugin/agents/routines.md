@@ -1,6 +1,6 @@
 ---
 name: routines
-description: Makes the RemoteTrigger calls on the account's cloud routines that its caller names, and reports only what its caller asks. The batch skills run it in the foreground, since in the background it doesn't get RemoteTrigger.
+description: Makes the RemoteTrigger calls on the account's cloud routines that its caller names, and reports only what its caller asks. The batch skills run it as a headless `claude -p --agent agent-kit:routines` session, since the Agent tool starts it in the background in an interactive session, where it doesn't get RemoteTrigger.
 tools: RemoteTrigger, Read, Grep
 model: haiku
 ---
