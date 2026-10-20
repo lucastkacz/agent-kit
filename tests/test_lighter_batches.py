@@ -46,9 +46,9 @@ def _workers(world: World) -> set[str | None]:
 
 
 @pytest.fixture
-def cores(monkeypatch: pytest.MonkeyPatch) -> int:
+def cores(world: World, monkeypatch: pytest.MonkeyPatch) -> int:
     """A computer of 10 cores, as the owner's, where the tests don't choose their own workers."""
-    monkeypatch.setattr(os, "cpu_count", lambda: 10)
+    world.cores = 10
     monkeypatch.delenv("PYTEST_WORKERS", raising=False)
     return 10
 

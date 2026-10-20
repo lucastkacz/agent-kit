@@ -177,7 +177,10 @@ class World:
         _write_executable(fake, script)
 
     def run(self, *argv: str) -> int:
-        return cli.main(list(argv))
+        cores = self.cores
+        if cores is None:
+            return cli.main(list(argv))
+        return cli.main(list(argv), cores=lambda: cores)
 
 
 def _write_executable(path: Path, script: str) -> None:

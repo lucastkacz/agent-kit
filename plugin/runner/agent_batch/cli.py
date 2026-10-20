@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from pathlib import Path
 
@@ -31,11 +31,16 @@ SCREEN_ENV = "AGENT_BATCH_SCREEN"
 POLL_ENV = "AGENT_BATCH_POLL_SECONDS"
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    cores: Callable[[], int | None] = os.process_cpu_count,
+) -> int:
+    """`cores` counts the CPUs the runner may use, which CPU affinity or a cpuset can limit."""
     args = _parser().parse_args(argv)
     try:
         if args.command == "run":
-            return _run(args)
+            return _run(args, cores())
         if args.command == "gh-read":
             return _gh_read(args.args)
         if args.command == "status":
@@ -123,7 +128,7 @@ def _number_above_zero(text: str) -> float | None:
     return number if number > 0 else None
 
 
-def _run(args: argparse.Namespace) -> int:
+def _run(args: argparse.Namespace, cores: int | None) -> int:
     ctx = _context(Path.cwd(), _config(screen=args.screen), f"batch-{args.batch}")
     awake = keep_awake(sys.platform)
     try:
@@ -131,9 +136,7 @@ def _run(args: argparse.Namespace) -> int:
         computer = Computer(
             kept_awake=awake is not None,
             on_battery=on_battery(sys.platform),
-            # Not `os.process_cpu_count`: the owner's computer gives the runner all its cores, and
-            # the acceptance tests of #198 set the cores through `os.cpu_count`.
-            cores=os.cpu_count(),
+            cores=cores,
         )
         return run_batch(ctx, args.batch, limits, computer)
     finally:
