@@ -23,8 +23,8 @@ Work this one issue on the branch you're on, so that it can merge without anyone
 - Run the type checker that `make check` runs on the acceptance tests, read its output, and fix what it finds before the acceptance commit: `make fmt` doesn't type-check.
 - Then run them. They must fail, and for the reason the criterion names: an import error doesn't count.
 - Commit them on their own, as `test: acceptance tests for #$ARGUMENTS`, the branch's first commit since master: nothing of yours comes before it.
-- After that commit, the acceptance tests' files don't change, not even to format them. Later tests go in files of their own, never in the acceptance tests' files.
-- If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why.
+- After that commit, the acceptance tests' files don't change, not even to format them: the test files it adds or changes. Shared test code it touches, such as `conftest.py` or a helper module, may change later. Later tests go in files of their own, never in the acceptance tests' files.
+- If the branch already has that commit from earlier work, keep those tests as they are. If one looks wrong, answer `blocked` and say why. The question recommends fixing the test inside the acceptance commit and rebuilding the branch on `master`, once the owner approves (SPEC §5). Don't offer a later commit that changes an acceptance test's file: the review blocks it.
 - To bring a file back to a commit, read it with `git show <commit>:<path>` and write it back whole with the Write tool. Never use `git checkout` or `git restore`: the batch denies the first, so that no agent changes branches, and auto mode refuses the second as destructive.
 - A `human(<reason>)` criterion gets no test; it goes in the PR body (step 6).
 - When no criterion can be automated (documentation only, say), there's no acceptance commit.
