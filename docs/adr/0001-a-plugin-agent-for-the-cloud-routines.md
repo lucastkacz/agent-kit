@@ -63,14 +63,14 @@ The batch skills make their `RemoteTrigger` calls through a plugin agent, not th
 
 Claude Code's docs name no frontmatter field that keeps a subagent in the foreground: only `background: true`. They name `CLAUDE_CODE_FORK_SUBAGENT=0`, which lets Claude wait for its subagents, and `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which turns background tasks off everywhere. Both change every subagent of the owner's sessions, so neither was tried.
 
-What works needs no setting: a headless session started from the `Bash` tool that runs as the agent itself, `claude -p --agent agent-kit:routines --allowedTools "RemoteTrigger,Read,Grep" "<the calls, and what to report>"`, from the project's main folder, where the plugin is enabled. From another folder, `--agent agent-kit:routines` isn't found when the plugin is enabled at project scope. The session has the agent's three tools and its model, and prints only its report. Two probes, on 2.1.304 and haiku:
+What works needs no setting: a headless session started from the `Bash` tool that runs as the agent itself, `claude -p --agent agent-kit:routines --allowedTools "RemoteTrigger,Read,Grep" < <a file with the calls, and what to report>`, from the project's main folder, where the plugin is enabled. From another folder, `--agent agent-kit:routines` isn't found when the plugin is enabled at project scope. The session has the agent's three tools and its model, and prints only its report. Two probes, on 2.1.304 and haiku:
 
 | Probe | Calls | Result | Tokens (cache reads) | Cost |
 |---|---|---|---|---|
 | 1 | `list` | called; it grepped the saved answer and found 17 routines named `lucastkacz/agent-kit batch …` | 113k (94k) | $0.0060 |
 | 2 | `list`, `create`, `update` with `clear_mcp_connections: true`, `update` with `enabled: false`, `get` | all called; it created a disabled test routine shaped like a batch's, with a 14k-character prompt read from a file. `create`'s answer listed four MCP connections; after the `update`, none was left, and `disallowed_tools` held `mcp__github__*`. Its report left the prompt out | 605k (492k) | $0.0326 |
 
-The control tower checked the routine with its own `get`, which echoed the prompt three times. So the skills run the agent this way, and never through the `Agent` tool, and run-batch's fork fallback for a failed `create` went. One `create` costs the agent about $0.03 at haiku, against the 486k tokens at the control tower's model that the fork of batch #153 used for six.
+The control tower checked the routine with its own `get`, which echoed the prompt three times. So the skills run the agent this way, and never through the `Agent` tool, and run-batch's fork fallback for a failed `create` went. One `create` cost the agent about $0.03 at haiku, so some $0.20 for six, where the fork of batch #153 spent 486k tokens at the control tower's model on six.
 
 ## The spike's code
 
