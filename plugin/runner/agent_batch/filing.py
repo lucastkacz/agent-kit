@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from agent_batch.context import Context
 from agent_batch.core import followup
 from agent_batch.core.model import FoundIssue
+from agent_batch.shell import retry
 
 
 def file(ctx: Context, number: int, branch: str, items: Sequence[FoundIssue]) -> None:
@@ -22,7 +23,11 @@ def file(ctx: Context, number: int, branch: str, items: Sequence[FoundIssue]) ->
     current = ctx.gh.issue(known) if known is not None else None
     if known is None or current is None or current.state != "OPEN":
         found = followup.issue(items, number)
-        filed = ctx.gh.create_issue(found.title, found.body, found.kind)
+        filed = retry.retried_with(
+            lambda: ctx.gh.create_issue(found.title, found.body, found.kind),
+            lambda: ctx.gh.create_issue_unless_created(found.title, found.body, found.kind),
+            ctx.config.poll_seconds,
+        )
         ctx.events.emit("issue_found", issue=number, branch=branch, found=filed)
         return
     ctx.gh.comment(known, followup.comment(items, number))

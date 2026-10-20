@@ -43,16 +43,23 @@ def classify(ctx: Context, lane: Lane, job: Job) -> Risk:
 
 def hold(ctx: Context, pr: int, level: Risk) -> None:
     """Leaves a high-risk PR for the owner to merge, saying why."""
-    ctx.gh.pr_add_label(pr, HIGH_RISK)
+    wait = ctx.config.poll_seconds
+    retry.retried(lambda: ctx.gh.pr_add_label(pr, HIGH_RISK), wait)
     reasons = "\n".join(f"- {reason}" for reason in level.reasons)
-    ctx.gh.pr_comment(pr, f"**High risk: the owner merges this PR.**\n\n{reasons}\n")
+    text = f"**High risk: the owner merges this PR.**\n\n{reasons}\n"
+    retry.retried_with(
+        lambda: ctx.gh.pr_comment(pr, text),
+        lambda: ctx.gh.pr_comment_unless_posted(pr, text),
+        wait,
+    )
 
 
 def _merge(ctx: Context, lane: Lane, job: Job, *, resolve_conflicts: bool) -> Outcome:
     # Again on the merge after a conflict, which went through a review and the PR in between.
     ctx.status.step(lane.index, progress.RISK_AND_MERGE)
     pr = pr_of(job)
-    ctx.gh.arm_merge(pr, ctx.git.head(lane.worktree))
+    head = ctx.git.head(lane.worktree)
+    retry.retried(lambda: ctx.gh.arm_merge(pr, head), ctx.config.poll_seconds)
     ctx.events.emit("merge_armed", lane=lane.index, issue=job.issue.number, pr=pr)
     status = _wait(ctx, pr)
     if status is MergeStatus.MERGED:
@@ -78,7 +85,7 @@ def _finish(ctx: Context, lane: Lane, job: Job) -> None:
 def _wait(ctx: Context, pr: int) -> MergeStatus:
     deadline = time.monotonic() + ctx.config.merge_timeout
     while True:
-        status = merge.decide(ctx.gh.pr_state(pr))
+        status = merge.decide(retry.retried(lambda: ctx.gh.pr_state(pr), ctx.config.poll_seconds))
         if status is not MergeStatus.WAIT:
             return status
         if time.monotonic() >= deadline:
@@ -109,4 +116,5 @@ def _resolve(ctx: Context, lane: Lane, job: Job) -> None:
     job.findings = review.findings
     retry.retried(lambda: ctx.git.push(lane.worktree, job.branch), ctx.config.poll_seconds)
     title, body = pr_text(job)
-    ctx.gh.edit_pr(pr_of(job), title, body)
+    pr = pr_of(job)
+    retry.retried(lambda: ctx.gh.edit_pr(pr, title, body), ctx.config.poll_seconds)

@@ -92,14 +92,14 @@ def issue_create(state: State, argv: list[str], stdin: str) -> str:
 
 
 def issue_list(state: State, argv: list[str], _stdin: str) -> str:
-    label = option(argv, "--label")
-    issues = state["issues"].values()
+    """The open issues, newest first as GitHub lists them, with `--label`'s only."""
+    label = option(argv, "--label") if "--label" in argv else None
+    issues = sorted(state["issues"].values(), key=lambda issue: -issue["number"])
+    wanted = [i for i in issues if i["state"] == "OPEN" and label in (None, *i["labels"])]
+    if "--limit" in argv:
+        wanted = wanted[: int(option(argv, "--limit"))]
     return json.dumps(
-        [
-            {"number": issue["number"], "title": issue["title"]}
-            for issue in issues
-            if label in issue["labels"] and issue["state"] == "OPEN"
-        ]
+        [{"number": i["number"], "title": i["title"], "body": i["body"]} for i in wanted]
     )
 
 
@@ -146,6 +146,8 @@ def pr_create(state: State, argv: list[str], stdin: str) -> str:
 
 def pr_view(state: State, argv: list[str], _stdin: str) -> str:
     pr = state["prs"][argv[2]]
+    if option(argv, "--json") == "comments":
+        return json.dumps({"comments": [{"body": body} for body in pr["comments"]]})
     merged = {"state": "MERGED" if pr["armed"] else "OPEN", "mergeable": "MERGEABLE"}
     view: dict[str, Any] = pr["views"].pop(0) if pr["views"] else merged
     if "push_conflict" in view:

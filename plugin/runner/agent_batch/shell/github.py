@@ -16,6 +16,8 @@ ISSUE_FIELDS = "number,title,body,author,labels,state"
 CLOSURE_FIELDS = "url,stateReason,closedByPullRequestsReferences"
 PR_FIELDS = "state,mergeable,headRefOid,statusCheckRollup"
 MERGED_PR_FIELDS = "number,headRefName,headRefOid"
+# How many of the newest open issues a retry reads to find the one it may have created.
+NEWEST_ISSUES = 50
 
 
 class GitHub:
@@ -58,6 +60,21 @@ class GitHub:
             "issue", "create", "--title", title, "--body-file", "-", "--label", label, stdin=body
         )
         return _number(url)
+
+    def create_issue_unless_created(self, title: str, body: str, label: str) -> int:
+        """The open issue with this title and body, created if there's none (#210).
+
+        It lists the newest open issues rather than search them, since GitHub's search can take a
+        while to find a new issue.
+        """
+        raw = self._json(
+            "issue", "list", "--state", "open", "--limit", str(NEWEST_ISSUES),
+            "--json", "number,title,body",
+        )  # fmt: skip
+        for issue in raw:
+            if issue["title"] == title and _same_text(issue["body"], body):
+                return int(issue["number"])
+        return self.create_issue(title, body, label)
 
     def closure(self, number: int) -> Closure:
         return closure_of(self._json("issue", "view", str(number), "--json", CLOSURE_FIELDS))
@@ -127,6 +144,12 @@ class GitHub:
     def pr_comment(self, number: int, body: str) -> None:
         self._gh("pr", "comment", str(number), "--body-file", "-", stdin=body)
 
+    def pr_comment_unless_posted(self, number: int, body: str) -> None:
+        """Comments on the PR, unless it already has this comment (#210)."""
+        raw = self._json("pr", "view", str(number), "--json", "comments")
+        if not any(_same_text(c["body"], body) for c in raw.get("comments") or []):
+            self.pr_comment(number, body)
+
 
 def closure_of(raw: Any) -> Closure:
     """The issue's close reason and the PRs that close it, from its own repository only.
@@ -146,6 +169,11 @@ def _merged_pr(raw: Any) -> MergedPr:
     return MergedPr(
         number=int(raw["number"]), branch=str(raw["headRefName"]), head=str(raw["headRefOid"])
     )
+
+
+def _same_text(saved: object, sent: str) -> bool:
+    """Whether GitHub's copy of a text is the one sent, whatever it did to its whitespace."""
+    return str(saved or "").split() == sent.split()
 
 
 def _number(url: str) -> int:

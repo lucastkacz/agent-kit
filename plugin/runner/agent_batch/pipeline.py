@@ -140,10 +140,15 @@ def review_until_approved(ctx: Context, lane: Lane, job: Job) -> None:
 def _approved_before(ctx: Context, lane: Lane, job: Job) -> bool:
     """Whether an approved review already read the branch's head, as before a failed push."""
     earlier = rounds.earlier(ctx.events.project_records("reviewed"), job.branch)
-    findings = rounds.approved_findings(earlier, ctx.git.head(lane.worktree))
+    head = ctx.git.head(lane.worktree)
+    findings = rounds.approved_findings(earlier, head)
     if findings is None:
         return False
     job.findings = findings
+    # Says why this run reviewed nothing, which its summary's 0 rounds don't (#210).
+    ctx.events.emit(
+        "review_reused", lane=lane.index, issue=job.issue.number, branch=job.branch, head=head
+    )
     return True
 
 
@@ -159,7 +164,7 @@ def publish(ctx: Context, lane: Lane, job: Job) -> int:
     if opened:
         ctx.events.emit("pr_opened", lane=lane.index, issue=job.issue.number, pr=pr)
     else:
-        ctx.gh.edit_pr(pr, title, body)
+        retry.retried(lambda: ctx.gh.edit_pr(pr, title, body), wait)
         ctx.events.emit("pr_updated", lane=lane.index, issue=job.issue.number, pr=pr)
     job.report.pr = pr
     filing.file(ctx, job.issue.number, job.branch, done.found)

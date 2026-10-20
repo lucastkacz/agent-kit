@@ -31,3 +31,20 @@ def retried[T](call: Callable[[], T], wait: float) -> T:
         f"The call failed after {TRIES} tries, each with a GitHub server error; the last one: "
         f"{failure}"
     ) from failure
+
+
+def retried_with[T](first: Callable[[], T], again: Callable[[], T], wait: float) -> T:
+    """`retried`, with `again` in place of `first` on the later tries.
+
+    GitHub can do a call's work and then answer with a server error (#195), so `again` looks for
+    that work before it does it: a retry posts no comment, and opens no issue, twice.
+    """
+    tried = False
+
+    def call() -> T:
+        nonlocal tried
+        attempt = again if tried else first
+        tried = True
+        return attempt()
+
+    return retried(call, wait)
