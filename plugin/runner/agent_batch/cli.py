@@ -156,8 +156,9 @@ def _status() -> int:
     """Prints a row per lane of the running batches and `agent-batch ship` runs (#107)."""
     config = Config()
     repo = Git(config).main_root(Path.cwd())
-    rows = status.running(repo / config.state_dir)
-    sys.stdout.write(progress.render(rows, time.time()))
+    state_dir = repo / config.state_dir
+    rows = status.running(state_dir)
+    sys.stdout.write(progress.render(rows, time.time(), status.idle(state_dir)))
     return 0
 
 

@@ -33,6 +33,11 @@ class StatusBoard:
         # A resumed batch starts with its earlier runs', from its event log (#156).
         self._spent_usd, self._spent_tokens = spent
 
+    def open(self) -> None:
+        """The runner starts: its batch shows with no lanes until the first one starts (#217)."""
+        with self._lock:
+            self._write()
+
     def start(self, lane: int, state: LaneState) -> None:
         """The lane starts an issue; until the next one, its row shows this one."""
         with self._lock:
@@ -115,10 +120,21 @@ class StatusBoard:
 
 def running(state_dir: Path) -> list[Row]:
     """The lanes of each batch and `agent-batch ship` whose runner still runs."""
-    rows: list[Row] = []
+    return [row for rows in _live(state_dir).values() for row in rows]
+
+
+def idle(state_dir: Path) -> list[str]:
+    """The batches and `agent-batch ship` runs whose runner still runs with no lane at work."""
+    return [run for run, rows in _live(state_dir).items() if not rows]
+
+
+def _live(state_dir: Path) -> dict[str, list[Row]]:
+    """The lanes of each run whose runner still runs, by its state's folder."""
+    runs: dict[str, list[Row]] = {}
     for path in sorted(state_dir.glob(f"*/{STATUS}")):
         record = progress.parse_status(path.read_text(encoding="utf-8"))
         if record is None or not system.is_running(record[0]):
             continue
-        rows += [Row(path.parent.name, lane, state) for lane, state in record[1]]
-    return rows
+        run = path.parent.name
+        runs[run] = [Row(run, lane, state) for lane, state in record[1]]
+    return runs

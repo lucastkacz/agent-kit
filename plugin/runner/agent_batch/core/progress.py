@@ -25,6 +25,8 @@ TOKEN_FIELDS = (
     "output_tokens",
 )
 HEADER = ("RUN", "ISSUE", "STEP", "ROUND", "LAST ACTION", "TIME", "COST")
+# A runner's row while it runs with no lane at work.
+IDLE = "no lane at work"
 NOTHING = "Nothing is running: no batch lane and no `agent-batch ship`.\n"
 # The steps' names in the status line, which has little room (#108).
 SHORT_STEPS = {
@@ -220,12 +222,17 @@ def _number(value: object) -> float | None:
     return float(value)
 
 
-def render(rows: Sequence[Row], now: float) -> str:
-    """A table with a row per lane: its issue, step, round, last action, minutes and cost."""
-    if not rows:
+def render(rows: Sequence[Row], now: float, idle: Sequence[str] = ()) -> str:
+    """A table with a row per lane: its issue, step, round, last action, minutes and cost.
+
+    And a row for each run in `idle`, whose runner runs with no lane at work, as before its
+    first lane starts an issue (#217).
+    """
+    if not rows and not idle:
         return NOTHING
-    ordered = sorted(rows, key=lambda row: (row.run, row.lane))
-    table = [HEADER, *(_cells(row, now) for row in ordered)]
+    keyed = [((row.run, row.lane), _cells(row, now)) for row in rows]
+    keyed += [((run, -1), _runner_cells(run)) for run in idle]
+    table = [HEADER, *(cells for _, cells in sorted(keyed))]
     widths = [max(len(line[column]) for line in table) for column in range(len(HEADER))]
     return "".join(
         "  ".join(cell.ljust(width) for cell, width in zip(line, widths, strict=True)).rstrip()
@@ -278,6 +285,10 @@ def _cells(row: Row, now: float) -> tuple[str, ...]:
         action = f"{state.action}, {_ago(now - state.action_time)}"
     minutes = f"{_whole_minutes(now - state.started)} min"
     return (run, f"#{state.issue}", step, review_round, action, minutes, _cost(state))
+
+
+def _runner_cells(run: str) -> tuple[str, ...]:
+    return (f"{run}, runner", "-", IDLE, "-", "-", "-", "-")
 
 
 def _cost(state: LaneState) -> str:
