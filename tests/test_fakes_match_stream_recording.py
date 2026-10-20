@@ -8,7 +8,7 @@ from typing import Any
 
 import fake_claude
 
-from test_fakes_match_recordings import CLAUDE_FIELDS, MISSING, kind, pluck
+from recorded_answers import CLAUDE_FIELDS, MISSING, kind, pluck
 
 RECORDED = Path(__file__).parent / "contract" / "recorded" / "claude-stream.json"
 # The fields the runner reads from a tool use, and from each tool's input for its short form.

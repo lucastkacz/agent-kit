@@ -7,9 +7,9 @@ import pytest
 from agent_batch import batch
 from agent_batch.context import Context
 from agent_batch.shell.proc import CommandError
+from batch_runs import events
+from clean_branches import MERGED, add_pr, branch_with_work, clean, local_branches, said_about
 from conftest import World, git
-from test_clean import MERGED, add_pr, branch_with_work, clean, local_branches, said_about
-from test_clean_when_batches_start_and_close import events
 
 
 def test_clean_keeps_a_merged_branch_checked_out_in_the_main_folder(

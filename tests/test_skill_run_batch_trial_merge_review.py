@@ -5,9 +5,9 @@ Each test checks the few words that carry the behavior, so rewording the skill d
 
 from __future__ import annotations
 
-from test_skill_run_batch_trial_merge import SKILL, TRIAL, section
+from run_batch_skill import SKILL, TRIAL, section, skill_text
 
-ACCEPT = SKILL.parents[1] / "accept-batch" / "SKILL.md"
+ACCEPT = SKILL.parent / "accept-batch" / "SKILL.md"
 
 
 def has(text: str, *tokens: str) -> None:
@@ -16,7 +16,7 @@ def has(text: str, *tokens: str) -> None:
 
 
 def test_only_a_pr_that_fails_on_master_alone_is_brought_up_to_date() -> None:
-    trial = section(TRIAL)
+    trial = section(skill_text(), TRIAL)
     has(trial, "try it alone on master", "git switch --detach origin/master")
     has(trial, "fails only on top of an earlier waiting PR", "conflict or failing check alike")
     has(trial, "leave it out of the PRs the owner names now", "merges after the PRs before it")
@@ -26,13 +26,13 @@ def test_only_a_pr_that_fails_on_master_alone_is_brought_up_to_date() -> None:
 
 
 def test_the_trial_runs_again_only_after_a_pr_was_brought_up_to_date_and_ends() -> None:
-    trial = section(TRIAL)
+    trial = section(skill_text(), TRIAL)
     has(trial, "Run it again only when step 6 brought a PR up to date")
     has(trial, "bring each PR up to date at most once", "the trial ends")
 
 
 def test_a_pr_is_brought_up_to_date_in_a_ship_worktree_made_as_for_a_cloud_branch() -> None:
-    trial = section(TRIAL)
+    trial = section(skill_text(), TRIAL)
     has(trial, "a lane's PR too", "the runner removes a lane's worktree when the lane ends")
     has(trial, "git fetch origin <branch>", 'as in "Bring a cloud branch back" step 3')
     assert "the lane's worktree for a lane's" not in trial, trial
@@ -40,7 +40,7 @@ def test_a_pr_is_brought_up_to_date_in_a_ship_worktree_made_as_for_a_cloud_branc
 
 
 def test_the_trial_comments_its_result_on_the_tracking_issue() -> None:
-    trial = section(TRIAL)
+    trial = section(skill_text(), TRIAL)
     has(trial, "Comment the trial's result on the tracking issue", "`## Trial merge`")
     has(trial, "the PRs that merged cleanly, in the trial's order", "each PR left out, with why")
     assert trial.index("8. Comment the trial's result") > trial.index("7. "), trial

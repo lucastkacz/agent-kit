@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import World
-from test_session_hooks import context
+from hook_runs import context
 
 # What never authorizes a merge, as SPEC §9.2 lists it.
 NOT_THE_OWNER = (

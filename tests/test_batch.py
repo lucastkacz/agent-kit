@@ -5,43 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from batch_runs import APPROVED, BATCH, CHANGES, done, pr_for
 from conftest import World
-
-BATCH = 1
-APPROVED = {"output": {"verdict": "approved", "findings": []}}
-CHANGES = {
-    "output": {
-        "verdict": "changes",
-        "findings": [
-            {
-                "severity": "high",
-                "origin": "new",
-                "location": "a.py:1",
-                "problem": "It breaks.",
-                "suggestion": "Fix.",
-            }
-        ],
-    }
-}
-
-
-def done(**extra: Any) -> dict[str, Any]:
-    output = {
-        "status": "done",
-        "title": "feat: a thing",
-        "pr_body": "Body.",
-        "message": "",
-        "found": [],
-    }
-    return {"output": {**output, **extra}}
-
-
-def pr_for(world: World, issue: int) -> dict[str, Any]:
-    prs: list[dict[str, Any]] = [
-        pr for pr in world.gh()["prs"].values() if pr["branch"].startswith(f"{issue}-")
-    ]
-    assert len(prs) == 1, prs
-    return prs[0]
 
 
 def events(world: World) -> list[dict[str, Any]]:

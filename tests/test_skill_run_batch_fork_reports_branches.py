@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from test_skill_run_batch_cloud_dispatch import section, skill_text
+from run_batch_skill import section, skill_text
 
 
 def test_the_fork_reports_each_issues_branch_with_its_routine() -> None:

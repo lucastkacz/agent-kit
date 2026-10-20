@@ -7,7 +7,7 @@ import json
 from agent_batch.core import denial_log, results
 from agent_batch.core.model import Denial
 from conftest import World
-from test_lane_hook_denials import CHECK, SESSION, denial, events, run_batch
+from lane_denials import CHECK, SESSION, denial, events, run_batch
 
 
 def test_a_run_that_dies_without_a_result_still_records_its_hook_logged_denials(

@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 
 from conftest import World
-from test_found_work_one_follow_up import TRIMS, follow_ups, issue_found
-from test_review_rounds import CRASHES, DROPS_A_LINE, SLOW, changes, commit, ship, start_branch
+from follow_ups import TRIMS, follow_ups, issue_found
+from review_rounds import CRASHES, DROPS_A_LINE, SLOW, changes, commit, ship, start_branch
 
 
 def close(world: World, number: str) -> None:

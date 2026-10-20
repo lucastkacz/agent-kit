@@ -9,8 +9,16 @@ from agent_batch import clean as clean_module
 from agent_batch.core.config import Config
 from agent_batch.shell.git import Git
 from agent_batch.shell.proc import CommandError
+from clean_branches import (
+    MERGED,
+    OTHER,
+    add_pr,
+    branch_with_work,
+    clean,
+    local_branches,
+    said_about,
+)
 from conftest import World, git
-from test_clean import MERGED, OTHER, add_pr, branch_with_work, clean, local_branches, said_about
 
 
 def gh_reads_of_one_branch(world: World) -> list[list[str]]:

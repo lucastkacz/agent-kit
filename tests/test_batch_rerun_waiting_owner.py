@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
+from batch_runs import BATCH, calls_for, close_issue, done, pr_for, summary
 from conftest import World, git
-from test_batch import done, pr_for
-from test_batch_rerun import BATCH, calls_for, close_issue, summary
 
 # A change to CI is high risk, so its PR waits for the owner (see `test_batch.py`).
 HIGH_RISK_WORK = {**done(), "files": [".github/workflows/ci.yml"]}

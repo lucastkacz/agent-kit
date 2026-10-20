@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from batch_runs import BATCH, done, pr_for
 from conftest import World
-from test_batch import BATCH, done, pr_for
 
 
 def approved(problem: str) -> dict[str, object]:

@@ -9,18 +9,7 @@ import pytest
 from agent_batch.core.model import ClaudeRun
 from agent_batch.shell.claude import Claude
 from conftest import World, git
-from test_ship import branch_with_work
-
-
-def master_moves_on_the_remote(world: World) -> str:
-    """Another clone pushes to `master`; returns the remote's new `master`."""
-    other = world.root / "other"
-    git(world.root, "clone", "--quiet", str(world.origin), str(other))
-    (other / "later.txt").write_text("later\n")
-    git(other, "add", "-A")
-    git(other, "commit", "--quiet", "-m", "feat: later work on master")
-    git(other, "push", "--quiet", "origin", "HEAD:master")
-    return git(world.origin, "rev-parse", "master").strip()
+from ship_branches import branch_with_work, master_moves_on_the_remote
 
 
 def test_ship_fetches_the_remote_before_the_review(

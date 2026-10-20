@@ -8,8 +8,8 @@ words that carry the behavior, so rewording the skill doesn't break it.
 
 from __future__ import annotations
 
-from test_skill_accept_batch import SKILL, section
-from test_skills import frontmatter
+from accept_batch_skill import SKILL, section
+from skill_files import frontmatter
 
 
 def gather() -> str:

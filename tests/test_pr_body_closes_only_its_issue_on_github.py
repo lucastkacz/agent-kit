@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from batch_runs import done, pr_for
 from conftest import World
-from test_batch import done, pr_for
-from test_ship import branch_with_work
-from test_ship_keeps_the_pr_in_step import only_pr
+from ship_branches import branch_with_work, only_pr
 
 FIXES_ANOTHER = "Adds the feature, and fixes #74.\n"
 

@@ -2,23 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "run-batch"
-
-
-def skill_text() -> str:
-    return (SKILL / "SKILL.md").read_text(encoding="utf-8")
-
-
-def prompt_text() -> str:
-    return (SKILL / "cloud-prompt.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    start = text.index(f"## {heading}")
-    end = text.find("\n## ", start + 1)
-    return text[start : end if end != -1 else len(text)]
+from run_batch_skill import prompt_text, section, skill_text
 
 
 def test_the_check_before_starting_requires_what_the_runner_requires() -> None:

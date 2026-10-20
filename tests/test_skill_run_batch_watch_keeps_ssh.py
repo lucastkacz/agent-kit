@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from test_skill_run_batch_cloud_dispatch import section, skill_text
-from test_skills import implement_step
+from run_batch_skill import section, skill_text
+from skill_files import implement_step
 
 OPTIONS = "-o BatchMode=yes -o ConnectTimeout=15"
 SNIPPET = re.compile(r"`(ssh_command=[^`]+)`")

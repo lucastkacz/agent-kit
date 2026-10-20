@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import test_inhibit_failure_and_unreadable_supply as failure
+import inhibit_fakes
 from agent_batch.shell import system
 from conftest import World
 
@@ -87,8 +87,10 @@ def test_the_failing_systemd_inhibit_isnt_run_ahead_of_the_call_it_checks(
     world: World, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ran = world.root / "failing-inhibit-ran"
-    monkeypatch.setattr(failure, "FAILING_INHIBIT", f'#!/bin/sh\necho ran >> "{ran}"\nexit 1\n')
+    monkeypatch.setattr(
+        inhibit_fakes, "FAILING_INHIBIT", f'#!/bin/sh\necho ran >> "{ran}"\nexit 1\n'
+    )
 
-    failure._failing_inhibit(world)
+    inhibit_fakes.failing_inhibit(world)
 
     assert not ran.exists(), "the failing fake ran before the call it checks"

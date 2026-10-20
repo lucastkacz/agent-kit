@@ -3,19 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
+from batch_runs import BATCH, calls_for, close_issue, stop_after_the_first_issue, summary
 from conftest import World
-
-BATCH = 1
-LIMIT_REACHED = {"error": "Claude usage limit reached."}
-
-
-def close_issue(world: World, number: int) -> None:
-    """Closes the issue, as GitHub does when the PR that says `Closes #N` merges."""
-    state = world.gh()
-    state["issues"][str(number)]["state"] = "CLOSED"
-    world.gh_state.write_text(json.dumps(state))
 
 
 def add_closed_pr(world: World, number: int, branch: str) -> None:
@@ -34,26 +24,6 @@ def add_closed_pr(world: World, number: int, branch: str) -> None:
         "views": [],
     }
     world.gh_state.write_text(json.dumps(state))
-
-
-def calls_for(world: World, kind: str, number: int) -> list[dict[str, Any]]:
-    return [c for c in world.claude_calls() if c["kind"] == kind and c["number"] == number]
-
-
-def summary(world: World) -> str:
-    comments: list[str] = world.gh()["issues"][str(BATCH)]["comments"]
-    return comments[-1]
-
-
-def stop_after_the_first_issue(world: World) -> None:
-    """A first run that merges #10 and stops at #11, as a runner stopped mid-batch would."""
-    world.add_issue(10)
-    world.add_issue(11)
-    world.add_batch(BATCH, "Lane 1: #10, #11\n")
-    world.script("implement", 11, LIMIT_REACHED)
-    world.run("run", str(BATCH))
-    assert "merged 1" in summary(world)
-    close_issue(world, 10)
 
 
 def test_a_rerun_goes_on_to_the_next_issue_after_one_that_already_merged(world: World) -> None:
