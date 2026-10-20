@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import json
-
-from batch_runs import BATCH, calls_for, close_issue, done, pr_for, summary
+from batch_runs import (
+    BATCH,
+    HIGH_RISK_WORK,
+    add_open_pr,
+    calls_for,
+    close_issue,
+    pr_for,
+    summary,
+)
 from conftest import World, git
 
-# A change to CI is high risk, so its PR waits for the owner (see `test_batch.py`).
-HIGH_RISK_WORK = {**done(), "files": [".github/workflows/ci.yml"]}
 EARLIER = "its PR has waited for the owner since an earlier run"
 
 
@@ -19,24 +23,6 @@ def wait_for_the_owner(world: World) -> None:
     world.script("implement", 10, HIGH_RISK_WORK)
     world.run("run", str(BATCH))
     assert pr_for(world, 10)["labels"] == ["risk:high"]
-
-
-def add_open_pr(world: World, number: int, branch: str) -> None:
-    """An open PR on the branch without `risk:high`, as an armed merge that didn't land."""
-    state = world.gh()
-    state["prs"][str(number)] = {
-        "number": number,
-        "branch": branch,
-        "base": "master",
-        "title": "feat: a thing",
-        "body": "Closes #10",
-        "state": "OPEN",
-        "labels": [],
-        "comments": [],
-        "armed": None,
-        "views": [],
-    }
-    world.gh_state.write_text(json.dumps(state))
 
 
 def needs_the_owner(text: str) -> str:

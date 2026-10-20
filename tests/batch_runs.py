@@ -37,6 +37,10 @@ def done(**extra: Any) -> dict[str, Any]:
     return {"output": {**output, **extra}}
 
 
+# A change to CI is high risk, so its PR waits for the owner (see `test_batch.py`).
+HIGH_RISK_WORK = {**done(), "files": [".github/workflows/ci.yml"]}
+
+
 def pr_for(world: World, issue: int) -> dict[str, Any]:
     prs: list[dict[str, Any]] = [
         pr for pr in world.gh()["prs"].values() if pr["branch"].startswith(f"{issue}-")
@@ -54,6 +58,32 @@ def close_issue(world: World, number: int) -> None:
     """Closes the issue, as GitHub does when the PR that says `Closes #N` merges."""
     state = world.gh()
     state["issues"][str(number)]["state"] = "CLOSED"
+    world.gh_state.write_text(json.dumps(state))
+
+
+def unblock(world: World, number: int) -> None:
+    """Takes the `blocked` label off, as the owner does before resuming the batch."""
+    state = world.gh()
+    labels: list[str] = state["issues"][str(number)]["labels"]
+    state["issues"][str(number)]["labels"] = [label for label in labels if label != "blocked"]
+    world.gh_state.write_text(json.dumps(state))
+
+
+def add_open_pr(world: World, number: int, branch: str) -> None:
+    """An open PR on the branch without `risk:high`, as an armed merge that didn't land."""
+    state = world.gh()
+    state["prs"][str(number)] = {
+        "number": number,
+        "branch": branch,
+        "base": "master",
+        "title": "feat: a thing",
+        "body": "Closes #10",
+        "state": "OPEN",
+        "labels": [],
+        "comments": [],
+        "armed": None,
+        "views": [],
+    }
     world.gh_state.write_text(json.dumps(state))
 
 

@@ -6,16 +6,13 @@ between tries are `AGENT_BATCH_POLL_SECONDS`, which the tests set near 0.
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from agent_batch.shell.git import Git
 from agent_batch.shell.github import GitHub
-from agent_batch.shell.proc import CommandError
 from batch_runs import BATCH, events
 from conftest import World
-from github_server_errors import ISSUE, PR_GRAPHQL, PUSH_500, finished
+from github_server_errors import ISSUE, PR_GRAPHQL, PUSH_500, finished, flaky, one_issue
 
 LABEL_502 = "`gh issue edit` failed: HTTP 502: Bad Gateway (https://api.github.com/graphql)"
 COMMENT_503 = (
@@ -34,41 +31,9 @@ PR_REFUSED = (
 BLOCKED = {"status": "blocked", "title": "", "pr_body": "", "message": "Which one?", "found": []}
 
 
-def flaky(
-    monkeypatch: pytest.MonkeyPatch,
-    owner: type,
-    name: str,
-    errors: list[str],
-    only: int | None = None,
-) -> list[tuple[Any, ...]]:
-    """Makes `owner.name` fail with each of `errors` in turn, then work; returns its calls.
-
-    With `only`, just the calls whose first argument is `only` count and fail.
-    """
-    original = getattr(owner, name)
-    calls: list[tuple[Any, ...]] = []
-    left = list(errors)
-
-    def call(self: object, *args: Any) -> Any:
-        if only is not None and args[0] != only:
-            return original(self, *args)
-        calls.append(args)
-        if left:
-            raise CommandError(left.pop(0))
-        return original(self, *args)
-
-    monkeypatch.setattr(owner, name, call)
-    return calls
-
-
 def armed(world: World) -> bool:
     prs = [pr for pr in world.gh()["prs"].values() if pr["branch"].startswith(f"{ISSUE}-")]
     return len(prs) == 1 and bool(prs[0]["armed"])
-
-
-def one_issue(world: World) -> None:
-    world.add_issue(ISSUE)
-    world.add_batch(BATCH, f"Lane 1: #{ISSUE}\n")
 
 
 def test_a_push_that_github_fails_twice_passes_on_the_third_try(

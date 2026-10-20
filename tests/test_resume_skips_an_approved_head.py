@@ -6,41 +6,13 @@ first run's push fails at GitHub after an approved review, as in batch #187.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import pytest
 
-from agent_batch.shell.git import Git
-from agent_batch.shell.proc import CommandError
+from batch_runs import BATCH
 from conftest import World
-
-BATCH = 1
-ISSUE = 10
-PUSH_500 = "`git push --quiet` failed: remote: Internal Server Error"
-
-
-def fail_the_first_pushes(monkeypatch: pytest.MonkeyPatch, times: int) -> list[str]:
-    """Makes the first `times` pushes fail with a server error; returns the pushed branches."""
-    original = Git.push
-    pushed: list[str] = []
-
-    def push(self: Git, worktree: Any, branch: str) -> None:
-        pushed.append(branch)
-        if len(pushed) <= times:
-            raise CommandError(PUSH_500)
-        original(self, worktree, branch)
-
-    monkeypatch.setattr(Git, "push", push)
-    return pushed
-
-
-def unblock(world: World, number: int) -> None:
-    """Takes the `blocked` label off, as the owner does before resuming the batch."""
-    state = world.gh()
-    labels: list[str] = state["issues"][str(number)]["labels"]
-    state["issues"][str(number)]["labels"] = [label for label in labels if label != "blocked"]
-    world.gh_state.write_text(json.dumps(state))
+from github_server_errors import ISSUE, fail_after_the_review
 
 
 def calls_for(world: World, kind: str) -> list[dict[str, Any]]:
@@ -52,18 +24,6 @@ def the_pr(world: World) -> dict[str, Any]:
     assert len(prs) == 1, prs
     pr: dict[str, Any] = prs[0]
     return pr
-
-
-def fail_after_the_review(world: World, monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """A first run whose approved branch never reaches GitHub, unblocked for the resume."""
-    world.add_issue(ISSUE)
-    world.add_batch(BATCH, f"Lane 1: #{ISSUE}\n")
-    pushed = fail_the_first_pushes(monkeypatch, 3)
-    world.run("run", str(BATCH))
-    assert len(calls_for(world, "review")) == 1
-    assert not world.gh()["prs"]
-    unblock(world, ISSUE)
-    return pushed
 
 
 def test_a_resume_pushes_an_approved_head_without_another_review(
