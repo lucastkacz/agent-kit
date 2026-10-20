@@ -10,10 +10,11 @@ hook, with the run's session id, as auto mode's denials of a lane do.
 Asked for `--output-format stream-json`, it prints one message per line, as the real one does: its
 start, an assistant message for each of the step's `tools`, then its answer. A tool's `tokens` are
 its message's usage, and tools with the same `message` share one, as the real stream repeats a
-message with several blocks once per block. With `snapshot`, it
-waits after each tool use until the runner's status files change, and keeps a copy of them; a tool
-that names what it `shows` waits instead until a status file shows that text. A step's `stderr` goes to its standard error. An implementer's `done` commits work unless its step
-says `"commits": false`, as a resumed run on a finished branch does.
+message with several blocks once per block. With `snapshot`, it waits after each tool use until the
+runner's status files change, and keeps a copy of them; a tool that names what it `shows` waits
+instead until a status file shows that text. A step's `stderr` goes to its standard error. An
+implementer's `done` commits work unless its step says `"commits": false`, as a resumed run on a
+finished branch does.
 """
 
 from __future__ import annotations
