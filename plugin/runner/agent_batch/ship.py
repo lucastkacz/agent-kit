@@ -7,7 +7,7 @@ from pathlib import Path
 
 from agent_batch.context import Context, Lane
 from agent_batch.core import eligibility, naming, progress, prompts
-from agent_batch.core.model import ImplementResult, Issue, IssueReport, Outcome
+from agent_batch.core.model import ImplementResult, IssueReport, Outcome
 from agent_batch.job import Job, Stopped, require_committed, review_once
 from agent_batch.landing import classify, hold
 from agent_batch.pipeline import publish
@@ -20,6 +20,13 @@ class ShipError(RuntimeError):
 
 
 def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
+    # Refused before the review: `publish` would fall back to the issue's title, cut mid-phrase,
+    # and a caller of `ship` can fix the flag, unlike a lane's implementer.
+    if (wrong := naming.title_refusal(title)) is not None:
+        raise ShipError(
+            f"{title!r} can't be the PR's title: {wrong}. Ship again with a Conventional Commits "
+            f"title of at most {naming.MAX_TITLE} characters, such as 'feat: export the cards'"
+        )
     issue = ctx.gh.issue(number)
     refusal = eligibility.refusal(issue, ctx.owner)
     if refusal is not None:
@@ -34,7 +41,7 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
     job = Job(issue, branch, report, work)
     ctx.status.start(lane.index, progress.LaneState(number, progress.REVIEW, ctx.clock(), 1))
     try:
-        return _ship(ctx, lane, job, title)
+        return _ship(ctx, lane, job)
     except Stopped as stop:
         raise ShipError(stop.detail) from stop
     finally:
@@ -42,7 +49,7 @@ def ship(ctx: Context, cwd: Path, number: int, title: str, body: str) -> int:
         ctx.status.close()
 
 
-def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
+def _ship(ctx: Context, lane: Lane, job: Job) -> int:
     # The review and the risk compare the branch with the base, which may have moved on.
     ctx.git.fetch(lane.worktree)
     require_committed(ctx, lane)
@@ -53,7 +60,6 @@ def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
         return CHANGES_REQUESTED
     job.findings = review.findings
     pr = publish(ctx, lane, job)
-    _explain_title(title, job.issue)
     ctx.status.step(lane.index, progress.RISK_AND_MERGE)
     level = classify(ctx, lane, job)
     if level.high:
@@ -64,15 +70,3 @@ def _ship(ctx: Context, lane: Lane, job: Job, title: str) -> int:
         outcome = Outcome.ARMED
     ctx.events.emit("shipped", issue=job.issue.number, pr=pr, outcome=outcome.value)
     return 0
-
-
-def _explain_title(given: str, issue: Issue) -> None:
-    """Says why the PR didn't get the given title, since `publish` falls back to the issue's."""
-    refusal = naming.title_refusal(given)
-    if refusal is None:
-        return
-    used = naming.pr_title(given, issue)
-    sys.stdout.write(
-        f"The PR's title is {used!r}, not {given!r}: {refusal}. To use another, ship again "
-        f"with a Conventional Commits title of at most {naming.MAX_TITLE} characters.\n"
-    )
