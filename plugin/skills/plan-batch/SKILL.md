@@ -29,7 +29,7 @@ The owner approves the batch once, as a whole. Until then, nothing is labeled `r
 
 ## 2. A new idea
 
-When the owner describes an idea to build, ask only the questions that change what gets built, one topic at a time (SPEC §3.1). Don't ask what you can read in the code or the SPEC.
+When the owner describes an idea to build, settle what gets built with the `interview` skill's rounds (SPEC §3.1): it asks the owner only the decisions, and looks up in the code and the SPEC what it can read there.
 
 ## 3. Write the issues
 
@@ -40,6 +40,7 @@ When the owner describes an idea to build, ask only the questions that change wh
 - Each criterion says how it is verified: `unit`, `integration`, `e2e` or `human(<reason>)`.
 - A criterion is `human(<reason>)` only for one of the reasons in the review skill's check 2: taste; hardware or an operating-system dialog; real accounts, money or personal data; a third-party service without a test environment.
 - The wording of a skill or a doc is verified with a text check, as `tests/test_skills.py` does, not by a human.
+- Then interview the owner about each issue the batch will label `ready`, with the `interview` skill: the new issues and the candidates of step 1, but not the `ready` issues an earlier batch left behind or the answered `blocked` ones, which keep their `ready` label: the owner already approved them. Settle the model first, as step 4's **The model** says, since each issue's ready check runs at the implementer's model.
 
 ## 4. Propose the plan
 
@@ -52,6 +53,7 @@ Show the owner the whole plan at once:
 - **`Lanes:`** `Lanes:` is the number of independent lanes, so they all run at once. Never leave it at the runner's default. A batch with no local lanes, all in the cloud, has no `Lane` or `Lanes:` lines: the runner refuses `Lanes: 0`.
 - **`Budget:`** a `Budget:` line, such as `Budget: 4 issues, 3 hours` (SPEC §11.2).
 - **The cloud.** Which issues go to the cloud (SPEC §12), and what that gains, as a `Cloud: #a, #b` line. Cloud issues go only on that line, in no lane. Only issues that build and test on Linux, with no real data or secrets.
+- **Ready check.** Each issue's ready check, from its interview: how many checks ran and what the last one found, and, for an issue that still had questions after two, whether the owner puts it in as it is or keeps it out.
 - **The model.** Ask the owner the model and the effort, with their own settings as the default: `model` and `effortLevel` in their Claude Code settings (`~/.claude/settings.json`). Read only those two keys, such as with `jq '{model, effortLevel}' ~/.claude/settings.json`, never the whole file: it can hold tokens. If you can't read just those, ask the owner. When a key is missing (`null`), ask for it with no default. Write a `Model:` line only when the owner names a model, as `Model: <model>, <effort>`, or `Model: <model>` alone when the owner names no effort. Add the effort only when it's one of `low`, `medium`, `high`, `xhigh` or `max`: the runner refuses the batch at its start over any other, so ask the owner for one of those. When the owner names no model, leave the line out: the runs use the owner's own settings (SPEC §4.3).
 
 For example:
@@ -68,7 +70,7 @@ Model: opus, high
 
 ## 5. One approval
 
-One approval from the owner, for the whole batch. If they change something, update the plan and show it again. Don't set anything up before they approve.
+One approval from the owner, for the whole batch, after each issue's ready check. If they change something, update the plan and show it again. Don't set anything up before they approve.
 
 ## 6. Set up the batch
 
