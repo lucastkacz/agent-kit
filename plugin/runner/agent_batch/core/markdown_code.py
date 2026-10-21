@@ -32,8 +32,12 @@ BREAK = re.compile(rf"\s*$|{ALONE.pattern}| {{0,3}}(?:>|[-+*][ \t]|\d{{1,9}}[.)]
 # A code span (CommonMark §6.1): a run of backticks up to the next run as long, in one block.
 # A run after a backslash opens none: the backslash escapes it.
 CODE_SPAN = re.compile(r"(?<![`\\])(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)")
-# A line indented as an indented code block's (CommonMark §4.4): a tab counts as 4 spaces.
-INDENTED = re.compile(r" {0,3}\t| {4}")
+# The block quotes' markers at the start of a line whose tabs are expanded (CommonMark §5.1).
+# Unlike QUOTES, it reads text with no tabs left: a marker has at most 3 spaces before its `>`,
+# since 4 make an indented code block, and takes one space after it, one column of a tab.
+QUOTE_MARKERS = re.compile(r"(?: {0,3}> ?)*")
+# How far an indented code block's lines are indented (CommonMark §4.4).
+CODE_INDENT = 4
 
 
 def code(body: str) -> list[range]:
@@ -154,7 +158,7 @@ def _ends_items(
     A line indented less does, unless it's a lazy one that continues an item's paragraph.
     """
     text = lines[index][0]
-    if not text.strip() or len(text) - len(text.lstrip(" ")) >= indent:
+    if not text.strip() or _indent(text) >= indent:
         return False
     lazy = _paragraph(text) or (item is None and ITEM.match(text))
     return not lazy or index == 0 or not lines[index - 1][0].strip()
@@ -232,27 +236,53 @@ def _within(line: str, in_quotes: re.Pattern[str], column: int) -> str | None:
 def indented_code(body: str) -> list[range]:
     """Where the body is an indented code block (CommonMark §4.4) out of list items.
 
-    One starts on an indented line that starts the body, or follows a blank line or a line of its
-    own, and isn't in a list item. It goes on over the lines indented as far and the blank ones.
-    One in a list item counts as text.
+    One starts on an indented line that starts the body, or follows a blank line, a line of its own,
+    a fenced or an indented code block, or a line in fewer block quotes, and isn't in a list item.
+    It goes on over the lines indented as far in those block quotes, and the blank ones. One in a
+    list item counts as text.
     """
     lines = list(re.finditer(r".*\n?", body))
+    after_fenced = {block.stop for fenced, block in _blocks(body) if fenced}
     found: list[range] = []
-    inside = False
+    # The block quotes the indented code block going on is in, or None out of one.
+    quotes: int | None = None
     for index, line in enumerate(lines):
-        if not line[0].strip():
+        depth, text = _quoted(line[0])
+        if not text.strip():
             continue
-        inside = INDENTED.match(line[0]) is not None and (inside or _opens_indented(lines, index))
-        if inside:
+        opens = quotes == depth or _opens_indented(lines, index, after_fenced, quotes)
+        quotes = depth if _indent(text) >= CODE_INDENT and opens else None
+        if quotes is not None:
             found.append(range(line.start(), line.end()))
     return found
 
 
-def _opens_indented(lines: Sequence[re.Match[str]], index: int) -> bool:
+def _opens_indented(
+    lines: Sequence[re.Match[str]], index: int, after_fenced: set[int], quotes: int | None
+) -> bool:
     """Whether this indented line opens an indented code block: one can't interrupt a paragraph,
-    whose lazy line it would be, and in a list item it may be the item's own paragraph."""
-    before = lines[index - 1][0] if index else ""
-    if before.strip() and not ALONE.match(before):
-        return False
-    text = lines[index][0]
-    return not _in_item(lines, index, len(text) - len(text.lstrip(" ")))
+    whose lazy line it would be, and in a list item it may be the item's own paragraph.
+
+    `quotes` is the block quotes of the indented code block the lines before end with, or None.
+    Only a paragraph has lazy lines, so a line right after a fenced or an indented code block
+    interrupts none. Nor does a line in more block quotes than the line before: they open on it.
+    """
+    if index and quotes is None and lines[index - 1].end() not in after_fenced:
+        depth_before, before = _quoted(lines[index - 1][0])
+        depth, _ = _quoted(lines[index][0])
+        if before.strip() and not ALONE.match(before) and depth_before >= depth:
+            return False
+    return not _in_item(lines, index, _indent(lines[index][0]))
+
+
+def _quoted(line: str) -> tuple[int, str]:
+    """How many block quotes the line is in, and its text in them, its tabs expanded."""
+    expanded = line.expandtabs(4)
+    text = QUOTE_MARKERS.sub("", expanded, count=1)
+    return expanded[: len(expanded) - len(text)].count(">"), text
+
+
+def _indent(text: str) -> int:
+    """How far the text is indented, a tab reaching the next multiple of 4 (CommonMark §2.2)."""
+    expanded = text.expandtabs(4)
+    return len(expanded) - len(expanded.lstrip(" "))
