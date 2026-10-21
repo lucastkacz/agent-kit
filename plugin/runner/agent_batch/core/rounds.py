@@ -40,6 +40,11 @@ def earlier(records: Iterable[Mapping[str, object]], branch: str) -> tuple[Round
     return tuple(rounds)
 
 
+def low_passed(records: Iterable[Mapping[str, object]], branch: str) -> bool:
+    """Whether the `low_pass` events show that an approval's findings went back on `branch`."""
+    return any(record.get("branch") == branch for record in records)
+
+
 def approved_findings(earlier: Iterable[Round], head: str) -> tuple[Finding, ...] | None:
     """The findings the PR's body keeps from the last review of `head`, if it approved the branch.
 

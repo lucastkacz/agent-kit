@@ -64,7 +64,8 @@ def test_an_approved_review_without_findings_leaves_the_heading_out(world: World
 
 def test_the_batch_puts_an_approved_reviews_findings_in_the_pr_body(world: World) -> None:
     world.add_issue(10)
-    world.script("review", 10, APPROVED_WITH_FINDINGS)
+    # The second review is the one after the low pass, whose findings go to the PR (#252).
+    world.script("review", 10, APPROVED_WITH_FINDINGS, APPROVED_WITH_FINDINGS)
     world.add_batch(1, "Lane 1: #10\n")
 
     assert world.run("run", "1") == 0

@@ -21,7 +21,9 @@ def test_the_review_after_a_conflict_puts_its_findings_in_the_pr_body(world: Wor
     world.add_issue(10)
     world.add_batch(BATCH, "Lane 1: #10\n")
     world.script("implement", 10, {**done(), "files": ["shared.txt"]})
-    world.script("review", 10, approved("Before the merge."), approved("After the merge."))
+    before = approved("Before the merge.")
+    # The second review is the one after the low pass, whose findings go to the PR (#252).
+    world.script("review", 10, before, before, approved("After the merge."))
     conflict = {"file": "shared.txt", "content": "another lane\n"}
     world.pr_views(
         "10-issue-10",
