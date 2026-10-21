@@ -33,6 +33,8 @@ BREAK = re.compile(rf"\s*$|{ALONE.pattern}| {{0,3}}(?:>|[-+*][ \t]|\d{{1,9}}[.)]
 # A run after a backslash opens none: the backslash escapes it.
 CODE_SPAN = re.compile(r"(?<![`\\])(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)")
 # The block quotes' markers at the start of a line whose tabs are expanded (CommonMark §5.1).
+# Unlike QUOTES, it reads text with no tabs left: a marker has at most 3 spaces before its `>`,
+# since 4 make an indented code block, and takes one space after it, one column of a tab.
 QUOTE_MARKERS = re.compile(r"(?: {0,3}> ?)*")
 # How far an indented code block's lines are indented (CommonMark §4.4).
 CODE_INDENT = 4
