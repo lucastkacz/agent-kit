@@ -234,9 +234,10 @@ def _within(line: str, in_quotes: re.Pattern[str], column: int) -> str | None:
 def indented_code(body: str) -> list[range]:
     """Where the body is an indented code block (CommonMark §4.4) out of list items.
 
-    One starts on an indented line that starts the body, or follows a blank line, a line of its own
-    or a fenced block, in the same block quotes, and isn't in a list item. It goes on over the lines
-    indented as far in those block quotes, and the blank ones. One in a list item counts as text.
+    One starts on an indented line that starts the body, or follows a blank line, a line of its own,
+    a fenced or an indented code block, or a line in fewer block quotes, and isn't in a list item.
+    It goes on over the lines indented as far in those block quotes, and the blank ones. One in a
+    list item counts as text.
     """
     lines = list(re.finditer(r".*\n?", body))
     after_fenced = {block.stop for fenced, block in _blocks(body) if fenced}
@@ -247,22 +248,27 @@ def indented_code(body: str) -> list[range]:
         depth, text = _quoted(line[0])
         if not text.strip():
             continue
-        opens = quotes == depth or _opens_indented(lines, index, after_fenced)
+        opens = quotes == depth or _opens_indented(lines, index, after_fenced, quotes)
         quotes = depth if _indent(text) >= CODE_INDENT and opens else None
         if quotes is not None:
             found.append(range(line.start(), line.end()))
     return found
 
 
-def _opens_indented(lines: Sequence[re.Match[str]], index: int, after_fenced: set[int]) -> bool:
+def _opens_indented(
+    lines: Sequence[re.Match[str]], index: int, after_fenced: set[int], quotes: int | None
+) -> bool:
     """Whether this indented line opens an indented code block: one can't interrupt a paragraph,
     whose lazy line it would be, and in a list item it may be the item's own paragraph.
 
-    A fenced block ends at its closing line, so a line right after it interrupts no paragraph.
+    `quotes` is the block quotes of the indented code block the lines before end with, or None.
+    Only a paragraph has lazy lines, so a line right after a fenced or an indented code block
+    interrupts none. Nor does a line in more block quotes than the line before: they open on it.
     """
-    if index and lines[index - 1].end() not in after_fenced:
-        _, before = _quoted(lines[index - 1][0])
-        if before.strip() and not ALONE.match(before):
+    if index and quotes is None and lines[index - 1].end() not in after_fenced:
+        depth_before, before = _quoted(lines[index - 1][0])
+        depth, _ = _quoted(lines[index][0])
+        if before.strip() and not ALONE.match(before) and depth_before >= depth:
             return False
     return not _in_item(lines, index, _indent(lines[index][0]))
 
