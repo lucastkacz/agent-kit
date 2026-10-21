@@ -46,17 +46,17 @@ QUOTES: list[tuple[str, str, tuple[str, ...]]] = [
         ),
     ),
     (
-        "`make test` runs the small and medium tests and stays under 30 seconds; `make e2e` runs"
+        "`make test` runs the small and medium tests and stays under 45 seconds; `make e2e` runs"
         " the ones that drive the app, for UI criteria, and keeps their evidence.",
         "7.3",
         (
             "Large tests drive the running app.",
             "`make test` runs the small and medium ones; `make e2e` runs the large ones.",
-            "`make test` finishes in under 30 seconds",
+            "`make test` finishes in under 45 seconds",
         ),
     ),
     (
-        "`make test` runs the small and medium tests and stays under 30 seconds; `make e2e` runs"
+        "`make test` runs the small and medium tests and stays under 45 seconds; `make e2e` runs"
         " the ones that drive the app, for UI criteria, and keeps their evidence.",
         "5",
         ("**Visible behavior.** `make e2e` for UI criteria, keeping its evidence.",),

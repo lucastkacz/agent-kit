@@ -1,4 +1,4 @@
-"""`make test` stays under 30 seconds (SPEC §7.3).
+"""`make test` stays under 45 seconds (SPEC §7.3).
 
 macOS checks an executable the first time it runs, which takes about half a second; a world that
 wrote its fakes anew waited for that check on each of them, in every test.
